@@ -85,8 +85,9 @@ describe("api OTP", () => {
 describe("api clubs", () => {
   it("creates a trimmed club and makes it active", async () => {
     const c = await api.createClub({ ...club, name: "  নতুন   পল্লী ক্লাব " });
-    expect(c.name).toBe("নতুন   পল্লী ক্লাব");
-    expect((await api.getClubs()).active_club_id).toBe(c.id);
+    expect(c.name_bn).toBe("নতুন   পল্লী ক্লাব");
+    expect(c.area_label).toBe("");
+    expect((await api.getClub())?.id).toBe(c.id);
   });
 
   it("rejects invalid input and duplicate names", async () => {
@@ -95,11 +96,13 @@ describe("api clubs", () => {
     await rejectsWith(api.createClub({ ...club, name: "নতুন  পল্লী ক্লাব" }), "err_clubExists");
   });
 
-  it("enterDemo switches back to the seeded demo club", async () => {
-    const { clubs } = await api.getClubs();
+  it("starts with no club; seedDemo opens the sample club again after switching", async () => {
+    expect(await api.getClub()).toBeNull();
+    await api.seedDemo();
+    const demo = (await api.getClub())!;
     await api.createClub(club);
-    await api.enterDemo();
-    expect((await api.getClubs()).active_club_id).toBe(clubs[0]!.id);
+    await api.seedDemo();
+    expect((await api.getClub())?.id).toBe(demo.id);
   });
 });
 

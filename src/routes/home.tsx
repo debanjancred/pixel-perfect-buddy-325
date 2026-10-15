@@ -1,7 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus, Minus, Megaphone, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { useChandas, useExpenses, useMembers, useSummary } from "@/hooks/use-data";
+import {
+  useExpenses,
+  useHouseholds,
+  useMembers,
+  useSummary,
+  useTransactions,
+} from "@/hooks/use-data";
+import { isVoid } from "@/lib/accounts";
 import { AppShell } from "@/components/pk/AppShell";
 import { SyncBadge } from "@/components/pk/ui";
 
@@ -26,37 +33,41 @@ export const Route = createFileRoute("/home")({
 });
 
 function HomePage() {
-  const { t, money, n, pick, ago } = useI18n();
+  const { t, money, n, ago } = useI18n();
   const { data: s, isError, refetch } = useSummary();
-  const { data: chandas = [], isPending: chandasLoading } = useChandas();
+  const { data: chandas = [], isPending: chandasLoading } = useTransactions();
+  const { data: households = [] } = useHouseholds();
   const { data: expenses = [], isPending: expensesLoading } = useExpenses();
   const { data: members = [] } = useMembers();
-  // The label shows the real figure (can pass 100%); only the bar is capped.
-  const pctReal = s && s.target ? Math.round((s.collected / s.target) * 100) : 0;
-  const pct = Math.min(100, pctReal);
+  const pct = s?.progress_pct ?? 0;
 
   const stream = [
-    ...chandas.map((c) => ({
-      id: c.id,
-      kind: "in" as const,
-      name: pick(c.payer_name, c.payer_name_en),
-      amount: c.amount,
-      sub: c.payment_mode === "upi" ? "UPI" : t("cash"),
-      at: c.created_at,
-      sync: c.sync_status,
-    })),
-    ...expenses.map((e) => {
-      const m = members.find((x) => x.id === e.approved_by_id);
-      return {
-        id: e.id,
-        kind: "out" as const,
-        name: pick(e.item_name, e.item_name_en),
-        amount: e.amount,
-        sub: m ? pick(m.name, m.name_en) : "",
-        at: e.created_at,
-        sync: e.sync_status,
-      };
-    }),
+    // Money actually received: collected, non-void entries only.
+    ...chandas
+      .filter((c) => c.status === "collected" && !isVoid(c))
+      .map((c) => ({
+        id: c.id,
+        kind: "in" as const,
+        name: households.find((h) => h.id === c.household_id)?.resident_name ?? "—",
+        amount: c.amount,
+        sub: c.payment_method === "upi" ? "UPI" : t("cash"),
+        at: c.created_at,
+        sync: c.sync_status,
+      })),
+    ...expenses
+      .filter((e) => !isVoid(e))
+      .map((e) => {
+        const m = members.find((x) => x.id === e.authorized_by_id);
+        return {
+          id: e.id,
+          kind: "out" as const,
+          name: e.title,
+          amount: e.amount,
+          sub: m?.name ?? "",
+          at: e.created_at,
+          sync: e.sync_status,
+        };
+      }),
   ]
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 5);
@@ -76,22 +87,24 @@ function HomePage() {
       )}
       <section className="bg-hero rounded-3xl p-5 text-primary-foreground" aria-busy={!s}>
         <div className="text-sm font-semibold opacity-85">{t("balance")}</div>
-        <div className="num text-4xl font-extrabold">{s ? money(s.balance) : "—"}</div>
+        <div className="num text-4xl font-extrabold">{s ? money(s.net_balance) : "—"}</div>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-primary-foreground/12 p-3">
             <div className="text-xs opacity-85">{t("collected")}</div>
-            <div className="num text-xl font-bold">{s ? money(s.collected) : "—"}</div>
+            <div className="num text-xl font-bold">{s ? money(s.total_collected) : "—"}</div>
           </div>
           <div className="rounded-2xl bg-primary-foreground/12 p-3">
             <div className="text-xs opacity-85">{t("spent")}</div>
-            <div className="num text-xl font-bold">{s ? money(s.spent) : "—"}</div>
+            <div className="num text-xl font-bold">{s ? money(s.total_expenses) : "—"}</div>
           </div>
         </div>
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between text-sm">
-            <span className="num">{s ? `${money(s.collected)} / ${money(s.target)}` : ""}</span>
+            <span className="num">
+              {s ? `${money(s.total_collected)} / ${money(s.collection_target)}` : ""}
+            </span>
             <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-extrabold text-foreground">
-              {n(String(pctReal))}%
+              {n(String(pct))}%
             </span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-primary-foreground/20">

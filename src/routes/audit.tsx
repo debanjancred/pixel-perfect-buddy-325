@@ -4,10 +4,10 @@ import { BadgeCheck, Download, Share2, ArrowLeft } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useI18n } from "@/lib/i18n";
 import { CATEGORIES } from "@/lib/categories";
-import { useExpenses, useSummary } from "@/hooks/use-data";
+import { useClub, useExpenses, useSummary } from "@/hooks/use-data";
+import { isVoid } from "@/lib/accounts";
 import { AlponaStrip, LangToggle } from "@/components/pk/ui";
 import { shareOrWhatsApp } from "@/lib/share";
-import { indian, toBnDigits } from "@/lib/format";
 
 export const Route = createFileRoute("/audit")({
   head: () => ({
@@ -30,20 +30,24 @@ export const Route = createFileRoute("/audit")({
 function AuditPage() {
   const { t, money, pick, n } = useI18n();
   const { data: s } = useSummary();
+  const { data: club } = useClub();
   const { data: expenses = [] } = useExpenses();
+  const clubName = club ? pick(club.name_bn, club.name_en) : "";
 
   const byCat = useMemo(
     () =>
       CATEGORIES.map((c) => ({
         ...c,
-        value: expenses.filter((e) => e.category === c.key).reduce((a, e) => a + e.amount, 0),
+        value: expenses
+          .filter((e) => e.category === c.key && !isVoid(e))
+          .reduce((a, e) => a + e.amount, 0),
       })).filter((c) => c.value > 0),
     [expenses],
   );
-  const max = s ? Math.max(s.collected, s.spent, 1) : 1;
+  const max = s ? Math.max(s.total_collected, s.total_expenses, 1) : 1;
 
   const shareText = s
-    ? `📢 ${s.club.name}\nআদায়: ₹${toBnDigits(indian(s.collected))}\nখরচ: ₹${toBnDigits(indian(s.spent))}\nহাতে জমা: ₹${toBnDigits(indian(s.balance))}\nস্বচ্ছ হিসাব দেখুন:`
+    ? `📢 ${clubName}\n${t("collected")}: ${money(s.total_collected)}\n${t("spent")}: ${money(s.total_expenses)}\n${t("balance")}: ${money(s.net_balance)}`
     : "";
 
   const downloadCard = async () => {
@@ -82,7 +86,7 @@ function AuditPage() {
     g.fillText("✦ স্বচ্ছ খাতা · Verified ✦", W / 2, 220);
     g.fillStyle = light;
     g.font = "700 64px 'Hind Siliguri'";
-    const words = s.club.name.split(" ");
+    const words = clubName.split(" ");
     let line = "",
       y = 380;
     for (const w of words) {
@@ -95,9 +99,9 @@ function AuditPage() {
     }
     g.fillText(line, W / 2, y);
     const rows: [string, number][] = [
-      ["আদায়", s.collected],
-      ["খরচ", s.spent],
-      ["হাতে জমা", s.balance],
+      [t("collected"), s.total_collected],
+      [t("spent"), s.total_expenses],
+      [t("balance"), s.net_balance],
     ];
     rows.forEach(([k, v], i) => {
       const yy = 820 + i * 260;
@@ -106,7 +110,7 @@ function AuditPage() {
       g.fillText(k, W / 2, yy);
       g.font = "800 110px 'Hind Siliguri'";
       g.fillStyle = light;
-      g.fillText(`₹${toBnDigits(indian(v))}`, W / 2, yy + 120);
+      g.fillText(money(v), W / 2, yy + 120);
     });
     g.font = "600 44px 'Hind Siliguri'";
     g.fillStyle = gold;
@@ -141,9 +145,7 @@ function AuditPage() {
           </span>
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-extrabold leading-snug">
-            {s ? pick(s.club.name, s.club.name_en) : "…"}
-          </h1>
+          <h1 className="text-2xl font-extrabold leading-snug">{club ? clubName : "…"}</h1>
           <p className="text-sm text-muted-foreground">{t("readOnly")}</p>
         </div>
 
@@ -152,9 +154,9 @@ function AuditPage() {
             {s &&
               (
                 [
-                  ["collected", s.collected],
-                  ["spent", s.spent],
-                  ["balance", s.balance],
+                  ["collected", s.total_collected],
+                  ["spent", s.total_expenses],
+                  ["balance", s.net_balance],
                 ] as const
               ).map(([k, v]) => (
                 <div key={k}>
@@ -170,8 +172,8 @@ function AuditPage() {
           {s &&
             (
               [
-                ["collected", s.collected, "bg-success"],
-                ["spent", s.spent, "bg-primary"],
+                ["collected", s.total_collected, "bg-success"],
+                ["spent", s.total_expenses, "bg-primary"],
               ] as const
             ).map(([k, v, bg]) => (
               <div key={k} className="mt-3">
@@ -218,7 +220,10 @@ function AuditPage() {
                 <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: c.color }} />
                 <span className="flex-1">{t(c.t)}</span>
                 <span className="num font-semibold">
-                  {s && s.spent ? n(String(Math.round((c.value / s.spent) * 100))) : 0}%
+                  {s && s.total_expenses
+                    ? n(String(Math.round((c.value / s.total_expenses) * 100)))
+                    : n("0")}
+                  %
                 </span>
               </li>
             ))}
@@ -229,10 +234,7 @@ function AuditPage() {
           <button className="btn btn-gold" onClick={downloadCard}>
             <Download className="h-5 w-5" /> {t("storyCard")}
           </button>
-          <button
-            className="btn btn-whatsapp"
-            onClick={() => shareOrWhatsApp(shareText, window.location.origin + "/audit")}
-          >
+          <button className="btn btn-whatsapp" onClick={() => shareOrWhatsApp(shareText)}>
             <Share2 className="h-5 w-5" /> {t("share")}
           </button>
         </section>

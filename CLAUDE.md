@@ -32,8 +32,9 @@ defined in `src/styles.css`.
 - Palette: vermilion `#B71C1C`/`#C8102E`, antique gold `#B8860B`, canvas `#FDFBF7`.
   Fonts: Hind Siliguri for Bengali, Inter for English. The alpona motif belongs only
   on the top header — never behind numbers or inputs.
-- Bengali is the default language; the demo club is
-  বিবেকানন্দ পার্ক সার্বজনীন দুর্গোৎসব ২০২৬.
+- Bengali is the default language; the demo club is the generic
+  নমুনা পূজা কমিটি ২০২৬ / Sample Puja Committee 2026 (fixtures in `src/mocks/mockData.ts`,
+  SPEC.md Section 5). Domain types live in `src/types/domain.ts`.
 
 ## Git & releases
 

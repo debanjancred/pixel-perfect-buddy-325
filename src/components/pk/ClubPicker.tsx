@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Check, Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { useClubs, useInvalidateAll } from "@/hooks/use-data";
-import { api } from "@/services/api";
+import { useClubs, useCreateClub, useSetActiveClub } from "@/hooks/use-data";
 import { ValidationError, clubSchema, fieldErrors, sameName, type ErrKey } from "@/lib/validation";
 import { TextField } from "./ui";
 
@@ -12,7 +11,8 @@ const FIELDS = ["name", "para", "zone", "target_amount"] as const;
 export function ClubPicker({ onDone }: { onDone: () => void }) {
   const { t, pick, n, money } = useI18n();
   const { data } = useClubs();
-  const invalidate = useInvalidateAll();
+  const setActive = useSetActiveClub();
+  const createClub = useCreateClub();
   const [creating, setCreating] = useState(false);
   const [f, setF] = useState({ name: "", para: "", zone: "", target: "500000" });
   const [submitted, setSubmitted] = useState(false);
@@ -29,7 +29,7 @@ export function ClubPicker({ onDone }: { onDone: () => void }) {
   const errors = fieldErrors(clubSchema, input);
   if (
     !errors.name &&
-    data?.clubs.some((c) => sameName(c.name, f.name) || sameName(c.name_en, f.name))
+    data?.clubs.some((c) => sameName(c.name_bn, f.name) || sameName(c.name_en, f.name))
   )
     errors.name = "err_clubExists";
   if (serverErr) errors[serverErr.field as keyof typeof errors] ??= serverErr.key;
@@ -40,8 +40,7 @@ export function ClubPicker({ onDone }: { onDone: () => void }) {
   };
 
   const select = async (id: string) => {
-    await api.setActiveClub(id);
-    await invalidate();
+    await setActive.mutateAsync(id);
     onDone();
   };
   const create = async (e: FormEvent) => {
@@ -51,8 +50,7 @@ export function ClubPicker({ onDone }: { onDone: () => void }) {
     if (first) return document.getElementById(`club-${first}`)?.focus();
     setBusy(true);
     try {
-      await api.createClub(input);
-      await invalidate();
+      await createClub.mutateAsync(input);
       onDone();
     } catch (err) {
       if (!(err instanceof ValidationError)) throw err;
@@ -129,10 +127,8 @@ export function ClubPicker({ onDone }: { onDone: () => void }) {
           className="flex min-h-16 w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left"
         >
           <div className="min-w-0 flex-1">
-            <div className="font-bold">{pick(c.name, c.name_en)}</div>
-            <div className="text-sm text-muted-foreground">
-              {[c.para, c.zone].filter(Boolean).join(" · ")}
-            </div>
+            <div className="font-bold">{pick(c.name_bn, c.name_en)}</div>
+            <div className="text-sm text-muted-foreground">{c.area_label}</div>
           </div>
           {data.active_club_id === c.id && <Check className="h-5 w-5 text-primary" />}
         </button>

@@ -1,15 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Camera, ImageIcon, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useI18n } from "@/lib/i18n";
 import { CATEGORIES } from "@/lib/categories";
-import { useExpenses, useInvalidateAll, useMembers } from "@/hooks/use-data";
-import { api } from "@/services/api";
-import type { ExpenseCategory } from "@/services/types";
+import {
+  useAddExpense,
+  useCurrentMember,
+  useExpenses,
+  useMembers,
+  useVoucherImage,
+} from "@/hooks/use-data";
+import { isVoid } from "@/lib/accounts";
+import { ValidationError, expenseSchema, fieldErrors, type ErrKey } from "@/lib/validation";
+import type { ExpenseCategory, ExpenseRecord } from "@/types/domain";
 import { AppShell } from "@/components/pk/AppShell";
-import { Label, Modal, SyncBadge } from "@/components/pk/ui";
+import { FieldError, Label, Modal, SyncBadge, TextField } from "@/components/pk/ui";
 
 export const Route = createFileRoute("/expenses")({
   validateSearch: z.object({ add: z.boolean().optional() }),
@@ -34,14 +41,14 @@ export const Route = createFileRoute("/expenses")({
 });
 
 function ExpensesPage() {
-  const { t, money, pick, ago } = useI18n();
+  const { t, money, ago } = useI18n();
   const { add } = Route.useSearch();
   const navigate = useNavigate();
   const { data: expenses = [] } = useExpenses();
   const { data: members = [] } = useMembers();
   const [cat, setCat] = useState<ExpenseCategory | "all">("all");
   const [open, setOpen] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ExpenseRecord | null>(null);
 
   useEffect(() => {
     if (add) {
@@ -54,7 +61,8 @@ function ExpensesPage() {
     () => expenses.filter((e) => cat === "all" || e.category === cat),
     [expenses, cat],
   );
-  const total = list.reduce((s, e) => s + e.amount, 0);
+  // Voided expenses stay listed for audit but never count (SPEC Section 6).
+  const total = list.filter((e) => !isVoid(e)).reduce((s, e) => s + e.amount, 0);
 
   return (
     <AppShell
@@ -91,24 +99,23 @@ function ExpensesPage() {
       <ul className="mt-4 space-y-2">
         {list.map((e) => {
           const c = CATEGORIES.find((x) => x.key === e.category)!;
-          const m = members.find((x) => x.id === e.approved_by_id);
+          const m = members.find((x) => x.id === e.authorized_by_id);
           return (
             <li key={e.id} className="flex gap-3 rounded-2xl border bg-card p-3 shadow-card">
               <button
                 className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted text-2xl"
-                onClick={() => e.receipt_image && setPreview(e.receipt_image)}
+                onClick={() => e.voucher_image_id && setPreview(e)}
                 aria-label={t("receiptPhoto")}
               >
-                {e.receipt_image ? (
-                  <img src={e.receipt_image} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                )}
+                <VoucherThumb id={e.voucher_image_id} />
               </button>
               <div className="min-w-0 flex-1">
-                <div className="font-bold leading-snug">{pick(e.item_name, e.item_name_en)}</div>
+                <div className={`font-bold leading-snug ${isVoid(e) ? "line-through" : ""}`}>
+                  {e.title}
+                </div>
                 <div className="mt-0.5 text-xs text-muted-foreground">
-                  {c.emoji} {t(c.t)} · {t("approvedBy")}: {m ? pick(m.name, m.name_en) : "—"}
+                  {c.emoji} {t(c.t)} · {t("paidTo")}: {e.paid_to} · {t("approvedBy")}:{" "}
+                  {m?.name ?? "—"}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
@@ -130,13 +137,28 @@ function ExpensesPage() {
         defaultCat={cat === "all" ? "pandal" : cat}
       />
       <Modal open={!!preview} onClose={() => setPreview(null)} title={t("receiptPhoto")}>
-        {preview && <img src={preview} alt="" className="w-full rounded-2xl" />}
+        {preview && <VoucherImage id={preview.voucher_image_id} />}
       </Modal>
     </AppShell>
   );
 }
 
-async function shrink(file: File): Promise<string> {
+function VoucherThumb({ id }: { id: string | undefined }) {
+  const url = useVoucherImage(id);
+  return url ? (
+    <img src={url} alt="" className="h-full w-full object-cover" />
+  ) : (
+    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+  );
+}
+
+function VoucherImage({ id }: { id: string | undefined }) {
+  const url = useVoucherImage(id);
+  return url ? <img src={url} alt="" className="w-full rounded-2xl" /> : null;
+}
+
+/** Downscale a camera photo to ≤ 640px JPEG before it goes to IndexedDB. */
+async function shrink(file: File): Promise<Blob> {
   const url = URL.createObjectURL(file);
   const img = new Image();
   await new Promise((r) => {
@@ -149,8 +171,13 @@ async function shrink(file: File): Promise<string> {
   c.height = img.height * scale;
   c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
   URL.revokeObjectURL(url);
-  return c.toDataURL("image/jpeg", 0.7);
+  return new Promise((resolve, reject) =>
+    c.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/jpeg", 0.7),
+  );
 }
+
+const today = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local time
+type ExpenseField = "title" | "amount" | "paid_to" | "authorized_by_id" | "date";
 
 function AddExpense({
   open,
@@ -161,51 +188,93 @@ function AddExpense({
   onClose: () => void;
   defaultCat: ExpenseCategory;
 }) {
-  const { t, pick, money } = useI18n();
+  const { t, money } = useI18n();
   const { data: members = [] } = useMembers();
-  const invalidate = useInvalidateAll();
+  const me = useCurrentMember();
+  const addExpense = useAddExpense();
   const [cat, setCat] = useState<ExpenseCategory>(defaultCat);
-  const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+  const [paidTo, setPaidTo] = useState("");
+  const [date, setDate] = useState(today);
   const [by, setBy] = useState("");
-  const [img, setImg] = useState<string | null>(null);
+  const [img, setImg] = useState<Blob | null>(null);
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [serverErr, setServerErr] = useState<{ field: string; key: ErrKey } | null>(null);
+  // Client-generated id = idempotency key for retries and double taps.
+  const expenseId = useRef<string | null>(null);
+  // Only admins and treasurers may authorise an expense (Story 3.1).
+  const approvers = members.filter((m) => m.role !== "collector");
 
   useEffect(() => {
     if (open) setCat(defaultCat);
   }, [open, defaultCat]);
   useEffect(() => {
-    if (!by && members[0]) setBy(members[0].id);
-  }, [members, by]);
+    if (by || !approvers.length) return;
+    setBy((approvers.find((m) => m.id === me?.id) ?? approvers[0])!.id);
+  }, [approvers, by, me]);
+  useEffect(() => {
+    if (!img) return setImgUrl(null);
+    const u = URL.createObjectURL(img);
+    setImgUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [img]);
 
-  const ok = name.trim() && Number(amount) > 0 && by;
-  const save = async () => {
-    if (!ok) return;
-    const e = await api.createExpense({
-      category: cat,
-      item_name: name.trim(),
-      amount: Number(amount),
-      approved_by_id: by,
-      receipt_image: img,
-    });
-    await invalidate();
-    toast.success(e.sync_status === "pending" ? t("offlineSaved") : `${money(e.amount)} ✓`);
-    setName("");
-    setAmount("");
-    setImg(null);
-    onClose();
+  const input = {
+    id: expenseId.current ?? "pending",
+    category: cat,
+    title,
+    amount: amount ? Number(amount) : NaN,
+    paid_to: paidTo,
+    authorized_by_id: by,
+    date,
+  };
+  const errors = fieldErrors(expenseSchema, input);
+  const err = (f: ExpenseField) =>
+    (submitted ? errors[f] : undefined) ?? (serverErr?.field === f ? serverErr.key : undefined);
+
+  const save = async (ev: FormEvent) => {
+    ev.preventDefault();
+    if (addExpense.isPending) return;
+    setSubmitted(true);
+    const first = (["title", "amount", "paid_to", "authorized_by_id", "date"] as const).find(
+      (f) => errors[f],
+    );
+    if (first) return document.getElementById(`expense-${first}`)?.focus();
+    setServerErr(null);
+    expenseId.current ??= crypto.randomUUID();
+    try {
+      const e = await addExpense.mutateAsync({ ...input, id: expenseId.current, voucher: img });
+      toast.success(navigator.onLine ? `${money(e.amount)} ✓` : t("offlineSaved"));
+      expenseId.current = null;
+      setTitle("");
+      setAmount("");
+      setPaidTo("");
+      setDate(today());
+      setImg(null);
+      setSubmitted(false);
+      onClose();
+    } catch (ex) {
+      if (!(ex instanceof ValidationError)) throw ex;
+      if (ex.field === "voucher") toast.error(t(ex.key));
+      else setServerErr({ field: ex.field, key: ex.key });
+    }
   };
 
   return (
     <Modal open={open} onClose={onClose} title={t("addExpense")}>
-      <div className="space-y-4">
+      <form className="space-y-4" onSubmit={save} noValidate>
         <div>
           <Label>{t("category")}</Label>
           <div className="grid grid-cols-3 gap-2">
             {CATEGORIES.map((c) => (
               <button
+                type="button"
                 key={c.key}
                 className="chip px-2 text-sm"
                 data-active={cat === c.key}
+                aria-pressed={cat === c.key}
                 onClick={() => setCat(c.key)}
               >
                 {c.emoji} {t(c.t)}
@@ -213,35 +282,66 @@ function AddExpense({
             ))}
           </div>
         </div>
+        <TextField
+          id="expense-title"
+          label={t("itemName")}
+          maxLength={120}
+          value={title}
+          error={err("title")}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <TextField
+          id="expense-amount"
+          label={t("amount")}
+          className="num text-xl font-bold"
+          inputMode="numeric"
+          placeholder="₹"
+          value={amount}
+          error={err("amount")}
+          onChange={(e) => setAmount(e.target.value.replace(/\D/g, "").slice(0, 7))}
+        />
+        <TextField
+          id="expense-paid_to"
+          label={t("paidTo")}
+          maxLength={80}
+          value={paidTo}
+          error={err("paid_to")}
+          onChange={(e) => setPaidTo(e.target.value)}
+        />
+        <TextField
+          id="expense-date"
+          label={t("date")}
+          type="date"
+          value={date}
+          max={today()}
+          error={err("date")}
+          onChange={(e) => setDate(e.target.value)}
+        />
         <div>
-          <Label>{t("itemName")}</Label>
-          <input className="field" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div>
-          <Label>{t("amount")}</Label>
-          <input
-            className="field num text-xl font-bold"
-            inputMode="numeric"
-            placeholder="₹"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
-          />
-        </div>
-        <div>
-          <Label>{t("approvedBy")}</Label>
-          <select className="field" value={by} onChange={(e) => setBy(e.target.value)}>
-            {members.map((m) => (
+          <Label htmlFor="expense-authorized_by_id">{t("approvedBy")}</Label>
+          <select
+            id="expense-authorized_by_id"
+            className="field"
+            value={by}
+            aria-invalid={!!err("authorized_by_id")}
+            aria-describedby={
+              err("authorized_by_id") ? "expense-authorized_by_id-error" : undefined
+            }
+            onChange={(e) => setBy(e.target.value)}
+          >
+            {approvers.map((m) => (
               <option key={m.id} value={m.id}>
-                {pick(m.name, m.name_en)}
+                {m.name} — {t(`role_${m.role}`)}
               </option>
             ))}
           </select>
+          <FieldError id="expense-authorized_by_id-error" error={err("authorized_by_id")} />
         </div>
         <div>
           <Label>{t("receiptPhoto")}</Label>
           <label className="flex min-h-24 cursor-pointer items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-input bg-muted p-3 font-semibold text-muted-foreground">
-            {img ? (
-              <img src={img} alt="" className="h-20 rounded-lg" />
+            {imgUrl ? (
+              <img src={imgUrl} alt="" className="h-20 rounded-lg" />
             ) : (
               <>
                 <Camera className="h-6 w-6" /> {t("takePhoto")}
@@ -259,10 +359,14 @@ function AddExpense({
             />
           </label>
         </div>
-        <button className="btn btn-primary w-full text-lg" disabled={!ok} onClick={save}>
+        <button
+          type="submit"
+          className="btn btn-primary w-full text-lg"
+          disabled={addExpense.isPending}
+        >
           {t("save")}
         </button>
-      </div>
+      </form>
     </Modal>
   );
 }

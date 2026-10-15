@@ -6,6 +6,27 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Added
+- SPEC.md v1.3.0 domain model in `src/types/domain.ts`; service layer implements the spec
+  surface (clubs, members, households, chanda, expenses, events, summary, sync) with
+  validation, idempotent creates (client id) and void-instead-of-delete.
+- Generic demo fixtures (Sample Puja Committee 2026): 15 households, 12 chanda entries
+  including one promised and one void, 4 expenses, 3 members, 2 events.
+- `getSummary()` per SPEC Section 6 with unit tests (void/promised exclusion, zero target,
+  negative balance, >100%).
+- Receipt numbers per collector: `PK-{year}-{collector_code}-{seq}`.
+- Expense form: paid to and date fields; voucher photos stored in IndexedDB.
+- React Query hooks and mutations that invalidate the affected queries.
+
+### Changed
+- All screens read and write through the new hooks; records save locally as pending and
+  sync immediately when online.
+- Roles are admin / treasurer / collector; only admins and treasurers approve expenses.
+- Share texts and the story card format money through i18n; no local-only links shared.
+
+### Removed
+- Household pledge fields (pledges are now `promised` chanda entries) and event slots.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added

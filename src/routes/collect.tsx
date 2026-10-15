@@ -1,22 +1,22 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Search, UserPlus, Banknote, QrCode, Check } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useI18n } from "@/lib/i18n";
 import {
-  useChandas,
+  useAddHousehold,
+  useAddTransaction,
+  useClub,
+  useCurrentMember,
   useHouseholds,
-  useInvalidateAll,
-  useLanes,
   useMembers,
-  useSummary,
+  useTransactions,
 } from "@/hooks/use-data";
-import { api } from "@/services/api";
-import type { Chanda, Household, PaymentMode } from "@/services/types";
+import type { ChandaTransaction, Household, PaymentMethod } from "@/types/domain";
 import { AppShell } from "@/components/pk/AppShell";
 import { FieldError, Label, StatusBadge, TextField } from "@/components/pk/ui";
-import { dueAmount, householdMatches, paidByHousehold } from "@/lib/households";
+import { householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
 import {
   ValidationError,
   amountSchema,
@@ -52,21 +52,22 @@ type Field = "household" | "resident_name" | "house_no" | "phone" | "amount" | "
 // Service-layer field names → the form field that shows the error.
 const FIELD_OF: Record<string, Field> = {
   household_id: "household",
-  payer_name: "household",
-  pledged_amount: "amount",
+  house_flat_no: "house_no",
+  lane_block: "resident_name",
+  phone_number: "phone",
   collector_id: "collector",
 };
 
 function CollectPage() {
-  const { t, money, pick, n } = useI18n();
-  const navigate = useNavigate();
+  const { t, money, n } = useI18n();
   const { household: preselect } = Route.useSearch();
+  const { data: club } = useClub();
   const { data: households = [] } = useHouseholds();
-  const { data: chandas = [], isSuccess: chandasReady } = useChandas();
+  const { data: chandas = [], isSuccess: chandasReady } = useTransactions();
   const { data: members = [] } = useMembers();
-  const { data: lanes = [] } = useLanes();
-  const { data: s } = useSummary();
-  const invalidate = useInvalidateAll();
+  const me = useCurrentMember();
+  const addHousehold = useAddHousehold();
+  const addTransaction = useAddTransaction();
 
   const [q, setQ] = useState("");
   const [hh, setHh] = useState<Household | null>(null);
@@ -75,16 +76,23 @@ function CollectPage() {
   const [amount, setAmount] = useState<number | null>(null);
   const [other, setOther] = useState(false);
   const [otherVal, setOtherVal] = useState("");
-  const [mode, setMode] = useState<PaymentMode>("cash");
+  const [mode, setMode] = useState<PaymentMethod>("cash");
   const [collector, setCollector] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [serverErr, setServerErr] = useState<{ field: Field; key: ErrKey } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [receipt, setReceipt] = useState<Chanda | null>(null);
+  const [receipt, setReceipt] = useState<ChandaTransaction | null>(null);
   const preselectUsed = useRef(false);
+  // Client-generated id = idempotency key: a double tap or retry can't create two entries.
+  const txId = useRef<string | null>(null);
+  const saving = addHousehold.isPending || addTransaction.isPending;
 
-  const paid = useMemo(() => paidByHousehold(chandas), [chandas]);
-  const dueOf = (h: Household) => dueAmount(h, paid.get(h.id) ?? 0);
+  const ledgers = useMemo(() => householdLedgers(chandas), [chandas]);
+  const dueOf = (h: Household) => ledgerOf(ledgers, h.id).due;
+  // Lanes/blocks already used in this club, so new households stay consistent.
+  const lanes = useMemo(() => {
+    const used = [...new Set(households.map((h) => h.lane_block))];
+    return used.length ? used : club?.area_label ? [club.area_label] : [];
+  }, [households, club]);
 
   const setAmountTo = (a: number) => {
     const preset = AMOUNTS.includes(a);
@@ -98,6 +106,20 @@ function CollectPage() {
     const due = dueOf(h);
     if (due > 0) setAmountTo(due);
   };
+  // Story 2.1: after a save the form is ready for the next household.
+  const reset = () => {
+    setHh(null);
+    setQ("");
+    setAdding(false);
+    setNh({ name: "", house: "", lane: 0, phone: "" });
+    setAmount(null);
+    setOther(false);
+    setOtherVal("");
+    setMode("cash");
+    setSubmitted(false);
+    setServerErr(null);
+    txId.current = null;
+  };
 
   // Coming from the register's "Collect" button: preselect once, with the balance due.
   useEffect(() => {
@@ -108,35 +130,37 @@ function CollectPage() {
       choose(f);
     }
   }, [preselect, households, chandasReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Collector defaults to the signed-in member (demo: the first collector).
   useEffect(() => {
-    if (!collector && members[0]) setCollector(members[0].id);
-  }, [members, collector]);
+    if (!collector && me) setCollector(me.id);
+  }, [me, collector]);
 
   const matches = useMemo(
     () =>
       households
         .filter((h) => householdMatches(h, q))
-        .sort((a, b) => Number(a.status === "paid") - Number(b.status === "paid"))
+        .sort(
+          (a, b) =>
+            Number(ledgerOf(ledgers, a.id).status === "paid") -
+            Number(ledgerOf(ledgers, b.id).status === "paid"),
+        )
         .slice(0, 6),
-    [q, households],
+    [q, households, ledgers],
   );
 
   const finalAmount = other ? (otherVal ? Number(otherVal) : NaN) : (amount ?? NaN);
-  const lane = lanes[nh.lane];
   const hhInput = {
     resident_name: nh.name,
-    house_no: nh.house,
-    lane_bn: lane?.bn ?? "",
-    lane_en: lane?.en ?? "",
-    phone: nh.phone,
-    pledged_amount: finalAmount,
+    house_flat_no: nh.house,
+    lane_block: lanes[nh.lane] ?? "",
+    phone_number: nh.phone,
   };
   const hhErr = adding ? fieldErrors(householdSchema, hhInput) : {};
   const errors: Record<Field, ErrKey | null> = {
     household: !adding && !hh ? "err_household" : null,
-    resident_name: hhErr.resident_name ?? null,
-    house_no: hhErr.house_no ?? null,
-    phone: hhErr.phone ?? null,
+    resident_name: hhErr.resident_name ?? hhErr.lane_block ?? null,
+    house_no: hhErr.house_flat_no ?? null,
+    phone: hhErr.phone_number ?? null,
     amount: check(amountSchema, finalAmount),
     collector: collector ? null : "err_collector",
   };
@@ -146,6 +170,7 @@ function CollectPage() {
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     setSubmitted(true);
     const first = (Object.keys(errors) as Field[]).find((f) => errors[f]);
     if (first) {
@@ -154,35 +179,33 @@ function CollectPage() {
       el?.scrollIntoView({ block: "center" });
       return;
     }
-    setSaving(true);
     setServerErr(null);
     try {
       let target = hh;
       if (!target) {
-        target = await api.createHousehold(hhInput);
+        target = await addHousehold.mutateAsync(hhInput);
         // Keep the new household selected so a retry can't register it twice.
         setHh(target);
         setAdding(false);
       }
-      const c = await api.createChanda({
+      txId.current ??= crypto.randomUUID();
+      const c = await addTransaction.mutateAsync({
+        id: txId.current,
         household_id: target.id,
-        payer_name: target.resident_name,
         amount: finalAmount,
-        payment_mode: mode,
+        payment_method: mode,
+        status: "collected",
         collector_id: collector,
       });
-      await invalidate();
-      if (c.sync_status === "pending") toast(t("offlineSaved"));
+      if (!navigator.onLine) toast(t("offlineSaved"));
       setReceipt(c);
     } catch (ex) {
       if (!(ex instanceof ValidationError)) throw ex;
       setServerErr({ field: FIELD_OF[ex.field] ?? (ex.field as Field), key: ex.key });
-    } finally {
-      setSaving(false);
     }
   };
 
-  const hhDue = hh ? dueOf(hh) : 0;
+  const hhLedger = hh ? ledgerOf(ledgers, hh.id) : null;
 
   return (
     <AppShell>
@@ -195,17 +218,17 @@ function CollectPage() {
             <div className="flex items-center gap-3 rounded-2xl border-2 border-primary bg-primary-soft p-3">
               <Check className="h-6 w-6 text-primary" />
               <div className="min-w-0 flex-1">
-                <div className="font-bold">{pick(hh.resident_name, hh.resident_name_en)}</div>
+                <div className="font-bold">{hh.resident_name}</div>
                 <div className="text-sm text-muted-foreground">
-                  {n(hh.house_no)} · {pick(hh.lane_bn, hh.lane_en)}
+                  {n(hh.house_flat_no)} · {hh.lane_block}
                 </div>
                 <div className="mt-0.5 text-sm font-semibold">
-                  {hhDue > 0 ? (
+                  {hhLedger && hhLedger.due > 0 ? (
                     <span className="text-warning">
-                      {t("dueAmount")} <span className="num">{money(hhDue)}</span>
+                      {t("dueAmount")} <span className="num">{money(hhLedger.due)}</span>
                     </span>
                   ) : (
-                    <span className="text-success">{t("paid")}</span>
+                    hhLedger && <StatusBadge status={hhLedger.status} />
                   )}
                 </div>
               </div>
@@ -264,13 +287,13 @@ function CollectPage() {
                   {lanes.map((l, i) => (
                     <button
                       type="button"
-                      key={l.bn}
+                      key={l}
                       className="chip"
                       data-active={nh.lane === i}
                       aria-pressed={nh.lane === i}
                       onClick={() => setNh({ ...nh, lane: i })}
                     >
-                      {pick(l.bn, l.en)}
+                      {l}
                     </button>
                   ))}
                 </div>
@@ -314,12 +337,10 @@ function CollectPage() {
                         onClick={() => choose(h)}
                       >
                         <span className="min-w-10 rounded-lg bg-muted px-1.5 py-1 text-center text-xs font-bold">
-                          {n(h.house_no)}
+                          {n(h.house_flat_no)}
                         </span>
-                        <span className="flex-1 font-semibold">
-                          {pick(h.resident_name, h.resident_name_en)}
-                        </span>
-                        <StatusBadge status={h.status} />
+                        <span className="flex-1 font-semibold">{h.resident_name}</span>
+                        <StatusBadge status={ledgerOf(ledgers, h.id).status} />
                       </button>
                     </li>
                   ))}
@@ -430,7 +451,7 @@ function CollectPage() {
           >
             {members.map((m) => (
               <option key={m.id} value={m.id}>
-                {pick(m.name, m.name_en)} — {t(`role_${m.role}`)}
+                {m.name} — {t(`role_${m.role}`)}
               </option>
             ))}
           </select>
@@ -448,12 +469,13 @@ function CollectPage() {
       <div className="h-6" />
 
       <ReceiptModal
-        chanda={receipt}
-        club={s?.club}
-        phone={hh?.phone}
+        transaction={receipt}
+        club={club ?? undefined}
+        household={hh ?? undefined}
+        collector={members.find((m) => m.id === receipt?.collector_id)}
         onClose={() => {
           setReceipt(null);
-          navigate({ to: "/home" });
+          reset();
         }}
       />
     </AppShell>

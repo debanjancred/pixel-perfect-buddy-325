@@ -3,9 +3,18 @@ import { useState } from "react";
 import { FileSpreadsheet, LogOut, Moon, RotateCcw, Globe, UserPlus, Eye, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
-import { session, useChandas, useExpenses, useInvalidateAll, useMembers } from "@/hooks/use-data";
-import { api } from "@/services/api";
-import type { Role } from "@/services/types";
+import {
+  session,
+  useCreateMember,
+  useExpenses,
+  useHouseholds,
+  useMembers,
+  useResetDemo,
+  useTransactions,
+  useUpdateMemberRole,
+} from "@/hooks/use-data";
+import { ValidationError, normalizePhone } from "@/lib/validation";
+import type { UserRole } from "@/types/domain";
 import { AppShell } from "@/components/pk/AppShell";
 import { Label, LangToggle } from "@/components/pk/ui";
 
@@ -26,7 +35,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-const ROLES: Role[] = ["secretary", "treasurer", "collector"];
+const ROLES: UserRole[] = ["admin", "treasurer", "collector"];
 
 function csv(name: string, rows: (string | number)[][]) {
   const body = rows
@@ -41,13 +50,26 @@ function csv(name: string, rows: (string | number)[][]) {
 }
 
 function AdminPage() {
-  const { t, pick, dark, setDark, bnDigits, setBnDigits } = useI18n();
+  const { t, dark, setDark, bnDigits, setBnDigits } = useI18n();
   const navigate = useNavigate();
-  const invalidate = useInvalidateAll();
   const { data: members = [] } = useMembers();
-  const { data: chandas = [] } = useChandas();
+  const { data: chandas = [] } = useTransactions();
+  const { data: households = [] } = useHouseholds();
   const { data: expenses = [] } = useExpenses();
-  const [nm, setNm] = useState({ name: "", phone: "", role: "collector" as Role });
+  const createMember = useCreateMember();
+  const updateRole = useUpdateMemberRole();
+  const resetDemo = useResetDemo();
+  const [nm, setNm] = useState({ name: "", phone: "", role: "collector" as UserRole });
+
+  const addMember = async () => {
+    try {
+      await createMember.mutateAsync({ ...nm, name: nm.name.trim() });
+      setNm({ name: "", phone: "", role: "collector" });
+    } catch (e) {
+      if (!(e instanceof ValidationError)) throw e;
+      toast.error(t(e.key));
+    }
+  };
 
   const memberName = (id: string) => members.find((m) => m.id === id)?.name ?? "";
 
@@ -62,14 +84,11 @@ function AdminPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-soft font-bold text-primary">
                 {m.name.slice(0, 1)}
               </div>
-              <div className="min-w-0 flex-1 font-semibold">{pick(m.name, m.name_en)}</div>
+              <div className="min-w-0 flex-1 font-semibold">{m.name}</div>
               <select
                 className="field w-auto min-w-0 text-sm"
                 value={m.role}
-                onChange={async (e) => {
-                  await api.updateMemberRole(m.id, e.target.value as Role);
-                  invalidate();
-                }}
+                onChange={(e) => updateRole.mutate({ id: m.id, role: e.target.value as UserRole })}
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -95,7 +114,7 @@ function AdminPage() {
               maxLength={10}
               placeholder={t("phone")}
               value={nm.phone}
-              onChange={(e) => setNm({ ...nm, phone: e.target.value.replace(/\D/g, "") })}
+              onChange={(e) => setNm({ ...nm, phone: normalizePhone(e.target.value) })}
             />
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -112,12 +131,8 @@ function AdminPage() {
           </div>
           <button
             className="btn btn-gold w-full"
-            disabled={!nm.name.trim()}
-            onClick={async () => {
-              await api.createMember({ ...nm, name: nm.name.trim() });
-              setNm({ name: "", phone: "", role: "collector" });
-              invalidate();
-            }}
+            disabled={!nm.name.trim() || createMember.isPending}
+            onClick={addMember}
           >
             <UserPlus className="h-5 w-5" /> {t("addMember")}
           </button>
@@ -133,15 +148,31 @@ function AdminPage() {
             className="btn btn-outline"
             onClick={() =>
               csv("chanda.csv", [
-                ["receipt_no", "payer_name", "amount", "payment_mode", "collector", "created_at"],
-                ...chandas.map((c) => [
-                  c.receipt_no,
-                  c.payer_name,
-                  c.amount,
-                  c.payment_mode,
-                  memberName(c.collector_id),
-                  c.created_at,
-                ]),
+                [
+                  "receipt_no",
+                  "resident_name",
+                  "house_flat_no",
+                  "amount",
+                  "payment_method",
+                  "status",
+                  "collector",
+                  "created_at",
+                  "void_reason",
+                ],
+                ...chandas.map((c) => {
+                  const h = households.find((x) => x.id === c.household_id);
+                  return [
+                    c.receipt_no,
+                    h?.resident_name ?? "",
+                    h?.house_flat_no ?? "",
+                    c.amount,
+                    c.payment_method,
+                    c.status,
+                    memberName(c.collector_id),
+                    c.created_at,
+                    c.void_reason ?? "",
+                  ];
+                }),
               ])
             }
           >
@@ -151,13 +182,15 @@ function AdminPage() {
             className="btn btn-outline"
             onClick={() =>
               csv("expenses.csv", [
-                ["category", "item_name", "amount", "approved_by", "created_at"],
+                ["date", "category", "title", "amount", "paid_to", "authorized_by", "void_reason"],
                 ...expenses.map((e) => [
+                  e.date,
                   e.category,
-                  e.item_name,
+                  e.title,
                   e.amount,
-                  memberName(e.approved_by_id),
-                  e.created_at,
+                  e.paid_to,
+                  memberName(e.authorized_by_id),
+                  e.void_reason ?? "",
                 ]),
               ])
             }
@@ -186,9 +219,9 @@ function AdminPage() {
       <section className="mt-4 grid grid-cols-2 gap-2">
         <button
           className="btn btn-outline"
+          disabled={resetDemo.isPending}
           onClick={async () => {
-            await api.resetDemo();
-            await invalidate();
+            await resetDemo.mutateAsync();
             toast(t("refreshed"));
           }}
         >

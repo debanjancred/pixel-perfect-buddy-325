@@ -1,40 +1,40 @@
 import { Share2, MessageCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { amountInWords, indian, toBnDigits } from "@/lib/format";
-import type { Chanda, Club } from "@/services/types";
+import { amountInWords } from "@/lib/format";
+import type { ChandaTransaction, Club, ClubMember, Household } from "@/types/domain";
 import { AlponaStrip, Modal } from "./ui";
 import { shareOrWhatsApp, waLink } from "@/lib/share";
 
 export function ReceiptModal({
-  chanda,
+  transaction: chanda,
   club,
-  phone,
+  household,
+  collector,
   onClose,
 }: {
-  chanda: Chanda | null;
+  transaction: ChandaTransaction | null;
   club: Club | undefined;
-  phone?: string | undefined;
+  household: Household | undefined;
+  collector: ClubMember | undefined;
   onClose: () => void;
 }) {
-  const { t, pick, money, lang, n } = useI18n();
+  const { t, pick, money, lang, n, date: fmtDate } = useI18n();
   if (!chanda || !club) return null;
+  const phone = household?.phone_number;
   const link = `${window.location.origin}/audit?r=${chanda.receipt_no}`;
-  const msg = `ধন্যবাদ! ${club.name.replace(/\s*২০২৬$/, "")} দুর্গাপূজা ${toBnDigits(String(club.puja_year))}-এর জন্য আপনার ₹${toBnDigits(indian(chanda.amount))} চাঁদা জমা হয়েছে। রসিদ নং ${chanda.receipt_no}। রসিদ দেখুন:`;
-  const date = new Date(chanda.created_at).toLocaleDateString(lang === "bn" ? "bn-IN" : "en-IN", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  // Bilingual receipt text belongs to M3b (Story 2.2); amounts already go through i18n here.
+  const msg = `ধন্যবাদ! ${club.name_bn}-এর জন্য আপনার ${money(chanda.amount)} চাঁদা জমা হয়েছে। রসিদ নং ${chanda.receipt_no}। রসিদ দেখুন:`;
+  const date = fmtDate(chanda.created_at);
 
   return (
     <Modal open onClose={onClose} title={t("receipt")}>
       <div className="overflow-hidden rounded-2xl border-2 border-gold/60 bg-card">
         <div className="bg-hero px-4 pb-4 pt-1 text-center text-primary-foreground">
           <AlponaStrip />
-          <div className="mt-2 text-lg font-bold leading-snug">{pick(club.name, club.name_en)}</div>
-          <div className="text-xs opacity-90">
-            {[club.para, club.zone].filter(Boolean).join(" · ")}
+          <div className="mt-2 text-lg font-bold leading-snug">
+            {pick(club.name_bn, club.name_en)}
           </div>
+          <div className="text-xs opacity-90">{club.area_label}</div>
         </div>
         <dl className="space-y-3 p-4 text-[15px]">
           <Row
@@ -42,8 +42,12 @@ export function ReceiptModal({
             v={<span className="font-mono font-bold text-primary">{chanda.receipt_no}</span>}
           />
           <Row k={t("date")} v={date} />
-          <Row k={t("receivedFrom")} v={<b>{pick(chanda.payer_name, chanda.payer_name_en)}</b>} />
-          <Row k={t("mode")} v={chanda.payment_mode === "cash" ? t("cash") : t("upi")} />
+          <Row k={t("receivedFrom")} v={<b>{household?.resident_name ?? "—"}</b>} />
+          {household && (
+            <Row k={t("household")} v={`${n(household.house_flat_no)} · ${household.lane_block}`} />
+          )}
+          <Row k={t("mode")} v={chanda.payment_method === "cash" ? t("cash") : t("upi")} />
+          {collector && <Row k={t("collector")} v={collector.name} />}
           <div className="rounded-xl bg-gold-soft p-3 text-center">
             <div className="num text-3xl font-extrabold text-primary">{money(chanda.amount)}</div>
             <div className="mt-1 text-sm font-semibold text-gold-ink">

@@ -3,7 +3,8 @@ import { X, CloudOff } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { ErrKey } from "@/lib/validation";
-import type { PledgeStatus, SyncStatus } from "@/services/types";
+import type { HouseholdStatus } from "@/lib/households";
+import type { SyncStatus } from "@/types/domain";
 
 /** Thin alpona motif strip — used only along the top header. */
 export function AlponaStrip() {
@@ -47,7 +48,7 @@ export function LangToggle() {
   );
 }
 
-export function StatusBadge({ status }: { status: PledgeStatus }) {
+export function StatusBadge({ status }: { status: HouseholdStatus }) {
   const { t } = useI18n();
   const cls = {
     paid: "bg-success-soft text-success",

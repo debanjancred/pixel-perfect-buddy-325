@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { Sparkles, Smartphone, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { session, useInvalidateAll } from "@/hooks/use-data";
+import { session, useSeedDemo } from "@/hooks/use-data";
 import { api, DEMO_OTP } from "@/services/api";
 import {
   ValidationError,
@@ -39,7 +39,7 @@ export const Route = createFileRoute("/")({
 function Onboarding() {
   const { t, n } = useI18n();
   const navigate = useNavigate();
-  const invalidate = useInvalidateAll();
+  const seedDemo = useSeedDemo();
   const [step, setStep] = useState<"phone" | "otp" | "club">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -102,9 +102,8 @@ function Onboarding() {
   };
   const demo = () =>
     run(async () => {
-      await api.enterDemo();
+      await seedDemo.mutateAsync();
       session.set({ mode: "demo" });
-      await invalidate();
       navigate({ to: "/home" });
     });
 

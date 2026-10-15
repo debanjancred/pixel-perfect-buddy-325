@@ -71,7 +71,7 @@ const dict = {
   done: ["ঠিক আছে", "Done"],
   expenseLedger: ["খরচের খাতা", "Expense Ledger"],
   cat_pandal: ["প্যান্ডেল", "Pandal"],
-  cat_pratima: ["প্রতিমা", "Idol"],
+  cat_idol: ["প্রতিমা", "Idol"],
   cat_lighting: ["আলোকসজ্জা", "Lighting"],
   cat_bhog: ["ভোগ", "Bhog"],
   cat_cultural: ["অনুষ্ঠান", "Cultural"],
@@ -94,7 +94,7 @@ const dict = {
   shareLink: ["লিংক শেয়ার", "Share link"],
   full: ["পূর্ণ", "Full"],
   adminTitle: ["ক্লাব ও দায়িত্ব", "Club & Roles"],
-  role_secretary: ["সম্পাদক / অ্যাডমিন", "Secretary / Admin"],
+  role_admin: ["অ্যাডমিন", "Admin"],
   role_treasurer: ["কোষাধ্যক্ষ", "Treasurer"],
   role_collector: ["চাঁদা সংগ্রাহক", "Field Collector"],
   addMember: ["সদস্য যোগ করুন", "Add member"],
@@ -124,7 +124,7 @@ const dict = {
   autofill: ["ডেমো OTP 1234 বসান", "Auto-fill demo OTP 1234"],
   verify: ["যাচাই করে ঢুকুন", "Verify & continue"],
   orLabel: ["অথবা", "or"],
-  exploreDemo: ["ডেমো ক্লাব দেখুন", "Explore Demo Club"],
+  exploreDemo: ["নমুনা ক্লাব দেখুন", "Explore Sample Club"],
   chooseClub: ["আপনার ক্লাব বেছে নিন", "Choose your club"],
   minsAgo: ["মিনিট আগে", "min ago"],
   hrsAgo: ["ঘণ্টা আগে", "h ago"],
@@ -141,7 +141,18 @@ const dict = {
   tryAgain: ["আবার চেষ্টা করুন", "Try again"],
   close: ["বন্ধ করুন", "Close"],
   offlineReady: ["অফলাইনেও চলে", "Offline-ready"],
-  demoClub: ["বিবেকানন্দ পার্ক সার্বজনীন", "Vivekananda Park Sarbojanin"],
+  demoClub: ["নমুনা পূজা কমিটি", "Sample Puja Committee"],
+  paidTo: ["কাকে দেওয়া হয়েছে", "Paid to"],
+  err_noClub: ["কোনো ক্লাব বেছে নেওয়া হয়নি", "No club selected"],
+  err_notFound: ["রেকর্ডটি পাওয়া যায়নি", "Record not found"],
+  err_alreadyVoid: ["এই এন্ট্রি আগেই বাতিল হয়েছে", "This entry is already void"],
+  err_voidReason: ["বাতিলের কারণ লিখুন (অন্তত ৩ অক্ষর)", "Give a reason (at least 3 characters)"],
+  err_authorizer: [
+    "অনুমোদনকারী হিসেবে কোষাধ্যক্ষ বা অ্যাডমিন বেছে নিন",
+    "Choose a treasurer or admin to authorise",
+  ],
+  err_date: ["সঠিক তারিখ দিন", "Enter a valid date"],
+  err_voucher: ["ছবিটি সংরক্ষণ করা যায়নি", "Couldn't save the photo"],
   otpSentTo: ["OTP পাঠানো হয়েছে", "OTP sent to"],
   changeNumber: ["নম্বর বদলান", "Change number"],
   resendOtp: ["আবার OTP পাঠান", "Resend OTP"],
@@ -196,6 +207,8 @@ interface Ctx {
   n: (v: number | string) => string;
   money: (v: number) => string;
   ago: (iso: string) => string;
+  /** Calendar date in the current language; digits follow the Bengali-numerals setting. */
+  date: (iso: string) => string;
   pick: (bn: string, en: string) => string;
 }
 
@@ -255,6 +268,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         if (h < 24) return `${n(String(h))} ${t("hrsAgo")}`;
         return `${n(String(Math.round(h / 24)))} ${t("daysAgo")}`;
       },
+      date: (iso) =>
+        n(
+          new Date(iso).toLocaleDateString(lang === "bn" ? "bn-IN" : "en-IN", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+            numberingSystem: "latn",
+          }),
+        ),
     };
   }, [lang, bnDigits, dark, n]);
 

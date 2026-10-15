@@ -45,6 +45,11 @@ export const amountSchema = z
   .min(1, m("err_amount"))
   .max(AMOUNT_MAX, m("err_amount"));
 
+const optionalPhone = z
+  .string()
+  .optional()
+  .refine((v) => !v || phoneSchema.safeParse(v).success, m("err_phone"));
+
 export const householdSchema = z.object({
   resident_name: z
     .string()
@@ -52,23 +57,53 @@ export const householdSchema = z.object({
     .min(1, m("err_required"))
     .min(2, m("err_nameShort"))
     .max(80, m("err_tooLong")),
-  house_no: z.string().trim().min(1, m("err_required")).max(20, m("err_tooLong")),
-  lane_bn: z.string().trim().min(1, m("err_required")),
-  lane_en: z.string().trim().min(1, m("err_required")),
+  house_flat_no: z.string().trim().min(1, m("err_required")).max(20, m("err_tooLong")),
+  lane_block: z.string().trim().min(1, m("err_required")).max(60, m("err_tooLong")),
   // Phone is optional for a household, but must be a valid mobile when given.
-  phone: z.string().refine((v) => v === "" || phoneSchema.safeParse(v).success, m("err_phone")),
-  pledged_amount: amountSchema,
+  phone_number: optionalPhone,
 });
 export type HouseholdInput = z.infer<typeof householdSchema>;
 
+const id = z.string().min(1, m("err_required"));
+
+/** New chanda entries are collected or promised; 'void' only comes from voidChanda(). */
 export const chandaSchema = z.object({
-  household_id: z.string().nullable(),
-  payer_name: z.string().trim().min(1, m("err_required")).max(80, m("err_tooLong")),
+  id,
+  household_id: z.string().min(1, m("err_household")),
   amount: amountSchema,
-  payment_mode: z.enum(["cash", "upi"]),
+  payment_method: z.enum(["cash", "upi"]),
+  status: z.enum(["collected", "promised"]),
   collector_id: z.string().min(1, m("err_collector")),
 });
 export type ChandaInput = z.infer<typeof chandaSchema>;
+
+export const expenseSchema = z.object({
+  id,
+  category: z.enum(["pandal", "idol", "lighting", "bhog", "cultural", "misc"]),
+  title: z.string().trim().min(1, m("err_required")).max(120, m("err_tooLong")),
+  amount: amountSchema,
+  paid_to: z.string().trim().min(1, m("err_required")).max(80, m("err_tooLong")),
+  authorized_by_id: z.string().min(1, m("err_authorizer")),
+  voucher_image_id: z.string().optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, m("err_date"))
+    .refine((v) => !Number.isNaN(Date.parse(v)), m("err_date")),
+});
+export type ExpenseInput = z.infer<typeof expenseSchema>;
+
+export const memberSchema = z.object({
+  name: z.string().trim().min(1, m("err_required")).max(80, m("err_tooLong")),
+  phone: phoneSchema,
+  role: z.enum(["admin", "treasurer", "collector"]),
+});
+export type MemberInput = z.infer<typeof memberSchema>;
+
+export const voidReasonSchema = z
+  .string()
+  .trim()
+  .min(3, m("err_voidReason"))
+  .max(200, m("err_tooLong"));
 
 /** Club names compare case- and space-insensitively. */
 export const sameName = (a: string, b: string) =>

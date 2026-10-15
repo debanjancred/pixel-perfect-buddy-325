@@ -13,8 +13,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n, type TKey } from "@/lib/i18n";
-import { session, useInvalidateAll, useOnline, useSummary } from "@/hooks/use-data";
-import { api } from "@/services/api";
+import {
+  session,
+  useClub,
+  useInvalidateAll,
+  useOnline,
+  useSummary,
+  useSync,
+} from "@/hooks/use-data";
 import { AlponaStrip, LangToggle, Modal } from "./ui";
 import { ClubPicker } from "./ClubPicker";
 
@@ -35,7 +41,9 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
   const navigate = useNavigate();
   const online = useOnline();
   const invalidate = useInvalidateAll();
+  const { data: club, isSuccess: clubLoaded } = useClub();
   const { data: summary } = useSummary();
+  const sync = useSync();
   const [authed, setAuthed] = useState(false);
   const [clubOpen, setClubOpen] = useState(false);
   const [pull, setPull] = useState(0);
@@ -46,13 +54,18 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
     else navigate({ to: "/", replace: true });
   }, [navigate]);
 
+  // A session without a club (e.g. data cleared) goes back to onboarding.
+  useEffect(() => {
+    if (authed && clubLoaded && !club) {
+      session.clear();
+      navigate({ to: "/", replace: true });
+    }
+  }, [authed, clubLoaded, club, navigate]);
+
   useEffect(() => {
     if (!online) return;
-    api.syncPending().then((c) => {
-      if (c > 0) {
-        toast.success(`${n(String(c))} ✓ ${t("synced")}`);
-        invalidate();
-      }
+    sync.mutateAsync().then(({ synced }) => {
+      if (synced > 0) toast.success(`${n(String(synced))} ✓ ${t("synced")}`);
     });
   }, [online]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -98,7 +111,7 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
             />
             <div className="min-w-0">
               <div className="truncate text-[15px] font-bold leading-tight text-primary">
-                {summary ? pick(summary.club.name, summary.club.name_en) : t("app")}
+                {club ? pick(club.name_bn, club.name_en) : t("app")}
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 {online ? (
@@ -107,9 +120,9 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
                   <CloudOff className="h-3 w-3 text-warning" />
                 )}
                 {online ? t("online") : t("offline")}
-                {summary && summary.pending_sync > 0 && (
+                {summary && summary.pending_sync_count > 0 && (
                   <span className="font-semibold text-gold-ink">
-                    · {n(String(summary.pending_sync))} {t("pendingSync")}
+                    · {n(String(summary.pending_sync_count))} {t("pendingSync")}
                   </span>
                 )}
                 <ChevronDown className="h-3 w-3" />

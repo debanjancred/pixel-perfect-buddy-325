@@ -2,11 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Search, MessageCircle, MapPin } from "lucide-react";
 import { useI18n, type TKey } from "@/lib/i18n";
-import { useChandas, useHouseholds, useMembers, useSummary } from "@/hooks/use-data";
+import { useClub, useHouseholds, useMembers, useTransactions } from "@/hooks/use-data";
 import { AppShell, Fab } from "@/components/pk/AppShell";
 import { StatusBadge, SyncBadge } from "@/components/pk/ui";
 import { reminderText, waLink } from "@/lib/share";
-import { dueAmount, householdMatches, paidByHousehold } from "@/lib/households";
+import { householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
+import { isVoid } from "@/lib/accounts";
 
 export const Route = createFileRoute("/chanda")({
   head: () => ({
@@ -40,24 +41,28 @@ const FILTERS: { k: Filter; t: TKey }[] = [
 function ChandaPage() {
   const { t, money, pick, n, lang } = useI18n();
   const { data: households = [], isPending } = useHouseholds();
-  const { data: chandas = [] } = useChandas();
+  const { data: chandas = [] } = useTransactions();
   const { data: members = [] } = useMembers();
-  const { data: s } = useSummary();
+  const { data: club } = useClub();
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
 
   const rows = useMemo(() => {
     const today = new Date().toDateString();
-    const paid = paidByHousehold(chandas);
+    const ledgers = householdLedgers(chandas);
     return households.map((h) => {
-      const mine = chandas.filter((c) => c.household_id === h.id); // newest first
-      const collected = paid.get(h.id) ?? 0;
+      const l = ledgerOf(ledgers, h.id);
       return {
         h,
-        collected,
-        due: dueAmount(h, collected),
-        collector: mine[0] ? members.find((m) => m.id === mine[0]!.collector_id) : undefined,
-        today: mine.some((c) => new Date(c.created_at).toDateString() === today),
+        ...l,
+        collector: l.last ? members.find((m) => m.id === l.last!.collector_id) : undefined,
+        today: chandas.some(
+          (c) =>
+            c.household_id === h.id &&
+            c.status === "collected" &&
+            !isVoid(c) &&
+            new Date(c.created_at).toDateString() === today,
+        ),
       };
     });
   }, [households, chandas, members]);
@@ -65,8 +70,8 @@ function ChandaPage() {
   const counts = useMemo(
     () => ({
       all: rows.length,
-      pending: rows.filter((r) => r.h.status === "pending").length,
-      promised: rows.filter((r) => r.h.status === "promised").length,
+      pending: rows.filter((r) => r.status === "pending").length,
+      promised: rows.filter((r) => r.status === "promised").length,
       today: rows.filter((r) => r.today).length,
     }),
     [rows],
@@ -75,15 +80,15 @@ function ChandaPage() {
   const groups = useMemo(() => {
     const visible = rows.filter(
       (r) =>
-        (filter === "all" || (filter === "today" ? r.today : r.h.status === filter)) &&
+        (filter === "all" || (filter === "today" ? r.today : r.status === filter)) &&
         householdMatches(r.h, q),
     );
     const map = new Map<string, typeof visible>();
-    visible.forEach((r) => map.set(r.h.lane_bn, [...(map.get(r.h.lane_bn) ?? []), r]));
+    visible.forEach((r) => map.set(r.h.lane_block, [...(map.get(r.h.lane_block) ?? []), r]));
     return [...map.entries()];
   }, [rows, filter, q]);
 
-  const clubName = s ? pick(s.club.name, s.club.name_en) : t("app");
+  const clubName = club ? pick(club.name_bn, club.name_en) : t("app");
 
   return (
     <AppShell fab={<Fab to="/collect" label={t("addChanda")} />}>
@@ -133,37 +138,35 @@ function ChandaPage() {
       {groups.map(([lane, rows]) => (
         <section key={lane} className="mt-5">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-gold-ink">
-            <MapPin className="h-4 w-4" /> {pick(lane, rows[0]!.h.lane_en)}{" "}
+            <MapPin className="h-4 w-4" /> {lane}{" "}
             <span className="font-medium text-muted-foreground">
               · {n(String(rows.length))} {t("houses")}
             </span>
           </h2>
           <ul className="space-y-2">
-            {rows.map(({ h, collected, due, collector }) => {
+            {rows.map(({ h, collected, due, status, last, collector }) => {
               const msg = reminderText(
                 lang,
-                pick(h.resident_name, h.resident_name_en),
+                h.resident_name,
                 clubName,
-                money(due),
+                due > 0 ? money(due) : undefined,
               );
               return (
                 <li key={h.id} className="rounded-2xl border bg-card p-3 shadow-card">
                   <div className="flex items-start gap-3">
                     <div className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-muted px-1 text-sm font-extrabold">
-                      {n(h.house_no)}
+                      {n(h.house_flat_no)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-bold leading-snug">
-                        {pick(h.resident_name, h.resident_name_en)}
-                      </div>
+                      <div className="font-bold leading-snug">{h.resident_name}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                        <StatusBadge status={h.status} />
+                        <StatusBadge status={status} />
                         {collector && (
                           <span>
-                            {t("collector")}: {pick(collector.name, collector.name_en)}
+                            {t("collector")}: {collector.name}
                           </span>
                         )}
-                        <SyncBadge status={h.sync_status} />
+                        {last && <SyncBadge status={last.sync_status} />}
                       </div>
                       {due > 0 && collected > 0 && (
                         <div className="mt-1 text-xs font-semibold text-success">
@@ -174,14 +177,20 @@ function ChandaPage() {
                     <div className="text-right">
                       <div className="num font-extrabold">{money(due > 0 ? due : collected)}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        {due > 0 ? (collected > 0 ? t("dueAmount") : t("pledged")) : t("collected")}
+                        {due > 0
+                          ? collected > 0
+                            ? t("dueAmount")
+                            : t("pledged")
+                          : collected > 0
+                            ? t("collected")
+                            : t("pending")}
                       </div>
                     </div>
                   </div>
-                  {due > 0 && (
+                  {status !== "paid" && (
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <a
-                        href={waLink(h.phone, msg)}
+                        href={waLink(h.phone_number, msg)}
                         target="_blank"
                         rel="noreferrer"
                         className="btn btn-whatsapp min-h-12 text-sm"
