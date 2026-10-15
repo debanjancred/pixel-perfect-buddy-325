@@ -36,12 +36,14 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
   const online = useOnline();
   const invalidate = useInvalidateAll();
   const { data: summary } = useSummary();
+  const [authed, setAuthed] = useState(false);
   const [clubOpen, setClubOpen] = useState(false);
   const [pull, setPull] = useState(0);
   const startY = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!session.get()) navigate({ to: "/" });
+    if (session.get()) setAuthed(true);
+    else navigate({ to: "/", replace: true });
   }, [navigate]);
 
   useEffect(() => {
@@ -69,6 +71,9 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
     setPull(0);
     startY.current = null;
   };
+
+  // Render nothing until the session is confirmed so logged-out users never see app data.
+  if (!authed) return <div className="min-h-screen bg-background" aria-busy="true" />;
 
   return (
     <div

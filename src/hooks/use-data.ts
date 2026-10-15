@@ -1,6 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { api } from "@/services/api";
+import { phoneSchema } from "@/lib/validation";
 
 // Data lives in the browser (offline-first), so queries run client-side only.
 export const useSummary = () => useQuery({ queryKey: ["summary"], queryFn: api.getSummary });
@@ -35,16 +37,24 @@ export function useInvalidateAll() {
 }
 
 const SESSION = "pk_session_v1";
+const sessionSchema = z.union([
+  z.object({ mode: z.literal("demo") }),
+  z.object({ mode: z.literal("user"), phone: phoneSchema }),
+]);
+type Session = z.infer<typeof sessionSchema>;
+
 export const session = {
-  get(): { mode: "demo" | "user"; phone?: string } | null {
+  /** Returns null for a missing or tampered session so guards treat it as logged out. */
+  get(): Session | null {
     try {
-      return JSON.parse(localStorage.getItem(SESSION) ?? "null");
+      const r = sessionSchema.safeParse(JSON.parse(localStorage.getItem(SESSION) ?? "null"));
+      return r.success ? r.data : null;
     } catch {
       return null;
     }
   },
-  set(s: { mode: "demo" | "user"; phone?: string }) {
-    localStorage.setItem(SESSION, JSON.stringify(s));
+  set(s: Session) {
+    localStorage.setItem(SESSION, JSON.stringify(sessionSchema.parse(s)));
   },
   clear() {
     localStorage.removeItem(SESSION);

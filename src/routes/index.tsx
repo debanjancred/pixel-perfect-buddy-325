@@ -1,10 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Sparkles, Smartphone, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { session, useInvalidateAll } from "@/hooks/use-data";
-import { api } from "@/services/api";
-import { AlponaStrip, Label, LangToggle } from "@/components/pk/ui";
+import { api, DEMO_OTP } from "@/services/api";
+import {
+  ValidationError,
+  check,
+  normalizePhone,
+  otpSchema,
+  phoneSchema,
+  type ErrKey,
+} from "@/lib/validation";
+import { AlponaStrip, FieldError, Label, LangToggle } from "@/components/pk/ui";
 import { ClubPicker } from "@/components/pk/ClubPicker";
 
 export const Route = createFileRoute("/")({
@@ -32,26 +40,75 @@ function Onboarding() {
   const { t, n } = useI18n();
   const navigate = useNavigate();
   const invalidate = useInvalidateAll();
+  const [step, setStep] = useState<"phone" | "otp" | "club">("phone");
   const [phone, setPhone] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"auth" | "club">("auth");
+  const [error, setError] = useState<ErrKey | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
 
   useEffect(() => {
-    if (session.get()) navigate({ to: "/home" });
+    if (session.get()) navigate({ to: "/home", replace: true });
   }, [navigate]);
 
-  const demo = async () => {
-    await api.getClubs(); // seeds demo data on first run
-    session.set({ mode: "demo" });
-    await invalidate();
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      if (!(e instanceof ValidationError)) throw e;
+      setError(e.key);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendOtp = (e?: FormEvent) => {
+    e?.preventDefault();
+    const err = check(phoneSchema, phone);
+    if (err) return setError(err);
+    run(async () => {
+      const r = await api.requestOtp(phone);
+      setOtp("");
+      setResendIn(r.resend_after);
+      setStep("otp");
+    });
+  };
+  const verify = (e: FormEvent) => {
+    e.preventDefault();
+    const err = check(otpSchema, otp);
+    if (err) return setError(err);
+    run(async () => {
+      await api.verifyOtp(phone, otp);
+      setStep("club");
+    });
+  };
+  const changeNumber = () => {
+    setStep("phone");
+    setOtp("");
+    setError(null);
+  };
+  // The session starts only once a club is chosen, so a half-finished signup stays logged out.
+  const finish = () => {
+    session.set({ mode: "user", phone });
     navigate({ to: "/home" });
   };
-  const verify = () => {
-    if (otp !== "1234") return;
-    session.set({ mode: "user", phone });
-    setStep("club");
-  };
+  const demo = () =>
+    run(async () => {
+      await api.enterDemo();
+      session.set({ mode: "demo" });
+      await invalidate();
+      navigate({ to: "/home" });
+    });
+
+  const pretty = `${phone.slice(0, 5)} ${phone.slice(5)}`;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
@@ -62,7 +119,7 @@ function Onboarding() {
         </div>
         <img
           src="/icon-192.png"
-          alt="Pujo Khata"
+          alt=""
           width={72}
           height={72}
           className="mt-4 h-18 w-18 rounded-2xl ring-2 ring-gold"
@@ -73,54 +130,103 @@ function Onboarding() {
       </div>
 
       <div className="flex-1 space-y-5 px-5 py-6">
-        {step === "auth" ? (
+        {step === "club" ? (
           <>
-            <div>
-              <Label>
-                <Smartphone className="mr-1 inline h-4 w-4" />
-                {t("phone")}
-              </Label>
-              <div className="flex gap-2">
-                <span className="field flex w-auto items-center font-bold">+91</span>
-                <input
-                  className="field num text-lg"
-                  inputMode="numeric"
-                  placeholder="98300 12345"
-                  maxLength={10}
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                />
-              </div>
-            </div>
-            {!otpSent ? (
-              <button
-                className="btn btn-primary w-full text-lg"
-                disabled={phone.length !== 10}
-                onClick={() => setOtpSent(true)}
-              >
-                {t("sendOtp")}
-              </button>
+            <h2 className="text-xl font-bold">{t("chooseClub")}</h2>
+            <ClubPicker onDone={finish} />
+          </>
+        ) : (
+          <>
+            {step === "phone" ? (
+              <form className="space-y-5" onSubmit={sendOtp} noValidate>
+                <div>
+                  <Label htmlFor="phone">
+                    <Smartphone className="mr-1 inline h-4 w-4" />
+                    {t("phone")}
+                  </Label>
+                  <div className="flex gap-2">
+                    <span className="field flex w-auto items-center font-bold" aria-hidden>
+                      +91
+                    </span>
+                    <input
+                      id="phone"
+                      type="tel"
+                      className="field num text-lg"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      placeholder="98300 12345"
+                      value={phone}
+                      aria-invalid={!!error}
+                      aria-describedby={error ? "phone-error" : undefined}
+                      onChange={(e) => {
+                        setPhone(normalizePhone(e.target.value));
+                        setError(null);
+                      }}
+                    />
+                  </div>
+                  <FieldError id="phone-error" error={error} />
+                </div>
+                <button type="submit" className="btn btn-primary w-full text-lg" disabled={busy}>
+                  {t("sendOtp")}
+                </button>
+              </form>
             ) : (
-              <div className="space-y-3">
-                <Label>{t("enterOtp")}</Label>
-                <input
-                  className="field num text-center text-2xl tracking-[0.6em]"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                />
-                <button className="btn btn-gold w-full" onClick={() => setOtp("1234")}>
+              <form className="space-y-3" onSubmit={verify} noValidate>
+                <p className="flex flex-wrap items-center gap-x-2 text-sm">
+                  <span>
+                    {t("otpSentTo")} <b className="num">+91 {n(pretty)}</b>
+                  </span>
+                  <button
+                    type="button"
+                    className="min-h-12 font-semibold text-primary underline"
+                    onClick={changeNumber}
+                  >
+                    {t("changeNumber")}
+                  </button>
+                </p>
+                <div>
+                  <Label htmlFor="otp">{t("enterOtp")}</Label>
+                  <input
+                    id="otp"
+                    className="field num text-center text-2xl tracking-[0.6em]"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={4}
+                    autoFocus
+                    value={otp}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "otp-error" : undefined}
+                    onChange={(e) => {
+                      setOtp(e.target.value.replace(/\D/g, ""));
+                      setError(null);
+                    }}
+                  />
+                  <FieldError id="otp-error" error={error} />
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-gold w-full"
+                  onClick={() => {
+                    setOtp(DEMO_OTP);
+                    setError(null);
+                  }}
+                >
                   <Sparkles className="h-5 w-5" /> {t("autofill")}
                 </button>
-                <button
-                  className="btn btn-primary w-full text-lg"
-                  disabled={otp.length !== 4}
-                  onClick={verify}
-                >
+                <button type="submit" className="btn btn-primary w-full text-lg" disabled={busy}>
                   {t("verify")}
                 </button>
-              </div>
+                <button
+                  type="button"
+                  className="btn btn-outline w-full"
+                  disabled={busy || resendIn > 0}
+                  onClick={() => sendOtp()}
+                >
+                  {resendIn > 0
+                    ? `${t("resendIn")} ${n(String(resendIn))}${t("sec")}`
+                    : t("resendOtp")}
+                </button>
+              </form>
             )}
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <div className="h-px flex-1 bg-border" />
@@ -128,20 +234,17 @@ function Onboarding() {
               <div className="h-px flex-1 bg-border" />
             </div>
             <button
-              className="btn w-full border-2 border-primary bg-primary-soft py-4 text-lg text-primary"
+              type="button"
+              className="btn w-full flex-wrap border-2 border-primary bg-primary-soft py-4 text-lg text-primary"
+              disabled={busy}
               onClick={demo}
             >
               {t("exploreDemo")}
-              <span className="font-normal">(বিবেকানন্দ পার্ক সার্বজনীন)</span>
+              <span className="font-normal">({t("demoClub")})</span>
             </button>
             <p className="flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
-              <ShieldCheck className="h-4 w-4" /> {n("2026")} · Offline-ready
+              <ShieldCheck className="h-4 w-4" /> {n("2026")} · {t("offlineReady")}
             </p>
-          </>
-        ) : (
-          <>
-            <h2 className="text-xl font-bold">{t("chooseClub")}</h2>
-            <ClubPicker onDone={() => navigate({ to: "/home" })} />
           </>
         )}
       </div>

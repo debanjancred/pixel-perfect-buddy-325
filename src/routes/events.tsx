@@ -4,7 +4,7 @@ import { useI18n } from "@/lib/i18n";
 import { useEvents, useInvalidateAll, useSummary } from "@/hooks/use-data";
 import { api } from "@/services/api";
 import { AppShell } from "@/components/pk/AppShell";
-import { shareOrWhatsApp } from "@/components/pk/ui";
+import { shareOrWhatsApp } from "@/lib/share";
 
 export const Route = createFileRoute("/events")({
   head: () => ({

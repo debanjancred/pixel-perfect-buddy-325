@@ -2,7 +2,8 @@ import { Share2, MessageCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { amountInWords, indian, toBnDigits } from "@/lib/format";
 import type { Chanda, Club } from "@/services/types";
-import { AlponaStrip, Modal, shareOrWhatsApp, waLink } from "./ui";
+import { AlponaStrip, Modal } from "./ui";
+import { shareOrWhatsApp, waLink } from "@/lib/share";
 
 export function ReceiptModal({
   chanda,

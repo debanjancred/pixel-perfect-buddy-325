@@ -27,11 +27,13 @@ export const Route = createFileRoute("/home")({
 
 function HomePage() {
   const { t, money, n, pick, ago } = useI18n();
-  const { data: s } = useSummary();
-  const { data: chandas = [] } = useChandas();
-  const { data: expenses = [] } = useExpenses();
+  const { data: s, isError, refetch } = useSummary();
+  const { data: chandas = [], isPending: chandasLoading } = useChandas();
+  const { data: expenses = [], isPending: expensesLoading } = useExpenses();
   const { data: members = [] } = useMembers();
-  const pct = s && s.target ? Math.min(100, Math.round((s.collected / s.target) * 100)) : 0;
+  // The label shows the real figure (can pass 100%); only the bar is capped.
+  const pctReal = s && s.target ? Math.round((s.collected / s.target) * 100) : 0;
+  const pct = Math.min(100, pctReal);
 
   const stream = [
     ...chandas.map((c) => ({
@@ -61,7 +63,18 @@ function HomePage() {
 
   return (
     <AppShell>
-      <section className="bg-hero rounded-3xl p-5 text-primary-foreground">
+      {isError && (
+        <div
+          role="alert"
+          className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-warning-soft p-3 text-sm font-semibold text-warning"
+        >
+          {t("loadFailedHint")}
+          <button className="btn btn-outline shrink-0 text-sm" onClick={() => refetch()}>
+            {t("tryAgain")}
+          </button>
+        </div>
+      )}
+      <section className="bg-hero rounded-3xl p-5 text-primary-foreground" aria-busy={!s}>
         <div className="text-sm font-semibold opacity-85">{t("balance")}</div>
         <div className="num text-4xl font-extrabold">{s ? money(s.balance) : "—"}</div>
         <div className="mt-4 grid grid-cols-2 gap-3">
@@ -78,7 +91,7 @@ function HomePage() {
           <div className="mb-1.5 flex items-center justify-between text-sm">
             <span className="num">{s ? `${money(s.collected)} / ${money(s.target)}` : ""}</span>
             <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-extrabold text-foreground">
-              {n(String(pct))}%
+              {n(String(pctReal))}%
             </span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-primary-foreground/20">
@@ -120,34 +133,56 @@ function HomePage() {
             {t("viewAll")}
           </Link>
         </div>
-        <ul className="divide-y rounded-2xl border bg-card shadow-card">
-          {stream.map((x) => (
-            <li key={x.id} className="flex items-center gap-3 p-3">
-              <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${x.kind === "in" ? "bg-success-soft text-success" : "bg-primary-soft text-primary"}`}
-              >
-                {x.kind === "in" ? (
-                  <ArrowDownLeft className="h-5 w-5" />
-                ) : (
-                  <ArrowUpRight className="h-5 w-5" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-semibold">{x.name}</div>
-                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  <span>{x.sub}</span>
-                  <span>·</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{ago(x.at)}</span>
-                  <SyncBadge status={x.sync} />
+        {chandasLoading || expensesLoading ? (
+          <ul className="divide-y rounded-2xl border bg-card shadow-card" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="flex items-center gap-3 p-3">
+                <div className="h-11 w-11 animate-pulse rounded-full bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
                 </div>
-              </div>
-              <div className={`num font-bold ${x.kind === "in" ? "text-success" : "text-primary"}`}>
-                {x.kind === "in" ? "+" : "−"}
-                {money(x.amount)}
-              </div>
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+          </ul>
+        ) : stream.length === 0 ? (
+          <div className="rounded-2xl border border-dashed bg-card p-6 text-center text-muted-foreground">
+            {t("noActivity")}
+          </div>
+        ) : (
+          <ul className="divide-y rounded-2xl border bg-card shadow-card">
+            {stream.map((x) => (
+              <li key={x.id} className="flex items-center gap-3 p-3">
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${x.kind === "in" ? "bg-success-soft text-success" : "bg-primary-soft text-primary"}`}
+                >
+                  {x.kind === "in" ? (
+                    <ArrowDownLeft className="h-5 w-5" />
+                  ) : (
+                    <ArrowUpRight className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold">{x.name}</div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    <span>{x.sub}</span>
+                    <span>·</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
+                      {ago(x.at)}
+                    </span>
+                    <SyncBadge status={x.sync} />
+                  </div>
+                </div>
+                <div
+                  className={`num font-bold ${x.kind === "in" ? "text-success" : "text-primary"}`}
+                >
+                  {x.kind === "in" ? "+" : "−"}
+                  {money(x.amount)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </AppShell>
   );

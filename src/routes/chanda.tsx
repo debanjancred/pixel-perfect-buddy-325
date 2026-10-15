@@ -4,8 +4,9 @@ import { Search, MessageCircle, MapPin } from "lucide-react";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { useChandas, useHouseholds, useMembers, useSummary } from "@/hooks/use-data";
 import { AppShell, Fab } from "@/components/pk/AppShell";
-import { StatusBadge, SyncBadge, waLink } from "@/components/pk/ui";
-import { toBnDigits, indian } from "@/lib/format";
+import { StatusBadge, SyncBadge } from "@/components/pk/ui";
+import { reminderText, waLink } from "@/lib/share";
+import { dueAmount, householdMatches, paidByHousehold } from "@/lib/households";
 
 export const Route = createFileRoute("/chanda")({
   head: () => ({
@@ -37,43 +38,52 @@ const FILTERS: { k: Filter; t: TKey }[] = [
 ];
 
 function ChandaPage() {
-  const { t, money, pick, n } = useI18n();
-  const { data: households = [] } = useHouseholds();
+  const { t, money, pick, n, lang } = useI18n();
+  const { data: households = [], isPending } = useHouseholds();
   const { data: chandas = [] } = useChandas();
   const { data: members = [] } = useMembers();
   const { data: s } = useSummary();
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
 
-  const groups = useMemo(() => {
+  const rows = useMemo(() => {
     const today = new Date().toDateString();
-    const rows = households
-      .map((h) => {
-        const mine = chandas.filter((c) => c.household_id === h.id);
-        const last = mine[0];
-        return {
-          h,
-          collected: mine.reduce((a, c) => a + c.amount, 0),
-          collector: last ? members.find((m) => m.id === last.collector_id) : undefined,
-          today: mine.some((c) => new Date(c.created_at).toDateString() === today),
-        };
-      })
-      .filter((r) => {
-        if (filter === "pending" && r.h.status !== "pending") return false;
-        if (filter === "promised" && r.h.status !== "promised") return false;
-        if (filter === "today" && !r.today) return false;
-        const s = q.trim().toLowerCase();
-        return (
-          !s ||
-          [r.h.resident_name, r.h.resident_name_en, r.h.house_no].some((x) =>
-            x.toLowerCase().includes(s),
-          )
-        );
-      });
-    const map = new Map<string, typeof rows>();
-    rows.forEach((r) => map.set(r.h.lane_bn, [...(map.get(r.h.lane_bn) ?? []), r]));
+    const paid = paidByHousehold(chandas);
+    return households.map((h) => {
+      const mine = chandas.filter((c) => c.household_id === h.id); // newest first
+      const collected = paid.get(h.id) ?? 0;
+      return {
+        h,
+        collected,
+        due: dueAmount(h, collected),
+        collector: mine[0] ? members.find((m) => m.id === mine[0]!.collector_id) : undefined,
+        today: mine.some((c) => new Date(c.created_at).toDateString() === today),
+      };
+    });
+  }, [households, chandas, members]);
+
+  const counts = useMemo(
+    () => ({
+      all: rows.length,
+      pending: rows.filter((r) => r.h.status === "pending").length,
+      promised: rows.filter((r) => r.h.status === "promised").length,
+      today: rows.filter((r) => r.today).length,
+    }),
+    [rows],
+  );
+
+  const groups = useMemo(() => {
+    const visible = rows.filter(
+      (r) =>
+        (filter === "all" || (filter === "today" ? r.today : r.h.status === filter)) &&
+        householdMatches(r.h, q),
+    );
+    const map = new Map<string, typeof visible>();
+    visible.forEach((r) => map.set(r.h.lane_bn, [...(map.get(r.h.lane_bn) ?? []), r]));
     return [...map.entries()];
-  }, [households, chandas, members, filter, q]);
+  }, [rows, filter, q]);
+
+  const clubName = s ? pick(s.club.name, s.club.name_en) : t("app");
 
   return (
     <AppShell fab={<Fab to="/collect" label={t("addChanda")} />}>
@@ -81,8 +91,10 @@ function ChandaPage() {
       <div className="relative mt-3">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
         <input
+          type="search"
           className="field pl-11"
           placeholder={t("search")}
+          aria-label={t("search")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -93,15 +105,29 @@ function ChandaPage() {
             key={f.k}
             className="chip"
             data-active={filter === f.k}
+            aria-pressed={filter === f.k}
             onClick={() => setFilter(f.k)}
           >
-            {t(f.t)}
+            {t(f.t)} <span className="num opacity-75">{n(String(counts[f.k]))}</span>
           </button>
         ))}
       </div>
 
-      {groups.length === 0 && (
-        <p className="py-12 text-center text-muted-foreground">{t("noResults")}</p>
+      {isPending ? (
+        <ul className="mt-5 space-y-2" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="h-24 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </ul>
+      ) : households.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-dashed bg-card p-6 text-center">
+          <p className="font-bold">{t("emptyRegister")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("emptyRegisterHint")}</p>
+        </div>
+      ) : (
+        groups.length === 0 && (
+          <p className="py-12 text-center text-muted-foreground">{t("noResults")}</p>
+        )
       )}
 
       {groups.map(([lane, rows]) => (
@@ -113,9 +139,13 @@ function ChandaPage() {
             </span>
           </h2>
           <ul className="space-y-2">
-            {rows.map(({ h, collected, collector }) => {
-              const due = h.status !== "paid";
-              const msg = `নমস্কার ${h.resident_name}, ${s?.club.name ?? "পুজো কমিটি"}-এর জন্য আপনার প্রতিশ্রুত ₹${toBnDigits(indian(h.pledged_amount))} চাঁদা এখনো বাকি আছে। আমাদের সংগ্রাহক শীঘ্রই আসবেন, অথবা UPI-তে পাঠাতে পারেন। ধন্যবাদ 🙏`;
+            {rows.map(({ h, collected, due, collector }) => {
+              const msg = reminderText(
+                lang,
+                pick(h.resident_name, h.resident_name_en),
+                clubName,
+                money(due),
+              );
               return (
                 <li key={h.id} className="rounded-2xl border bg-card p-3 shadow-card">
                   <div className="flex items-start gap-3">
@@ -135,17 +165,20 @@ function ChandaPage() {
                         )}
                         <SyncBadge status={h.sync_status} />
                       </div>
+                      {due > 0 && collected > 0 && (
+                        <div className="mt-1 text-xs font-semibold text-success">
+                          {t("paidSoFar")} <span className="num">{money(collected)}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
-                      <div className="num font-extrabold">
-                        {money(due ? h.pledged_amount : collected)}
-                      </div>
+                      <div className="num font-extrabold">{money(due > 0 ? due : collected)}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        {due ? t("pledged") : t("collected")}
+                        {due > 0 ? (collected > 0 ? t("dueAmount") : t("pledged")) : t("collected")}
                       </div>
                     </div>
                   </div>
-                  {due && (
+                  {due > 0 && (
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <a
                         href={waLink(h.phone, msg)}

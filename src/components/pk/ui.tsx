@@ -1,6 +1,8 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type InputHTMLAttributes, type ReactNode } from "react";
 import { X, CloudOff } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+import type { ErrKey } from "@/lib/validation";
 import type { PledgeStatus, SyncStatus } from "@/services/types";
 
 /** Thin alpona motif strip — used only along the top header. */
@@ -24,19 +26,19 @@ export function AlponaStrip() {
 }
 
 export function LangToggle() {
-  const { lang, setLang } = useI18n();
+  const { lang, setLang, t } = useI18n();
   return (
     <div
-      className="flex rounded-full border border-input bg-card p-0.5 text-sm font-semibold"
+      className="flex rounded-full border border-input bg-card p-0.5 text-sm font-semibold text-foreground"
       role="group"
-      aria-label="Language"
+      aria-label={t("language")}
     >
       {(["bn", "en"] as const).map((l) => (
         <button
           key={l}
           onClick={() => setLang(l)}
           data-active={lang === l}
-          className="min-h-10 rounded-full px-3 transition data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+          className="min-h-12 rounded-full px-3 transition data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
         >
           {l === "bn" ? "বাংলা" : "EN"}
         </button>
@@ -80,6 +82,7 @@ export function Modal({
   title: string;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!open) return;
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -107,7 +110,7 @@ export function Modal({
           <button
             onClick={onClose}
             className="tap flex items-center justify-center rounded-full bg-muted"
-            aria-label="Close"
+            aria-label={t("close")}
           >
             <X className="h-5 w-5" />
           </button>
@@ -118,23 +121,53 @@ export function Modal({
   );
 }
 
-export function Label({ children }: { children: ReactNode }) {
-  return <div className="mb-2 text-sm font-semibold text-muted-foreground">{children}</div>;
+export function Label({
+  children,
+  htmlFor,
+}: {
+  children: ReactNode;
+  htmlFor?: string | undefined;
+}) {
+  return (
+    <label htmlFor={htmlFor} className="mb-2 block text-sm font-semibold text-muted-foreground">
+      {children}
+    </label>
+  );
 }
 
-export function waLink(phone: string | undefined, text: string) {
-  const p = phone ? `91${phone.replace(/\D/g, "").slice(-10)}` : "";
-  return `https://wa.me/${p}?text=${encodeURIComponent(text)}`;
+export function FieldError({ id, error }: { id: string; error?: ErrKey | null | undefined }) {
+  const { t } = useI18n();
+  if (!error) return null;
+  return (
+    <p id={id} role="alert" className="mt-1.5 text-sm font-semibold text-destructive">
+      {t(error)}
+    </p>
+  );
 }
 
-export async function shareOrWhatsApp(text: string, url?: string, phone?: string) {
-  if (typeof navigator !== "undefined" && navigator.share) {
-    try {
-      await navigator.share(url ? { text, url } : { text });
-      return;
-    } catch {
-      /* cancelled → fall back */
-    }
-  }
-  window.open(waLink(phone, url ? `${text} ${url}` : text), "_blank");
+/** Labelled input with an inline, screen-reader-linked error message. */
+export function TextField({
+  id,
+  label,
+  error,
+  className,
+  ...props
+}: {
+  id: string;
+  label: ReactNode;
+  error?: ErrKey | null | undefined;
+} & InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <input
+        id={id}
+        className={cn("field", className)}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : undefined}
+        {...props}
+      />
+      <FieldError id={`${id}-error`} error={error} />
+    </div>
+  );
 }

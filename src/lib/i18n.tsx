@@ -121,7 +121,7 @@ const dict = {
   ],
   sendOtp: ["OTP পাঠান", "Send OTP"],
   enterOtp: ["OTP লিখুন", "Enter OTP"],
-  autofill: ["Auto-fill OTP 1234", "Auto-fill OTP 1234"],
+  autofill: ["ডেমো OTP 1234 বসান", "Auto-fill demo OTP 1234"],
   verify: ["যাচাই করে ঢুকুন", "Verify & continue"],
   orLabel: ["অথবা", "or"],
   exploreDemo: ["ডেমো ক্লাব দেখুন", "Explore Demo Club"],
@@ -131,6 +131,56 @@ const dict = {
   daysAgo: ["দিন আগে", "d ago"],
   justNow: ["এইমাত্র", "just now"],
   viewAll: ["সব দেখুন", "View all"],
+  notFound: ["পাতাটি পাওয়া যায়নি", "Page not found"],
+  goHome: ["হোমে ফিরুন", "Go home"],
+  loadFailed: ["পাতাটি লোড হয়নি", "This page didn't load"],
+  loadFailedHint: [
+    "কিছু একটা গোলমাল হয়েছে। রিফ্রেশ করুন বা হোমে ফিরুন।",
+    "Something went wrong. Try refreshing or head back home.",
+  ],
+  tryAgain: ["আবার চেষ্টা করুন", "Try again"],
+  close: ["বন্ধ করুন", "Close"],
+  offlineReady: ["অফলাইনেও চলে", "Offline-ready"],
+  demoClub: ["বিবেকানন্দ পার্ক সার্বজনীন", "Vivekananda Park Sarbojanin"],
+  otpSentTo: ["OTP পাঠানো হয়েছে", "OTP sent to"],
+  changeNumber: ["নম্বর বদলান", "Change number"],
+  resendOtp: ["আবার OTP পাঠান", "Resend OTP"],
+  resendIn: ["আবার পাঠানো যাবে", "Resend in"],
+  sec: [" সেকেন্ডে", "s"],
+  err_required: ["এই ঘরটি পূরণ করুন", "This field is required"],
+  err_phone: [
+    "সঠিক ১০ সংখ্যার মোবাইল নম্বর দিন (৬–৯ দিয়ে শুরু)",
+    "Enter a valid 10-digit mobile number (starts with 6–9)",
+  ],
+  err_otp: ["৪ সংখ্যার OTP দিন", "Enter the 4-digit OTP"],
+  err_otpWrong: ["OTP মেলেনি, আবার চেষ্টা করুন", "Incorrect OTP, try again"],
+  err_otpExpired: ["অনেকবার ভুল হয়েছে — নতুন OTP পাঠান", "Too many attempts — request a new OTP"],
+  err_clubNameShort: ["নাম অন্তত ৩ অক্ষরের হতে হবে", "Name must be at least 3 characters"],
+  err_clubExists: ["এই নামে ক্লাব আগে থেকেই আছে", "A club with this name already exists"],
+  err_tooLong: ["লেখাটি অনেক বড়", "This is too long"],
+  err_nameShort: ["নাম অন্তত ২ অক্ষরের হতে হবে", "Name must be at least 2 characters"],
+  err_amount: [
+    "₹১ থেকে ₹১০ লক্ষের মধ্যে টাকার পরিমাণ দিন",
+    "Enter an amount between ₹1 and ₹10 lakh",
+  ],
+  err_household: ["বাড়ি বেছে নিন বা নতুন বাড়ি যোগ করুন", "Pick a household or add a new one"],
+  err_householdExists: [
+    "এই বাড়িতে এই নামে আগে থেকেই নথিভুক্ত আছে",
+    "This resident is already registered at this house",
+  ],
+  err_collector: ["আদায়কারী বেছে নিন", "Choose a collector"],
+  dueAmount: ["বাকি আছে", "Balance due"],
+  paidSoFar: ["জমা হয়েছে", "Paid so far"],
+  emptyRegister: ["এখনো কোনো বাড়ি যোগ হয়নি", "No households yet"],
+  emptyRegisterHint: [
+    "চাঁদা জমা থেকে প্রথম বাড়ি যোগ করুন",
+    "Add the first one while collecting chanda",
+  ],
+  noActivity: ["এখনো কোনো লেনদেন নেই", "No transactions yet"],
+  err_target: [
+    "লক্ষ্য ₹১,০০০ থেকে ₹১০ কোটির মধ্যে হতে হবে",
+    "Target must be between ₹1,000 and ₹10 crore",
+  ],
 } as const;
 
 export type TKey = keyof typeof dict;
@@ -195,7 +245,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setDark,
       t,
       n,
-      money: (v) => "₹" + n(v),
+      money: (v) => (v < 0 ? "−₹" + n(-v) : "₹" + n(v)),
       pick: (bn, en) => (lang === "bn" ? bn : en),
       ago: (iso) => {
         const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -211,6 +261,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   return <I18nCtx.Provider value={value}>{children}</I18nCtx.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook lives beside its provider
 export function useI18n() {
   const c = useContext(I18nCtx);
   if (!c) throw new Error("useI18n outside provider");

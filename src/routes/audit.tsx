@@ -5,7 +5,8 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useI18n } from "@/lib/i18n";
 import { CATEGORIES } from "@/lib/categories";
 import { useExpenses, useSummary } from "@/hooks/use-data";
-import { AlponaStrip, LangToggle, shareOrWhatsApp } from "@/components/pk/ui";
+import { AlponaStrip, LangToggle } from "@/components/pk/ui";
+import { shareOrWhatsApp } from "@/lib/share";
 import { indian, toBnDigits } from "@/lib/format";
 
 export const Route = createFileRoute("/audit")({

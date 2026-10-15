@@ -1,88 +1,123 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Check, Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useClubs, useInvalidateAll } from "@/hooks/use-data";
 import { api } from "@/services/api";
-import { Label } from "./ui";
+import { ValidationError, clubSchema, fieldErrors, sameName, type ErrKey } from "@/lib/validation";
+import { TextField } from "./ui";
+
+const PUJA_YEAR = new Date().getFullYear();
+const FIELDS = ["name", "para", "zone", "target_amount"] as const;
 
 export function ClubPicker({ onDone }: { onDone: () => void }) {
-  const { t, pick, n } = useI18n();
+  const { t, pick, n, money } = useI18n();
   const { data } = useClubs();
   const invalidate = useInvalidateAll();
   const [creating, setCreating] = useState(false);
   const [f, setF] = useState({ name: "", para: "", zone: "", target: "500000" });
+  const [submitted, setSubmitted] = useState(false);
+  const [serverErr, setServerErr] = useState<{ field: string; key: ErrKey } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const input = {
+    name: f.name,
+    para: f.para,
+    zone: f.zone,
+    puja_year: PUJA_YEAR,
+    target_amount: f.target ? Number(f.target) : NaN,
+  };
+  const errors = fieldErrors(clubSchema, input);
+  if (
+    !errors.name &&
+    data?.clubs.some((c) => sameName(c.name, f.name) || sameName(c.name_en, f.name))
+  )
+    errors.name = "err_clubExists";
+  if (serverErr) errors[serverErr.field as keyof typeof errors] ??= serverErr.key;
+  const shown = (k: (typeof FIELDS)[number]) => (submitted ? errors[k] : undefined);
+  const edit = (patch: Partial<typeof f>) => {
+    setF({ ...f, ...patch });
+    setServerErr(null);
+  };
 
   const select = async (id: string) => {
     await api.setActiveClub(id);
     await invalidate();
     onDone();
   };
-  const create = async () => {
-    if (!f.name.trim()) return;
-    await api.createClub({
-      name: f.name.trim(),
-      para: f.para,
-      zone: f.zone,
-      puja_year: 2026,
-      target_amount: Number(f.target) || 0,
-    });
-    await invalidate();
-    onDone();
+  const create = async (e: FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+    const first = FIELDS.find((k) => errors[k]);
+    if (first) return document.getElementById(`club-${first}`)?.focus();
+    setBusy(true);
+    try {
+      await api.createClub(input);
+      await invalidate();
+      onDone();
+    } catch (err) {
+      if (!(err instanceof ValidationError)) throw err;
+      setServerErr({ field: err.field, key: err.key });
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (creating)
     return (
-      <div className="space-y-4">
-        <div>
-          <Label>{t("clubName")}</Label>
-          <input
-            className="field"
-            value={f.name}
-            onChange={(e) => setF({ ...f, name: e.target.value })}
+      <form className="space-y-4" onSubmit={create} noValidate>
+        <TextField
+          id="club-name"
+          label={t("clubName")}
+          autoComplete="organization"
+          maxLength={80}
+          value={f.name}
+          error={shown("name")}
+          onChange={(e) => edit({ name: e.target.value })}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <TextField
+            id="club-para"
+            label={t("para")}
+            maxLength={60}
+            value={f.para}
+            error={shown("para")}
+            onChange={(e) => edit({ para: e.target.value })}
+          />
+          <TextField
+            id="club-zone"
+            label={t("zone")}
+            maxLength={40}
+            value={f.zone}
+            error={shown("zone")}
+            onChange={(e) => edit({ zone: e.target.value })}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>{t("para")}</Label>
-            <input
-              className="field"
-              value={f.para}
-              onChange={(e) => setF({ ...f, para: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>{t("zone")}</Label>
-            <input
-              className="field"
-              value={f.zone}
-              onChange={(e) => setF({ ...f, zone: e.target.value })}
-            />
-          </div>
+          <TextField id="club-year" label={t("year")} value={n(String(PUJA_YEAR))} readOnly />
+          <TextField
+            id="club-target_amount"
+            label={`${t("target")} (₹)`}
+            className="num"
+            inputMode="numeric"
+            value={f.target}
+            error={shown("target_amount")}
+            onChange={(e) => edit({ target: e.target.value.replace(/\D/g, "").slice(0, 9) })}
+          />
         </div>
+        {!errors.target_amount && (
+          <p className="-mt-2 text-right text-sm font-semibold text-muted-foreground">
+            {money(input.target_amount)}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>{t("year")}</Label>
-            <input className="field" value={n("2026")} readOnly />
-          </div>
-          <div>
-            <Label>{t("target")} (₹)</Label>
-            <input
-              className="field"
-              inputMode="numeric"
-              value={f.target}
-              onChange={(e) => setF({ ...f, target: e.target.value.replace(/\D/g, "") })}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <button className="btn btn-outline" onClick={() => setCreating(false)}>
+          <button type="button" className="btn btn-outline" onClick={() => setCreating(false)}>
             {t("cancel")}
           </button>
-          <button className="btn btn-primary" onClick={create} disabled={!f.name.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
             {t("save")}
           </button>
         </div>
-      </div>
+      </form>
     );
 
   return (

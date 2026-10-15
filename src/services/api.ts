@@ -1,6 +1,20 @@
 // Service repository. Every method is async with a 200ms delay so it can be swapped
 // for a Laravel REST client later without touching UI code.
 import { seedDB } from "./seed";
+import {
+  ValidationError,
+  check,
+  clubSchema,
+  otpSchema,
+  phoneSchema,
+  sameName,
+  chandaSchema,
+  householdSchema,
+  parseOrThrow,
+  type ChandaInput,
+  type ClubInput,
+  type HouseholdInput,
+} from "@/lib/validation";
 import type {
   Chanda,
   Club,
@@ -9,7 +23,6 @@ import type {
   ExpenseCategory,
   Household,
   Member,
-  PaymentMode,
   Role,
   Summary,
   SyncStatus,
@@ -40,10 +53,47 @@ function read(): DB {
 }
 const mine = <T extends { club_id: string }>(db: DB, list: T[]) =>
   list.filter((x) => x.club_id === db.active_club_id);
+// Mock OTP until the Laravel auth endpoint exists: every number gets the demo code.
+export const DEMO_OTP = "1234";
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_SECONDS = 30;
+const otpAttempts = new Map<string, number>();
+
 const activeClub = (db: DB): Club =>
   (db.clubs.find((c) => c.id === db.active_club_id) ?? db.clubs[0])!;
 
 export const api = {
+  async requestOtp(phone: string) {
+    await delay();
+    const err = check(phoneSchema, phone);
+    if (err) throw new ValidationError("phone", err);
+    otpAttempts.set(phone, 0);
+    return { resend_after: OTP_RESEND_SECONDS };
+  },
+  async verifyOtp(phone: string, otp: string) {
+    await delay();
+    const used = otpAttempts.get(phone);
+    if (used === undefined || used >= OTP_MAX_ATTEMPTS)
+      throw new ValidationError("otp", "err_otpExpired");
+    const err = check(otpSchema, otp);
+    if (err) throw new ValidationError("otp", err);
+    if (otp !== DEMO_OTP) {
+      otpAttempts.set(phone, used + 1);
+      throw new ValidationError(
+        "otp",
+        used + 1 >= OTP_MAX_ATTEMPTS ? "err_otpExpired" : "err_otpWrong",
+      );
+    }
+    otpAttempts.delete(phone);
+    return { phone };
+  },
+  /** Switch to the seeded demo club (always the first club). */
+  async enterDemo() {
+    await delay();
+    const db = read();
+    db.active_club_id = db.clubs[0]!.id;
+    write(db);
+  },
   async getClubs() {
     await delay();
     const db = read();
@@ -55,15 +105,16 @@ export const api = {
     db.active_club_id = id;
     write(db);
   },
-  async createClub(input: {
-    name: string;
-    para: string;
-    zone: string;
-    puja_year: number;
-    target_amount: number;
-  }) {
+  async createClub(raw: ClubInput) {
     await delay();
+    const input = parseOrThrow(clubSchema, raw);
     const db = read();
+    const taken = db.clubs.some(
+      (c) =>
+        c.puja_year === input.puja_year &&
+        (sameName(c.name, input.name) || sameName(c.name_en, input.name)),
+    );
+    if (taken) throw new ValidationError("name", "err_clubExists");
     const club: Club = {
       ...input,
       name_en: input.name,
@@ -127,14 +178,18 @@ export const api = {
     const db = read();
     return mine(db, db.members);
   },
-  async createHousehold(
-    input: Pick<
-      Household,
-      "resident_name" | "house_no" | "lane_bn" | "lane_en" | "phone" | "pledged_amount"
-    >,
-  ) {
+  async createHousehold(raw: HouseholdInput) {
     await delay();
+    const input = parseOrThrow(householdSchema, raw);
     const db = read();
+    const taken = mine(db, db.households).some(
+      (h) =>
+        h.lane_bn === input.lane_bn &&
+        sameName(h.house_no, input.house_no) &&
+        (sameName(h.resident_name, input.resident_name) ||
+          sameName(h.resident_name_en, input.resident_name)),
+    );
+    if (taken) throw new ValidationError("resident_name", "err_householdExists");
     const h: Household = {
       ...input,
       resident_name_en: input.resident_name,
@@ -148,18 +203,20 @@ export const api = {
     write(db);
     return h;
   },
-  async createChanda(input: {
-    household_id: string | null;
-    payer_name: string;
-    amount: number;
-    payment_mode: PaymentMode;
-    collector_id: string;
-  }) {
+  async createChanda(raw: ChandaInput) {
     await delay();
+    const input = parseOrThrow(chandaSchema, raw);
     const db = read();
     const club = activeClub(db);
-    club.receipt_seq += 1;
-    const hh = db.households.find((h) => h.id === input.household_id);
+    const hh = input.household_id
+      ? db.households.find((h) => h.id === input.household_id && h.club_id === club.id)
+      : undefined;
+    if (input.household_id && !hh) throw new ValidationError("household_id", "err_household");
+    if (!db.members.some((m) => m.id === input.collector_id && m.club_id === club.id))
+      throw new ValidationError("collector_id", "err_collector");
+    // Never reuse a receipt number, even if the stored counter fell behind the ledger.
+    const used = mine(db, db.chandas).map((c) => Number(c.receipt_no.split("-").pop()) || 0);
+    club.receipt_seq = Math.max(club.receipt_seq, ...used) + 1;
     const c: Chanda = {
       ...input,
       payer_name_en: hh?.resident_name_en ?? input.payer_name,
@@ -169,8 +226,14 @@ export const api = {
       created_at: now(),
       sync_status: syncState(),
     };
-    if (hh) hh.status = "paid";
     db.chandas.push(c);
+    // A household is paid only once the pledge is fully covered; partial payments keep it due.
+    if (hh) {
+      const paid = db.chandas
+        .filter((x) => x.household_id === hh.id)
+        .reduce((sum, x) => sum + x.amount, 0);
+      if (paid >= hh.pledged_amount) hh.status = "paid";
+    }
     write(db);
     return c;
   },
