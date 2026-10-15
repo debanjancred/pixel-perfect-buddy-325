@@ -10,14 +10,33 @@ const BN_WORDS = (
   "একানব্বই বিরানব্বই তিরানব্বই চুরানব্বই পঁচানব্বই ছিয়ানব্বই সাতানব্বই আটানব্বই নিরানব্বই"
 ).split(" ");
 
-const EN_ONES = "Zero One Two Three Four Five Six Seven Eight Nine Ten Eleven Twelve Thirteen Fourteen Fifteen Sixteen Seventeen Eighteen Nineteen".split(" ");
-const EN_TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-const en2 = (n: number): string => (n < 20 ? EN_ONES[n]! : EN_TENS[Math.floor(n / 10)]! + (n % 10 ? " " + EN_ONES[n % 10]! : ""));
+const EN_ONES =
+  "Zero One Two Three Four Five Six Seven Eight Nine Ten Eleven Twelve Thirteen Fourteen Fifteen Sixteen Seventeen Eighteen Nineteen".split(
+    " ",
+  );
+const EN_TENS = [
+  "",
+  "",
+  "Twenty",
+  "Thirty",
+  "Forty",
+  "Fifty",
+  "Sixty",
+  "Seventy",
+  "Eighty",
+  "Ninety",
+];
+const en2 = (n: number): string =>
+  n < 20 ? EN_ONES[n]! : EN_TENS[Math.floor(n / 10)]! + (n % 10 ? " " + EN_ONES[n % 10]! : "");
 
 function words(n: number, two: (x: number) => string, u: [string, string, string, string]) {
   if (n === 0) return two(0);
   const parts: string[] = [];
-  const crore = Math.floor(n / 1e7), lakh = Math.floor((n % 1e7) / 1e5), th = Math.floor((n % 1e5) / 1e3), h = Math.floor((n % 1e3) / 100), r = n % 100;
+  const crore = Math.floor(n / 1e7),
+    lakh = Math.floor((n % 1e7) / 1e5),
+    th = Math.floor((n % 1e5) / 1e3),
+    h = Math.floor((n % 1e3) / 100),
+    r = n % 100;
   if (crore) parts.push(`${crore < 100 ? two(crore) : words(crore, two, u)} ${u[3]}`);
   if (lakh) parts.push(`${two(lakh)} ${u[2]}`);
   if (th) parts.push(`${two(th)} ${u[1]}`);

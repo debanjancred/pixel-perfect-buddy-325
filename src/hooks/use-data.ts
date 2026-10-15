@@ -5,7 +5,8 @@ import { api } from "@/services/api";
 // Data lives in the browser (offline-first), so queries run client-side only.
 export const useSummary = () => useQuery({ queryKey: ["summary"], queryFn: api.getSummary });
 export const useClubs = () => useQuery({ queryKey: ["clubs"], queryFn: api.getClubs });
-export const useHouseholds = () => useQuery({ queryKey: ["households"], queryFn: api.listHouseholds });
+export const useHouseholds = () =>
+  useQuery({ queryKey: ["households"], queryFn: api.listHouseholds });
 export const useChandas = () => useQuery({ queryKey: ["chandas"], queryFn: api.listChandas });
 export const useExpenses = () => useQuery({ queryKey: ["expenses"], queryFn: api.listExpenses });
 export const useEvents = () => useQuery({ queryKey: ["events"], queryFn: api.listEvents });

@@ -1,4 +1,15 @@
-import type { Chanda, DB, Expense, Household, Member, PujoEvent, Lane, PaymentMode, PledgeStatus, ExpenseCategory } from "./types";
+import type {
+  Chanda,
+  DB,
+  Expense,
+  Household,
+  Member,
+  PujoEvent,
+  Lane,
+  PaymentMode,
+  PledgeStatus,
+  ExpenseCategory,
+} from "./types";
 
 // Built lazily (never at module scope) so Worker SSR never runs random/time code globally.
 export function seedDB(): DB {
@@ -14,13 +25,38 @@ export function seedDB(): DB {
   ];
 
   const members: Member[] = [
-    { name: "বিশ্বনাথ পাল", name_en: "Biswanath Pal", role: "secretary" as const, phone: "9830012345" },
-    { name: "সুব্রত সেনগুপ্ত", name_en: "Subrata Sengupta", role: "treasurer" as const, phone: "9831023456" },
+    {
+      name: "বিশ্বনাথ পাল",
+      name_en: "Biswanath Pal",
+      role: "secretary" as const,
+      phone: "9830012345",
+    },
+    {
+      name: "সুব্রত সেনগুপ্ত",
+      name_en: "Subrata Sengupta",
+      role: "treasurer" as const,
+      phone: "9831023456",
+    },
     { name: "রাহুল দে", name_en: "Rahul Dey", role: "collector" as const, phone: "9874034567" },
-    { name: "পিয়ালী সরকার", name_en: "Piyali Sarkar", role: "collector" as const, phone: "9903045678" },
+    {
+      name: "পিয়ালী সরকার",
+      name_en: "Piyali Sarkar",
+      role: "collector" as const,
+      phone: "9903045678",
+    },
   ].map((m) => ({ ...m, id: uuid(), club_id }));
 
-  type Row = [string, string, number, string, number, PledgeStatus, number | null, PaymentMode, number];
+  type Row = [
+    string,
+    string,
+    number,
+    string,
+    number,
+    PledgeStatus,
+    number | null,
+    PaymentMode,
+    number,
+  ];
   const rows: Row[] = [
     ["দিলীপ রায়", "Dilip Roy", 0, "12A", 1001, "paid", 2, "upi", 2],
     ["সৌমেন চট্টোপাধ্যায়", "Soumen Chattopadhyay", 0, "14", 5001, "paid", 25, "cash", 0],
@@ -45,14 +81,31 @@ export function seedDB(): DB {
   rows.forEach(([bn, en, li, house, pledge, status, mins, mode, ci], i) => {
     const id = uuid();
     households.push({
-      id, club_id, lane_bn: lanes[li]!.bn, lane_en: lanes[li]!.en, house_no: house,
-      resident_name: bn, resident_name_en: en, phone: `98300${String(10000 + i * 731).slice(0, 5)}`,
-      pledged_amount: pledge, status, created_at: ago(60 * 24 * 20), sync_status: "synced",
+      id,
+      club_id,
+      lane_bn: lanes[li]!.bn,
+      lane_en: lanes[li]!.en,
+      house_no: house,
+      resident_name: bn,
+      resident_name_en: en,
+      phone: `98300${String(10000 + i * 731).slice(0, 5)}`,
+      pledged_amount: pledge,
+      status,
+      created_at: ago(60 * 24 * 20),
+      sync_status: "synced",
     });
     if (mins !== null) {
       chandaDrafts.push({
-        id: uuid(), club_id, household_id: id, payer_name: bn, payer_name_en: en, amount: pledge,
-        payment_mode: mode, collector_id: members[ci]!.id, created_at: ago(mins), sync_status: "synced",
+        id: uuid(),
+        club_id,
+        household_id: id,
+        payer_name: bn,
+        payer_name_en: en,
+        amount: pledge,
+        payment_mode: mode,
+        collector_id: members[ci]!.id,
+        created_at: ago(mins),
+        sync_status: "synced",
       });
     }
   });
@@ -63,16 +116,38 @@ export function seedDB(): DB {
     ["স্থানীয় ব্যবসায়ী সমিতি", "Local Traders' Association", 85000, 60 * 24 * 8],
   ];
   sponsors.forEach(([bn, en, amt, mins]) =>
-    chandaDrafts.push({ id: uuid(), club_id, household_id: null, payer_name: bn, payer_name_en: en, amount: amt, payment_mode: "upi", collector_id: members[0]!.id, created_at: ago(mins), sync_status: "synced" }),
+    chandaDrafts.push({
+      id: uuid(),
+      club_id,
+      household_id: null,
+      payer_name: bn,
+      payer_name_en: en,
+      amount: amt,
+      payment_mode: "upi",
+      collector_id: members[0]!.id,
+      created_at: ago(mins),
+      sync_status: "synced",
+    }),
   );
   const subtotal = chandaDrafts.reduce((s, c) => s + c.amount, 0);
   chandaDrafts.push({
-    id: uuid(), club_id, household_id: null, payer_name: "পূর্ববর্তী খাতার আদায় (খাতা ১–৩)", payer_name_en: "Earlier ledger collections (books 1–3)",
-    amount: TARGET_COLLECTED - subtotal, payment_mode: "cash", collector_id: members[1]!.id, created_at: ago(60 * 24 * 14), sync_status: "synced",
+    id: uuid(),
+    club_id,
+    household_id: null,
+    payer_name: "পূর্ববর্তী খাতার আদায় (খাতা ১–৩)",
+    payer_name_en: "Earlier ledger collections (books 1–3)",
+    amount: TARGET_COLLECTED - subtotal,
+    payment_mode: "cash",
+    collector_id: members[1]!.id,
+    created_at: ago(60 * 24 * 14),
+    sync_status: "synced",
   });
 
   chandaDrafts.sort((a, b) => a.created_at.localeCompare(b.created_at));
-  const chandas: Chanda[] = chandaDrafts.map((c, i) => ({ ...c, receipt_no: `PK-2026-${String(380 + i + 1).padStart(4, "0")}` }));
+  const chandas: Chanda[] = chandaDrafts.map((c, i) => ({
+    ...c,
+    receipt_no: `PK-2026-${String(380 + i + 1).padStart(4, "0")}`,
+  }));
 
   const ex: [ExpenseCategory, string, string, number, number, number][] = [
     ["pandal", "প্যান্ডেল কাঠামো — অগ্রিম", "Pandal structure — advance", 80000, 1, 60 * 24 * 12],
@@ -87,16 +162,57 @@ export function seedDB(): DB {
     ["misc", "রসিদ বই ও ব্যানার ছাপা", "Receipt books & banner printing", 5000, 1, 60 * 24 * 16],
   ];
   const expenses: Expense[] = ex.map(([category, bn, en, amount, mi, mins]) => ({
-    id: uuid(), club_id, category, item_name: bn, item_name_en: en, amount, approved_by_id: members[mi]!.id,
-    receipt_image: null, created_at: ago(mins), sync_status: "synced",
+    id: uuid(),
+    club_id,
+    category,
+    item_name: bn,
+    item_name_en: en,
+    amount,
+    approved_by_id: members[mi]!.id,
+    receipt_image: null,
+    created_at: ago(mins),
+    sync_status: "synced",
   }));
 
   const events: PujoEvent[] = [
-    { key: "draw" as const, name_bn: "বসে আঁকো প্রতিযোগিতা", name_en: "Sit & Draw Competition", date_bn: "ষষ্ঠী · সকাল ১০টা", date_en: "Shashthi · 10 AM", registrations: 46, capacity: 80, slots: [] },
-    { key: "dhunuchi" as const, name_bn: "ধুনুচি নাচ", name_en: "Dhunuchi Naach", date_bn: "নবমী · সন্ধ্যা ৭টা", date_en: "Navami · 7 PM", registrations: 22, capacity: 40, slots: [] },
-    { key: "shankha" as const, name_bn: "শঙ্খধ্বনি প্রতিযোগিতা", name_en: "Shankha Dhwani Contest", date_bn: "অষ্টমী · বিকেল ৪টা", date_en: "Ashtami · 4 PM", registrations: 15, capacity: 30, slots: [] },
     {
-      key: "pushpanjali" as const, name_bn: "অষ্টমীর পুষ্পাঞ্জলি", name_en: "Ashtami Pushpanjali", date_bn: "অষ্টমী · সকাল", date_en: "Ashtami · Morning", registrations: 0, capacity: 0,
+      key: "draw" as const,
+      name_bn: "বসে আঁকো প্রতিযোগিতা",
+      name_en: "Sit & Draw Competition",
+      date_bn: "ষষ্ঠী · সকাল ১০টা",
+      date_en: "Shashthi · 10 AM",
+      registrations: 46,
+      capacity: 80,
+      slots: [],
+    },
+    {
+      key: "dhunuchi" as const,
+      name_bn: "ধুনুচি নাচ",
+      name_en: "Dhunuchi Naach",
+      date_bn: "নবমী · সন্ধ্যা ৭টা",
+      date_en: "Navami · 7 PM",
+      registrations: 22,
+      capacity: 40,
+      slots: [],
+    },
+    {
+      key: "shankha" as const,
+      name_bn: "শঙ্খধ্বনি প্রতিযোগিতা",
+      name_en: "Shankha Dhwani Contest",
+      date_bn: "অষ্টমী · বিকেল ৪টা",
+      date_en: "Ashtami · 4 PM",
+      registrations: 15,
+      capacity: 30,
+      slots: [],
+    },
+    {
+      key: "pushpanjali" as const,
+      name_bn: "অষ্টমীর পুষ্পাঞ্জলি",
+      name_en: "Ashtami Pushpanjali",
+      date_bn: "অষ্টমী · সকাল",
+      date_en: "Ashtami · Morning",
+      registrations: 0,
+      capacity: 0,
       slots: [
         { label_bn: "১ম ব্যাচ · ৮:০০", label_en: "Batch 1 · 8:00", filled: 50, capacity: 50 },
         { label_bn: "২য় ব্যাচ · ৮:৪৫", label_en: "Batch 2 · 8:45", filled: 41, capacity: 50 },
@@ -109,12 +225,24 @@ export function seedDB(): DB {
   return {
     version: 1,
     active_club_id: club_id,
-    clubs: [{
-      id: club_id, name: "বিবেকানন্দ পার্ক সার্বজনীন দুর্গোৎসব ২০২৬", name_en: "Vivekananda Park Sarbojanin Durgotsav 2026",
-      para: "বিবেকানন্দ পার্ক", zone: "দক্ষিণ কলকাতা", puja_year: 2026, target_amount: 850000,
-      receipt_seq: 380 + chandas.length, created_at: ago(60 * 24 * 30),
-    }],
+    clubs: [
+      {
+        id: club_id,
+        name: "বিবেকানন্দ পার্ক সার্বজনীন দুর্গোৎসব ২০২৬",
+        name_en: "Vivekananda Park Sarbojanin Durgotsav 2026",
+        para: "বিবেকানন্দ পার্ক",
+        zone: "দক্ষিণ কলকাতা",
+        puja_year: 2026,
+        target_amount: 850000,
+        receipt_seq: 380 + chandas.length,
+        created_at: ago(60 * 24 * 30),
+      },
+    ],
     lanes: { [club_id]: lanes },
-    households, chandas, expenses, events, members,
+    households,
+    chandas,
+    expenses,
+    events,
+    members,
   };
 }

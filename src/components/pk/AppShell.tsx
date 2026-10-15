@@ -1,6 +1,16 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Home, BookOpen, Receipt, Trophy, Settings, ChevronDown, Wifi, CloudOff, RefreshCw } from "lucide-react";
+import {
+  Home,
+  BookOpen,
+  Receipt,
+  Trophy,
+  Settings,
+  ChevronDown,
+  Wifi,
+  CloudOff,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { session, useInvalidateAll, useOnline, useSummary } from "@/hooks/use-data";
@@ -8,7 +18,11 @@ import { api } from "@/services/api";
 import { AlponaStrip, LangToggle, Modal } from "./ui";
 import { ClubPicker } from "./ClubPicker";
 
-const NAV: { to: "/home" | "/chanda" | "/expenses" | "/events" | "/admin"; icon: typeof Home; k: TKey }[] = [
+const NAV: {
+  to: "/home" | "/chanda" | "/expenses" | "/events" | "/admin";
+  icon: typeof Home;
+  k: TKey;
+}[] = [
   { to: "/home", icon: Home, k: "home" },
   { to: "/chanda", icon: BookOpen, k: "chanda" },
   { to: "/expenses", icon: Receipt, k: "expense" },
@@ -57,31 +71,63 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
   };
 
   return (
-    <div className="mx-auto min-h-screen max-w-2xl pb-28" onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}>
+    <div
+      className="mx-auto min-h-screen max-w-2xl pb-28"
+      onTouchStart={onStart}
+      onTouchMove={onMove}
+      onTouchEnd={onEnd}
+    >
       <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
         <AlponaStrip />
         <div className="flex items-center gap-2 px-4 py-2">
-          <button onClick={() => setClubOpen(true)} className="tap flex min-w-0 flex-1 items-center gap-2 text-left">
-            <img src="/icon-192.png" alt="" className="h-9 w-9 shrink-0 rounded-lg" width={36} height={36} />
+          <button
+            onClick={() => setClubOpen(true)}
+            className="tap flex min-w-0 flex-1 items-center gap-2 text-left"
+          >
+            <img
+              src="/icon-192.png"
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-lg"
+              width={36}
+              height={36}
+            />
             <div className="min-w-0">
               <div className="truncate text-[15px] font-bold leading-tight text-primary">
                 {summary ? pick(summary.club.name, summary.club.name_en) : t("app")}
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {online ? <Wifi className="h-3 w-3 text-success" /> : <CloudOff className="h-3 w-3 text-warning" />}
+                {online ? (
+                  <Wifi className="h-3 w-3 text-success" />
+                ) : (
+                  <CloudOff className="h-3 w-3 text-warning" />
+                )}
                 {online ? t("online") : t("offline")}
-                {summary && summary.pending_sync > 0 && <span className="font-semibold text-gold-ink">· {n(String(summary.pending_sync))} {t("pendingSync")}</span>}
+                {summary && summary.pending_sync > 0 && (
+                  <span className="font-semibold text-gold-ink">
+                    · {n(String(summary.pending_sync))} {t("pendingSync")}
+                  </span>
+                )}
                 <ChevronDown className="h-3 w-3" />
               </div>
             </div>
           </button>
           <LangToggle />
         </div>
-        {!online && <div className="bg-warning-soft px-4 py-1.5 text-center text-xs font-semibold text-warning">{t("offlineSaved")}</div>}
+        {!online && (
+          <div className="bg-warning-soft px-4 py-1.5 text-center text-xs font-semibold text-warning">
+            {t("offlineSaved")}
+          </div>
+        )}
       </header>
 
-      <div className="flex justify-center overflow-hidden transition-[height]" style={{ height: pull }}>
-        <RefreshCw className="mt-3 h-5 w-5 text-primary" style={{ transform: `rotate(${pull * 4}deg)` }} />
+      <div
+        className="flex justify-center overflow-hidden transition-[height]"
+        style={{ height: pull }}
+      >
+        <RefreshCw
+          className="mt-3 h-5 w-5 text-primary"
+          style={{ transform: `rotate(${pull * 4}deg)` }}
+        />
       </div>
 
       <main className="px-4 pt-4">{children}</main>
@@ -113,7 +159,11 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
 
 export function Fab({ to, label }: { to: "/collect"; label: string }) {
   return (
-    <Link to={to} aria-label={label} className="btn btn-primary shadow-fab fixed bottom-24 right-4 z-40 h-16 rounded-full px-6 text-base">
+    <Link
+      to={to}
+      aria-label={label}
+      className="btn btn-primary shadow-fab fixed bottom-24 right-4 z-40 h-16 rounded-full px-6 text-base"
+    >
       <span className="text-2xl leading-none">+</span> {label}
     </Link>
   );

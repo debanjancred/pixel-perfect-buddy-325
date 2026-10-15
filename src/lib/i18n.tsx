@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { indian, toBnDigits } from "./format";
 
 export type Lang = "bn" | "en";
@@ -107,7 +115,10 @@ const dict = {
   zone: ["জোন", "Zone"],
   year: ["পুজোর বছর", "Puja year"],
   cancel: ["বাতিল", "Cancel"],
-  tagline: ["পাড়ার পুজোর চাঁদা ও খরচের স্বচ্ছ হিসাব", "Transparent chanda & expense accounts for your para's puja"],
+  tagline: [
+    "পাড়ার পুজোর চাঁদা ও খরচের স্বচ্ছ হিসাব",
+    "Transparent chanda & expense accounts for your para's puja",
+  ],
   sendOtp: ["OTP পাঠান", "Send OTP"],
   enterOtp: ["OTP লিখুন", "Enter OTP"],
   autofill: ["Auto-fill OTP 1234", "Auto-fill OTP 1234"],
@@ -165,15 +176,25 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     if (loaded) localStorage.setItem(PREF, JSON.stringify({ lang, bnDigits, dark }));
   }, [lang, bnDigits, dark, loaded]);
 
-  const n = useCallback((v: number | string) => {
-    const s = typeof v === "number" ? indian(v) : v;
-    return lang === "bn" && bnDigits ? toBnDigits(s) : s;
-  }, [lang, bnDigits]);
+  const n = useCallback(
+    (v: number | string) => {
+      const s = typeof v === "number" ? indian(v) : v;
+      return lang === "bn" && bnDigits ? toBnDigits(s) : s;
+    },
+    [lang, bnDigits],
+  );
 
   const value = useMemo<Ctx>(() => {
     const t = (k: TKey) => dict[k][lang === "bn" ? 0 : 1];
     return {
-      lang, setLang, bnDigits, setBnDigits, dark, setDark, t, n,
+      lang,
+      setLang,
+      bnDigits,
+      setBnDigits,
+      dark,
+      setDark,
+      t,
+      n,
       money: (v) => "₹" + n(v),
       pick: (bn, en) => (lang === "bn" ? bn : en),
       ago: (iso) => {

@@ -11,9 +11,16 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Pujo Khata — Durga Puja chanda & expense app" },
-      { name: "description", content: "Collect chanda, log expenses and share transparent accounts for your para's Durga Puja. Works offline." },
+      {
+        name: "description",
+        content:
+          "Collect chanda, log expenses and share transparent accounts for your para's Durga Puja. Works offline.",
+      },
       { property: "og:title", content: "Pujo Khata — পুজো খাতা" },
-      { property: "og:description", content: "Transparent chanda & expense accounts for Durga Puja committees." },
+      {
+        property: "og:description",
+        content: "Transparent chanda & expense accounts for Durga Puja committees.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -50,8 +57,16 @@ function Onboarding() {
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
       <div className="bg-hero rounded-b-[2rem] px-5 pb-10 text-primary-foreground">
         <AlponaStrip />
-        <div className="flex justify-end pt-3"><LangToggle /></div>
-        <img src="/icon-192.png" alt="Pujo Khata" width={72} height={72} className="mt-4 h-18 w-18 rounded-2xl ring-2 ring-gold" />
+        <div className="flex justify-end pt-3">
+          <LangToggle />
+        </div>
+        <img
+          src="/icon-192.png"
+          alt="Pujo Khata"
+          width={72}
+          height={72}
+          className="mt-4 h-18 w-18 rounded-2xl ring-2 ring-gold"
+        />
         <h1 className="mt-4 text-4xl font-extrabold leading-tight">পুজো খাতা</h1>
         <div className="text-lg font-semibold opacity-90">Pujo Khata</div>
         <p className="mt-2 max-w-xs opacity-90">{t("tagline")}</p>
@@ -61,24 +76,61 @@ function Onboarding() {
         {step === "auth" ? (
           <>
             <div>
-              <Label><Smartphone className="mr-1 inline h-4 w-4" />{t("phone")}</Label>
+              <Label>
+                <Smartphone className="mr-1 inline h-4 w-4" />
+                {t("phone")}
+              </Label>
               <div className="flex gap-2">
                 <span className="field flex w-auto items-center font-bold">+91</span>
-                <input className="field num text-lg" inputMode="numeric" placeholder="98300 12345" maxLength={10} value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
+                <input
+                  className="field num text-lg"
+                  inputMode="numeric"
+                  placeholder="98300 12345"
+                  maxLength={10}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                />
               </div>
             </div>
             {!otpSent ? (
-              <button className="btn btn-primary w-full text-lg" disabled={phone.length !== 10} onClick={() => setOtpSent(true)}>{t("sendOtp")}</button>
+              <button
+                className="btn btn-primary w-full text-lg"
+                disabled={phone.length !== 10}
+                onClick={() => setOtpSent(true)}
+              >
+                {t("sendOtp")}
+              </button>
             ) : (
               <div className="space-y-3">
                 <Label>{t("enterOtp")}</Label>
-                <input className="field num text-center text-2xl tracking-[0.6em]" inputMode="numeric" maxLength={4} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
-                <button className="btn btn-gold w-full" onClick={() => setOtp("1234")}><Sparkles className="h-5 w-5" /> {t("autofill")}</button>
-                <button className="btn btn-primary w-full text-lg" disabled={otp.length !== 4} onClick={verify}>{t("verify")}</button>
+                <input
+                  className="field num text-center text-2xl tracking-[0.6em]"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                />
+                <button className="btn btn-gold w-full" onClick={() => setOtp("1234")}>
+                  <Sparkles className="h-5 w-5" /> {t("autofill")}
+                </button>
+                <button
+                  className="btn btn-primary w-full text-lg"
+                  disabled={otp.length !== 4}
+                  onClick={verify}
+                >
+                  {t("verify")}
+                </button>
               </div>
             )}
-            <div className="flex items-center gap-3 text-sm text-muted-foreground"><div className="h-px flex-1 bg-border" />{t("orLabel")}<div className="h-px flex-1 bg-border" /></div>
-            <button className="btn w-full border-2 border-primary bg-primary-soft py-4 text-lg text-primary" onClick={demo}>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="h-px flex-1 bg-border" />
+              {t("orLabel")}
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <button
+              className="btn w-full border-2 border-primary bg-primary-soft py-4 text-lg text-primary"
+              onClick={demo}
+            >
               {t("exploreDemo")}
               <span className="font-normal">(বিবেকানন্দ পার্ক সার্বজনীন)</span>
             </button>

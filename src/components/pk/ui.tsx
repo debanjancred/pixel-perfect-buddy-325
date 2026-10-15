@@ -11,7 +11,11 @@ export function AlponaStrip() {
         <pattern id="alpona" width="28" height="12" patternUnits="userSpaceOnUse">
           <path d="M0 6 Q7 0 14 6 T28 6" fill="none" stroke="currentColor" strokeWidth="1" />
           <circle cx="14" cy="6" r="1.6" fill="currentColor" />
-          <path d="M7 2.5 l1.2 1.5 -1.2 1.5 -1.2 -1.5z M21 7 l1.2 1.5 -1.2 1.5 -1.2 -1.5z" fill="currentColor" opacity=".7" />
+          <path
+            d="M7 2.5 l1.2 1.5 -1.2 1.5 -1.2 -1.5z M21 7 l1.2 1.5 -1.2 1.5 -1.2 -1.5z"
+            fill="currentColor"
+            opacity=".7"
+          />
         </pattern>
       </defs>
       <rect width="100%" height="12" fill="url(#alpona)" />
@@ -22,7 +26,11 @@ export function AlponaStrip() {
 export function LangToggle() {
   const { lang, setLang } = useI18n();
   return (
-    <div className="flex rounded-full border border-input bg-card p-0.5 text-sm font-semibold" role="group" aria-label="Language">
+    <div
+      className="flex rounded-full border border-input bg-card p-0.5 text-sm font-semibold"
+      role="group"
+      aria-label="Language"
+    >
       {(["bn", "en"] as const).map((l) => (
         <button
           key={l}
@@ -39,8 +47,16 @@ export function LangToggle() {
 
 export function StatusBadge({ status }: { status: PledgeStatus }) {
   const { t } = useI18n();
-  const cls = { paid: "bg-success-soft text-success", pending: "bg-warning-soft text-warning", promised: "bg-info-soft text-info" }[status];
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${cls}`}>{t(status)}</span>;
+  const cls = {
+    paid: "bg-success-soft text-success",
+    pending: "bg-warning-soft text-warning",
+    promised: "bg-info-soft text-info",
+  }[status];
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${cls}`}>
+      {t(status)}
+    </span>
+  );
 }
 
 export function SyncBadge({ status }: { status: SyncStatus }) {
@@ -53,7 +69,17 @@ export function SyncBadge({ status }: { status: SyncStatus }) {
   );
 }
 
-export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
   useEffect(() => {
     if (!open) return;
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -66,7 +92,10 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/50 animate-in fade-in sm:items-center" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/50 animate-in fade-in sm:items-center"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-label={title}
@@ -75,7 +104,11 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold">{title}</h2>
-          <button onClick={onClose} className="tap flex items-center justify-center rounded-full bg-muted" aria-label="Close">
+          <button
+            onClick={onClose}
+            className="tap flex items-center justify-center rounded-full bg-muted"
+            aria-label="Close"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
