@@ -10,6 +10,7 @@ npm run test       # vitest run
 npm run lint       # eslint .
 npm run format     # prettier --write .
 npm run build      # production build
+npm run typecheck  # tsc --noEmit
 ```
 
 ## Stack
@@ -34,8 +35,15 @@ defined in `src/styles.css`.
 - Bengali is the default language; the demo club is
   বিবেকানন্দ পার্ক সার্বজনীন দুর্গোৎসব ২০২৬.
 
-## Git
+## Git & releases
 
-This repository two-way syncs with Lovable on a single branch. Do not rewrite
-already-published history (no force push, rebase or amend of pushed commits).
-Pushing updates the Lovable editor but does not publish the live site.
+Full process in `CONTRIBUTING.md`; plan and status in `docs/ROADMAP.md`.
+
+- `main` two-way syncs with Lovable and must stay releasable. Work on
+  short-lived `feat/…`, `fix/…`, `chore/…` branches; merge into `main` with
+  `--no-ff` once CI is green.
+- Pick up Lovable edits by merging `main` into the branch. Never rewrite
+  already-published history (no force push, rebase or amend of pushed commits).
+- Conventional Commits; SemVer in `package.json` (0.x until the Laravel API);
+  tag releases `vX.Y.Z` and keep `CHANGELOG.md` current.
+- Pushing `main` updates the Lovable editor but does not publish the live site.

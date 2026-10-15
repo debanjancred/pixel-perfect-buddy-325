@@ -1,0 +1,40 @@
+# Changelog
+
+All notable changes to Pujo Khata. Format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
+[Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Added
+- Onboarding with validated phone and OTP (mock code 1234 until the Laravel
+  API), 5-attempt lockout, resend cooldown and change-number.
+- Club creation with validation: unique name per year, target ₹1,000–₹10 cr.
+- Login required for all app pages; demo login always opens the demo club.
+- Dashboard loading, empty and retry states.
+- Chanda register: filter counts, Bengali-digit and phone search, balance due
+  and paid-so-far for partial payments, reminders in the app language.
+- Collect form: labelled fields with inline errors, amount ₹1–₹10 lakh,
+  duplicate-household guard, balance due pre-filled from the register.
+- CI on every pull request and push to `main`: lint, typecheck, tests, build.
+
+### Changed
+- Not-found and error pages are translated.
+- Language toggle and filter chips are 48px tall; the toggle is readable on
+  the red header.
+- Negative amounts show as −₹5,000.
+
+### Fixed
+- A partial payment no longer marks a household fully paid.
+- Receipt numbers can no longer repeat.
+- The collect button no longer stays disabled after a failed save.
+
+## [0.1.0] - 2026-10-15
+
+### Added
+- Lovable prototype: onboarding, dashboard, chanda register and collection,
+  receipts, expenses, events, public audit and club admin, backed by
+  localStorage with Bengali/English UI.
+
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/releases/tag/v0.1.0
