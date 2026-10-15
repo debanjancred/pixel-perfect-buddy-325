@@ -76,7 +76,7 @@ function ChandaPage() {
       {groups.map(([lane, rows]) => (
         <section key={lane} className="mt-5">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-gold-ink">
-            <MapPin className="h-4 w-4" /> {pick(lane, rows[0].h.lane_en)} <span className="font-medium text-muted-foreground">· {n(String(rows.length))} {t("houses")}</span>
+            <MapPin className="h-4 w-4" /> {pick(lane, rows[0]!.h.lane_en)} <span className="font-medium text-muted-foreground">· {n(String(rows.length))} {t("houses")}</span>
           </h2>
           <ul className="space-y-2">
             {rows.map(({ h, collected, collector }) => {

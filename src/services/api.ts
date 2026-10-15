@@ -27,7 +27,7 @@ function read(): DB {
   return db;
 }
 const mine = <T extends { club_id: string }>(db: DB, list: T[]) => list.filter((x) => x.club_id === db.active_club_id);
-const activeClub = (db: DB) => db.clubs.find((c) => c.id === db.active_club_id) ?? db.clubs[0];
+const activeClub = (db: DB): Club => (db.clubs.find((c) => c.id === db.active_club_id) ?? db.clubs[0])!;
 
 export const api = {
   async getClubs() {

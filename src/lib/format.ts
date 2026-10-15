@@ -1,5 +1,5 @@
 const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
-export const toBnDigits = (s: string) => s.replace(/[0-9]/g, (d) => BN_DIGITS[Number(d)]);
+export const toBnDigits = (s: string) => s.replace(/[0-9]/g, (d) => BN_DIGITS[Number(d)] ?? d);
 export const indian = (n: number) => Math.round(n).toLocaleString("en-IN");
 
 const BN_WORDS = (
@@ -12,7 +12,7 @@ const BN_WORDS = (
 
 const EN_ONES = "Zero One Two Three Four Five Six Seven Eight Nine Ten Eleven Twelve Thirteen Fourteen Fifteen Sixteen Seventeen Eighteen Nineteen".split(" ");
 const EN_TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-const en2 = (n: number) => (n < 20 ? EN_ONES[n] : EN_TENS[Math.floor(n / 10)] + (n % 10 ? " " + EN_ONES[n % 10] : ""));
+const en2 = (n: number): string => (n < 20 ? EN_ONES[n]! : EN_TENS[Math.floor(n / 10)]! + (n % 10 ? " " + EN_ONES[n % 10]! : ""));
 
 function words(n: number, two: (x: number) => string, u: [string, string, string, string]) {
   if (n === 0) return two(0);
@@ -29,6 +29,6 @@ function words(n: number, two: (x: number) => string, u: [string, string, string
 export function amountInWords(n: number, lang: "bn" | "en") {
   const v = Math.round(n);
   return lang === "bn"
-    ? `${words(v, (x) => BN_WORDS[x], ["শত", "হাজার", "লক্ষ", "কোটি"])} টাকা মাত্র`
+    ? `${words(v, (x) => BN_WORDS[x] ?? "", ["শত", "হাজার", "লক্ষ", "কোটি"])} টাকা মাত্র`
     : `Rupees ${words(v, en2, ["Hundred", "Thousand", "Lakh", "Crore"])} Only`;
 }

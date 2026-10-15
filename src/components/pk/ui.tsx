@@ -97,7 +97,7 @@ export function waLink(phone: string | undefined, text: string) {
 export async function shareOrWhatsApp(text: string, url?: string, phone?: string) {
   if (typeof navigator !== "undefined" && navigator.share) {
     try {
-      await navigator.share({ text, url });
+      await navigator.share(url ? { text, url } : { text });
       return;
     } catch {
       /* cancelled → fall back */

@@ -45,14 +45,14 @@ export function seedDB(): DB {
   rows.forEach(([bn, en, li, house, pledge, status, mins, mode, ci], i) => {
     const id = uuid();
     households.push({
-      id, club_id, lane_bn: lanes[li].bn, lane_en: lanes[li].en, house_no: house,
+      id, club_id, lane_bn: lanes[li]!.bn, lane_en: lanes[li]!.en, house_no: house,
       resident_name: bn, resident_name_en: en, phone: `98300${String(10000 + i * 731).slice(0, 5)}`,
       pledged_amount: pledge, status, created_at: ago(60 * 24 * 20), sync_status: "synced",
     });
     if (mins !== null) {
       chandaDrafts.push({
         id: uuid(), club_id, household_id: id, payer_name: bn, payer_name_en: en, amount: pledge,
-        payment_mode: mode, collector_id: members[ci].id, created_at: ago(mins), sync_status: "synced",
+        payment_mode: mode, collector_id: members[ci]!.id, created_at: ago(mins), sync_status: "synced",
       });
     }
   });
@@ -63,12 +63,12 @@ export function seedDB(): DB {
     ["স্থানীয় ব্যবসায়ী সমিতি", "Local Traders' Association", 85000, 60 * 24 * 8],
   ];
   sponsors.forEach(([bn, en, amt, mins]) =>
-    chandaDrafts.push({ id: uuid(), club_id, household_id: null, payer_name: bn, payer_name_en: en, amount: amt, payment_mode: "upi", collector_id: members[0].id, created_at: ago(mins), sync_status: "synced" }),
+    chandaDrafts.push({ id: uuid(), club_id, household_id: null, payer_name: bn, payer_name_en: en, amount: amt, payment_mode: "upi", collector_id: members[0]!.id, created_at: ago(mins), sync_status: "synced" }),
   );
   const subtotal = chandaDrafts.reduce((s, c) => s + c.amount, 0);
   chandaDrafts.push({
     id: uuid(), club_id, household_id: null, payer_name: "পূর্ববর্তী খাতার আদায় (খাতা ১–৩)", payer_name_en: "Earlier ledger collections (books 1–3)",
-    amount: TARGET_COLLECTED - subtotal, payment_mode: "cash", collector_id: members[1].id, created_at: ago(60 * 24 * 14), sync_status: "synced",
+    amount: TARGET_COLLECTED - subtotal, payment_mode: "cash", collector_id: members[1]!.id, created_at: ago(60 * 24 * 14), sync_status: "synced",
   });
 
   chandaDrafts.sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -87,7 +87,7 @@ export function seedDB(): DB {
     ["misc", "রসিদ বই ও ব্যানার ছাপা", "Receipt books & banner printing", 5000, 1, 60 * 24 * 16],
   ];
   const expenses: Expense[] = ex.map(([category, bn, en, amount, mi, mins]) => ({
-    id: uuid(), club_id, category, item_name: bn, item_name_en: en, amount, approved_by_id: members[mi].id,
+    id: uuid(), club_id, category, item_name: bn, item_name_en: en, amount, approved_by_id: members[mi]!.id,
     receipt_image: null, created_at: ago(mins), sync_status: "synced",
   }));
 

@@ -41,11 +41,11 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
   }, [online]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onStart = (e: React.TouchEvent) => {
-    startY.current = window.scrollY <= 0 ? e.touches[0].clientY : null;
+    startY.current = window.scrollY <= 0 ? e.touches[0]!.clientY : null;
   };
   const onMove = (e: React.TouchEvent) => {
     if (startY.current === null) return;
-    setPull(Math.max(0, Math.min(90, (e.touches[0].clientY - startY.current) * 0.5)));
+    setPull(Math.max(0, Math.min(90, (e.touches[0]!.clientY - startY.current) * 0.5)));
   };
   const onEnd = async () => {
     if (pull > 60) {

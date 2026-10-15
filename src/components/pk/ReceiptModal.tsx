@@ -4,7 +4,7 @@ import { amountInWords, indian, toBnDigits } from "@/lib/format";
 import type { Chanda, Club } from "@/services/types";
 import { AlponaStrip, Modal, shareOrWhatsApp, waLink } from "./ui";
 
-export function ReceiptModal({ chanda, club, phone, onClose }: { chanda: Chanda | null; club: Club | undefined; phone?: string; onClose: () => void }) {
+export function ReceiptModal({ chanda, club, phone, onClose }: { chanda: Chanda | null; club: Club | undefined; phone?: string | undefined; onClose: () => void }) {
   const { t, pick, money, lang, n } = useI18n();
   if (!chanda || !club) return null;
   const link = `${window.location.origin}/audit?r=${chanda.receipt_no}`;
