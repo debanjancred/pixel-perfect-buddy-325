@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChandaRouteImport } from './routes/chanda'
+import { Route as CollectRouteImport } from './routes/collect'
+import { Route as HomeRouteImport } from './routes/home'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChandaRoute = ChandaRouteImport.update({
+  id: '/chanda',
+  path: '/chanda',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectRoute = CollectRouteImport.update({
+  id: '/collect',
+  path: '/collect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/chanda': typeof ChandaRoute
+  '/collect': typeof CollectRoute
+  '/home': typeof HomeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/chanda': typeof ChandaRoute
+  '/collect': typeof CollectRoute
+  '/home': typeof HomeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/chanda': typeof ChandaRoute
+  '/collect': typeof CollectRoute
+  '/home': typeof HomeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/chanda' | '/collect' | '/home'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/chanda' | '/collect' | '/home'
+  id: '__root__' | '/' | '/chanda' | '/collect' | '/home'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChandaRoute: typeof ChandaRoute
+  CollectRoute: typeof CollectRoute
+  HomeRoute: typeof HomeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chanda': {
+      id: '/chanda'
+      path: '/chanda'
+      fullPath: '/chanda'
+      preLoaderRoute: typeof ChandaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collect': {
+      id: '/collect'
+      path: '/collect'
+      fullPath: '/collect'
+      preLoaderRoute: typeof CollectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChandaRoute: ChandaRoute,
+  CollectRoute: CollectRoute,
+  HomeRoute: HomeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
