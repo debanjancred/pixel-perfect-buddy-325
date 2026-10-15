@@ -6,7 +6,7 @@ We work one module at a time. Each phase ships as a minor release.
 | Release | Phase | Modules | Status |
 |---|---|---|---|
 | v0.1.0 | Lovable prototype | All screens on localStorage | Released |
-| v0.2.0 | Stabilise + core collection | M0, M1, M2, M3 | Done — pending release |
+| v0.2.0 | Stabilise + core collection | M0, M1, M2, M3 | Released |
 | v0.3.0 | Money modules | M3b Receipt, M4 Expenses | Next |
 | v0.4.0 | Community & admin | M5 Events, M6 Public audit, M7 Admin | Planned |
 | v0.5.0 | Cross-cutting | M8 Roles & permissions, M9 Offline & PWA | Planned |

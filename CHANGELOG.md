@@ -6,6 +6,8 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-15
+
 ### Added
 - Onboarding with validated phone and OTP (mock code 1234 until the Laravel
   API), 5-attempt lockout, resend cooldown and change-number.
@@ -36,5 +38,6 @@ All notable changes to Pujo Khata. Format follows
   receipts, expenses, events, public audit and club admin, backed by
   localStorage with Bengali/English UI.
 
-[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/releases/tag/v0.1.0
