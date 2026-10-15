@@ -1,0 +1,12 @@
+{
+  "name": "Pujo Khata — পুজো খাতা",
+  "short_name": "পুজো খাতা",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#B71C1C",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
