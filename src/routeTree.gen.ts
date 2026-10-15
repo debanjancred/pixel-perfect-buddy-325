@@ -10,13 +10,27 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as ChandaRouteImport } from './routes/chanda'
 import { Route as CollectRouteImport } from './routes/collect'
+import { Route as EventsRouteImport } from './routes/events'
+import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as HomeRouteImport } from './routes/home'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChandaRoute = ChandaRouteImport.update({
@@ -29,6 +43,16 @@ const CollectRoute = CollectRouteImport.update({
   path: '/collect',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesRoute = ExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
@@ -37,35 +61,76 @@ const HomeRoute = HomeRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/audit': typeof AuditRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
+  '/events': typeof EventsRoute
+  '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/audit': typeof AuditRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
+  '/events': typeof EventsRoute
+  '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/audit': typeof AuditRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
+  '/events': typeof EventsRoute
+  '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chanda' | '/collect' | '/home'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/audit'
+    | '/chanda'
+    | '/collect'
+    | '/events'
+    | '/expenses'
+    | '/home'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chanda' | '/collect' | '/home'
-  id: '__root__' | '/' | '/chanda' | '/collect' | '/home'
+  to:
+    | '/'
+    | '/admin'
+    | '/audit'
+    | '/chanda'
+    | '/collect'
+    | '/events'
+    | '/expenses'
+    | '/home'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/audit'
+    | '/chanda'
+    | '/collect'
+    | '/events'
+    | '/expenses'
+    | '/home'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  AuditRoute: typeof AuditRoute
   ChandaRoute: typeof ChandaRoute
   CollectRoute: typeof CollectRoute
+  EventsRoute: typeof EventsRoute
+  ExpensesRoute: typeof ExpensesRoute
   HomeRoute: typeof HomeRoute
 }
 
@@ -76,6 +141,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chanda': {
@@ -92,6 +171,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses': {
+      id: '/expenses'
+      path: '/expenses'
+      fullPath: '/expenses'
+      preLoaderRoute: typeof ExpensesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/home': {
       id: '/home'
       path: '/home'
@@ -104,8 +197,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  AuditRoute: AuditRoute,
   ChandaRoute: ChandaRoute,
   CollectRoute: CollectRoute,
+  EventsRoute: EventsRoute,
+  ExpensesRoute: ExpensesRoute,
   HomeRoute: HomeRoute,
 }
 export const routeTree = rootRouteImport
