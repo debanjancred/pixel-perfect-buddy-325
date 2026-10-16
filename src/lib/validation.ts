@@ -102,6 +102,23 @@ export const expenseSchema = z.object({
 });
 export type ExpenseInput = z.infer<typeof expenseSchema>;
 
+/** User-entered event: one title as typed (stored in both language slots, like club names). */
+export const eventSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, m("err_required"))
+    .min(2, m("err_nameShort"))
+    .max(80, m("err_tooLong")),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, m("err_date"))
+    .refine((v) => !Number.isNaN(Date.parse(v)), m("err_date"))
+    // New events are planned ahead; a past date is almost always a typo.
+    .refine((v) => v >= isoDate(), m("err_eventPast")),
+});
+export type EventInput = z.infer<typeof eventSchema>;
+
 export const memberSchema = z.object({
   name: z.string().trim().min(1, m("err_required")).max(80, m("err_tooLong")),
   phone: phoneSchema,

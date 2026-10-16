@@ -23,7 +23,7 @@ We work one module at a time. Each phase ships as a minor release.
 | 4 | M3 Chanda register & collect | Search, filters, partial payments, receipt numbers, validation | Done |
 | 5 | M3b Receipt | Amount in words, bilingual share text, print/image | Done |
 | 6 | M4 Expenses | Ledger, receipt photo compression, approver, validation | Done |
-| 7 | M5 Events | Slot capacity, full state, share link | Todo |
+| 7 | M5 Events | Roster per SPEC 6.1: add events, today / upcoming / finished, undoable registration, share text (no slot capacity: not in SPEC §4) | Done |
 | 8 | M6 Public audit | Read-only without login, charts, story card | Todo |
 | 9 | M7 Admin | Members & roles, CSV export, preferences, app version shown | Todo |
 | 10 | M8 Roles & permissions | Secretary / treasurer / collector gating in UI and api | Todo |

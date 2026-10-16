@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { api } from "@/services/api";
 import { phoneSchema, type ExpenseInput } from "@/lib/validation";
+import type { ClubEvent } from "@/types/domain";
 
 // Data lives in the browser (offline-first), so queries run client-side only.
 // One key per collection, shared by queries and the mutations that invalidate them.
@@ -146,10 +147,37 @@ export function useVoidExpense() {
   });
 }
 
-export function useRegisterEvent() {
+/**
+ * Registration tally changes are applied to the cache immediately (taps during a busy
+ * event must feel instant), rolled back if the save fails, then refetched.
+ */
+function useEventTally(fn: (id: string) => Promise<ClubEvent>, delta: 1 | -1) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: queryKeys.events });
+      const previous = qc.getQueryData<ClubEvent[]>(queryKeys.events);
+      qc.setQueryData<ClubEvent[]>(queryKeys.events, (list) =>
+        list?.map((e) =>
+          e.id === id
+            ? { ...e, registrations_count: Math.max(0, e.registrations_count + delta) }
+            : e,
+        ),
+      );
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => qc.setQueryData(queryKeys.events, ctx?.previous),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.events }),
+  });
+}
+export const useRegisterEvent = () => useEventTally(api.registerEvent, 1);
+export const useUnregisterEvent = () => useEventTally(api.unregisterEvent, -1);
+
+export function useCreateEvent() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: api.registerEvent,
+    mutationFn: api.createEvent,
     onSuccess: () => invalidate(queryKeys.events),
   });
 }

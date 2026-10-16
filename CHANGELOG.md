@@ -39,6 +39,15 @@ All notable changes to Pujo Khata. Format follows
     linked to, and the phone's back button closes them (`useSearchModal`).
 - `api.deleteVoucherImage()`; photos left unreferenced by a failed or repeated save are
   cleaned up.
+- Events module (M5, SPEC Story 6.1) in `src/features/events`:
+  - Add events (name as typed, date from today on); a new club is no longer stuck with
+    an empty, read-only screen.
+  - Events grouped into Today / Upcoming / Finished with a countdown (আগামীকাল,
+    ৩ দিন বাকি); registration closes once an event has passed.
+  - Register updates the tally instantly and offers Undo for stray taps
+    (`api.unregisterEvent`, never below zero); failed saves roll back.
+  - Share sends a self-contained invite text (club, event, date, tally) — no link.
+  - Loading, empty and error states.
 
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and
@@ -48,6 +57,8 @@ All notable changes to Pujo Khata. Format follows
 - Receipt share text is fully bilingual and self-contained (no local-only link).
 - Expense dates can't be in the future; the store refuses non-image or oversized vouchers.
 - Expense rows show the expense date instead of "time ago".
+- Demo event dates are relative to today, so the sample club always has upcoming events.
+- Event buttons read "নাম লেখান" / "শেয়ার করুন" (no "+১", and no "link" since none is sent).
 
 ### Fixed
 - A newly created club had no members, so chanda couldn't be collected (no collector)

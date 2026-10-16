@@ -147,9 +147,11 @@ export function buildDemoData(): DemoData {
     }),
   );
 
+  // Relative to today so the demo always shows upcoming events.
+  const inDays = (d: number) => new Date(Date.now() + d * 86_400_000).toLocaleDateString("en-CA");
   const events: ClubEvent[] = [
-    ["বসে আঁকো", "Sit & Draw", "2026-10-18", 24],
-    ["ধুনুচি নাচ", "Dhunuchi Dance", "2026-10-21", 12],
+    ["বসে আঁকো", "Sit & Draw", inDays(1), 24],
+    ["ধুনুচি নাচ", "Dhunuchi Dance", inDays(4), 12],
   ].map(([title_bn, title_en, date, registrations_count]) => ({
     id: uuid(),
     club_id,

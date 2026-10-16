@@ -9,6 +9,7 @@ import {
   chandaSchema,
   check,
   clubSchema,
+  eventSchema,
   expenseSchema,
   householdSchema,
   memberSchema,
@@ -19,6 +20,7 @@ import {
   voidReasonSchema,
   type ChandaInput,
   type ClubInput,
+  type EventInput,
   type ExpenseInput,
   type HouseholdInput,
   type MemberInput,
@@ -479,6 +481,34 @@ export const api = {
     const ev = mine(db, db.events).find((e) => e.id === id);
     if (!ev) throw new ValidationError("event_id", "err_notFound");
     ev.registrations_count += 1;
+    write(db);
+    return ev;
+  },
+  /** Undoes a mistaken registration tap; the tally never goes below zero. Not in SPEC §4. */
+  async unregisterEvent(id: string): Promise<ClubEvent> {
+    await delay();
+    const db = read();
+    const ev = mine(db, db.events).find((e) => e.id === id);
+    if (!ev) throw new ValidationError("event_id", "err_notFound");
+    ev.registrations_count = Math.max(0, ev.registrations_count - 1);
+    write(db);
+    return ev;
+  },
+  async createEvent(raw: EventInput): Promise<ClubEvent> {
+    await delay();
+    const input = parseOrThrow(eventSchema, raw);
+    const db = read();
+    const club = requireClub(db);
+    const ev: ClubEvent = {
+      id: uuid(),
+      club_id: club.id,
+      title_bn: input.title,
+      title_en: input.title,
+      date: input.date,
+      registrations_count: 0,
+      created_at: now(),
+    };
+    db.events.push(ev);
     write(db);
     return ev;
   },
