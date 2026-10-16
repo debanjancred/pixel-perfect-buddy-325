@@ -246,6 +246,14 @@ async function seedDemo(): Promise<void> {
   write(db);
 }
 
+/** Everything the public accounts page shows for one club. */
+export interface ClubAccounts {
+  club: Club;
+  summary: AccountsSummary;
+  /** All of the club's expenses, voided ones included (the page shows per-category totals). */
+  expenses: ExpenseRecord[];
+}
+
 export const api = {
   // --- Auth (mock) ---
   async requestOtp(phone: string) {
@@ -523,6 +531,24 @@ export const api = {
       mine(db, db.expenses),
       mine(db, db.handovers),
     );
+  },
+  /**
+   * Read-only accounts of any club on this device, by slug (SPEC 4.1). Doesn't change the
+   * active club, so the page works without signing in. Null when the slug is unknown.
+   */
+  async getClubAccounts(slug: string): Promise<ClubAccounts | null> {
+    await delay();
+    const db = read();
+    const club = db.clubs.find((c) => c.slug === slug);
+    if (!club) return null;
+    const of = <T extends { club_id: string }>(list: T[]) =>
+      list.filter((x) => x.club_id === club.id);
+    const expenses = of(db.expenses);
+    return {
+      club,
+      summary: computeSummary(club, of(db.chanda), expenses, of(db.handovers)),
+      expenses,
+    };
   },
 
   /** MVP sync adapter (Story 5.1): with no backend, mark pending records synced when online. */

@@ -48,6 +48,14 @@ All notable changes to Pujo Khata. Format follows
     (`api.unregisterEvent`, never below zero); failed saves roll back.
   - Share sends a self-contained invite text (club, event, date, tally) — no link.
   - Loading, empty and error states.
+- Accounts module (M6, SPEC Story 4.1) in `src/features/accounts`, at
+  `/club/$slug/accounts` (`/audit` forwards to the active club's page):
+  - Read-only and viewable without signing in on the device; any club on the device by
+    slug (`api.getClubAccounts`), without switching the active club.
+  - Net balance (vermilion when negative), collected vs spent, pledges shown apart,
+    target progress, cash vs UPI split.
+  - Category donut with a labelled table (percentages always add up to 100%) and hover
+    tooltips; WhatsApp summary text and a story-card image.
 
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and
@@ -59,6 +67,9 @@ All notable changes to Pujo Khata. Format follows
 - Expense rows show the expense date instead of "time ago".
 - Demo event dates are relative to today, so the sample club always has upcoming events.
 - Event buttons read "নাম লেখান" / "শেয়ার করুন" (no "+১", and no "link" since none is sent).
+- Chart colours replaced with a validated categorical palette (separate light and dark
+  steps); the old set had near-identical orange/gold and a grey slot.
+- Bengali balance label is "নিট ব্যালান্স" (was "হাতে জমা", i.e. cash in hand), per SPEC §6.
 
 ### Fixed
 - A newly created club had no members, so chanda couldn't be collected (no collector)

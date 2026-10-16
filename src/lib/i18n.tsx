@@ -21,7 +21,8 @@ const dict = {
   admin: ["ক্লাব", "Club"],
   collected: ["আদায়", "Collected"],
   spent: ["খরচ", "Spent"],
-  balance: ["হাতে জমা", "Net balance"],
+  // SPEC §6.5: "Net Balance", never "cash in hand" — it includes UPI money.
+  balance: ["নিট ব্যালান্স", "Net balance"],
   target: ["লক্ষ্য", "Target"],
   addChanda: ["চাঁদা জমা", "Add Chanda"],
   addExpense: ["খরচ লিখুন", "Add Expense"],
@@ -104,6 +105,11 @@ const dict = {
   byCategory: ["বিভাগ অনুযায়ী খরচ", "Spending by category"],
   collVsExp: ["আদায় বনাম খরচ", "Collections vs expenses"],
   storyCard: ["স্টোরি কার্ড", "Story card"],
+  accountsNotFound: ["এই ক্লাবের হিসাব পাওয়া যায়নি", "No accounts found for this club"],
+  accountsNotFoundHint: [
+    "এখন হিসাব শুধু যে ফোনে লেখা হয়েছে সেখানেই দেখা যায়",
+    "For now, accounts can only be viewed on the phone they were recorded on",
+  ],
   download: ["ডাউনলোড", "Download"],
   eventsTitle: ["পুজো প্রতিযোগিতা", "Pujo Competitions"],
   registered: ["নাম নথিভুক্ত", "registered"],

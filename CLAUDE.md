@@ -38,6 +38,8 @@ defined in `src/styles.css`.
   and closed through `useSearchModal` in `src/hooks/use-search-modal.ts`.
 - Mobile-first at 360px, touch targets at least 48px.
 - Palette: vermilion `#B71C1C`/`#C8102E`, antique gold `#B8860B`, canvas `#FDFBF7`.
+  Chart series use `--chart-1…6` in fixed category order (validated for colour-blind
+  separation in both modes; keep visible labels).
   Fonts: Hind Siliguri for Bengali, Inter for English. The alpona motif belongs only
   on the top header — never behind numbers or inputs.
 - Bengali is the default language; the demo club is the generic

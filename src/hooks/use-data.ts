@@ -11,6 +11,8 @@ export const queryKeys = {
   club: ["club"],
   clubs: ["clubs"],
   summary: ["summary"],
+  // Under "summary" so every mutation that refreshes the summary refreshes this too.
+  accounts: (slug: string) => ["summary", "accounts", slug],
   members: ["members"],
   households: ["households"],
   transactions: ["transactions"],
@@ -22,6 +24,8 @@ export const queryKeys = {
 export const useClub = () => useQuery({ queryKey: queryKeys.club, queryFn: api.getClub });
 export const useClubs = () => useQuery({ queryKey: queryKeys.clubs, queryFn: api.listClubs });
 export const useSummary = () => useQuery({ queryKey: queryKeys.summary, queryFn: api.getSummary });
+export const useClubAccounts = (slug: string) =>
+  useQuery({ queryKey: queryKeys.accounts(slug), queryFn: () => api.getClubAccounts(slug) });
 export const useMembers = () => useQuery({ queryKey: queryKeys.members, queryFn: api.listMembers });
 export const useHouseholds = () =>
   useQuery({ queryKey: queryKeys.households, queryFn: api.listHouseholds });

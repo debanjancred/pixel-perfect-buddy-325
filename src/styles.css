@@ -87,12 +87,15 @@
   --info: oklch(0.42 0.15 260);
   --info-soft: oklch(0.95 0.025 240);
   --whatsapp: oklch(0.55 0.15 150);
-  --chart-1: oklch(0.5 0.19 27);
-  --chart-2: oklch(0.64 0.13 80);
-  --chart-3: oklch(0.42 0.11 145);
-  --chart-4: oklch(0.42 0.15 260);
-  --chart-5: oklch(0.58 0.18 45);
-  --chart-6: oklch(0.55 0.03 40);
+  /* Categorical series, in fixed order (validated: lightness band, chroma floor, CVD
+     and normal-vision separation of adjacent slots incl. the donut wrap, both modes).
+     Light slots 3–5 are under 3:1 on the card, so charts must keep visible labels. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
   --gradient-hero: linear-gradient(
     145deg,
     oklch(0.53 0.21 22) 0%,
@@ -126,6 +129,13 @@
   --gold: oklch(0.75 0.13 82);
   --gold-ink: oklch(0.8 0.12 82);
   --gold-soft: oklch(0.3 0.05 80);
+  /* The same hues stepped for the dark surface (not an automatic flip). */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
   --success: oklch(0.8 0.13 150);
   --success-soft: oklch(0.3 0.05 150);
   --warning: oklch(0.8 0.14 60);
