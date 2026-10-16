@@ -46,6 +46,9 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
   const sync = useSync();
   const [authed, setAuthed] = useState(false);
   const [clubOpen, setClubOpen] = useState(false);
+  // Read on render: the picker only mounts client-side, once the modal is opened.
+  const current = session.get();
+  const signedInPhone = current?.mode === "user" ? current.phone : undefined;
   const [pull, setPull] = useState(0);
   const startY = useRef<number | null>(null);
 
@@ -169,7 +172,7 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
       </nav>
 
       <Modal open={clubOpen} onClose={() => setClubOpen(false)} title={t("switchClub")}>
-        <ClubPicker onDone={() => setClubOpen(false)} />
+        <ClubPicker phone={signedInPhone} onDone={() => setClubOpen(false)} />
       </Modal>
     </div>
   );

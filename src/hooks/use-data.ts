@@ -190,7 +190,13 @@ function useClubMutation<A, R>(fn: (arg: A) => Promise<R>) {
 }
 export const useSeedDemo = () => useClubMutation(api.seedDemo);
 export const useResetDemo = () => useClubMutation(api.resetDemo);
-export const useCreateClub = () => useClubMutation(api.createClub);
+/** Creating a club signs its creator in, so the app acts as them (its admin) from now on. */
+export const useCreateClub = () =>
+  useClubMutation(async (input: Parameters<typeof api.createClub>[0]) => {
+    const club = await api.createClub(input);
+    session.set({ mode: "user", phone: input.creator_phone });
+    return club;
+  });
 export const useSetActiveClub = () => useClubMutation(api.setActiveClub);
 
 export function useOnline() {

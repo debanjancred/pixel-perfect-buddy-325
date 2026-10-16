@@ -2,19 +2,37 @@ import { useState, type FormEvent } from "react";
 import { Check, Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useClubs, useCreateClub, useSetActiveClub } from "@/hooks/use-data";
-import { ValidationError, clubSchema, fieldErrors, sameName, type ErrKey } from "@/lib/validation";
+import {
+  ValidationError,
+  clubSchema,
+  fieldErrors,
+  normalizePhone,
+  sameName,
+  type ErrKey,
+} from "@/lib/validation";
 import { TextField } from "./ui";
 
 const PUJA_YEAR = new Date().getFullYear();
-const FIELDS = ["name", "para", "zone", "target_amount"] as const;
+const FIELDS = ["name", "para", "zone", "target_amount", "creator_name", "creator_phone"] as const;
 
-export function ClubPicker({ onDone }: { onDone: () => void }) {
+/**
+ * Lists the clubs on this device and creates new ones. `phone` is the signed-in number:
+ * when known, the creator's phone is fixed to it; demo users enter one.
+ */
+export function ClubPicker({ phone, onDone }: { phone?: string | undefined; onDone: () => void }) {
   const { t, pick, n, money } = useI18n();
   const { data } = useClubs();
   const setActive = useSetActiveClub();
   const createClub = useCreateClub();
   const [creating, setCreating] = useState(false);
-  const [f, setF] = useState({ name: "", para: "", zone: "", target: "500000" });
+  const [f, setF] = useState({
+    name: "",
+    para: "",
+    zone: "",
+    target: "500000",
+    creatorName: "",
+    creatorPhone: phone ?? "",
+  });
   const [submitted, setSubmitted] = useState(false);
   const [serverErr, setServerErr] = useState<{ field: string; key: ErrKey } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,6 +43,8 @@ export function ClubPicker({ onDone }: { onDone: () => void }) {
     zone: f.zone,
     puja_year: PUJA_YEAR,
     target_amount: f.target ? Number(f.target) : NaN,
+    creator_name: f.creatorName,
+    creator_phone: phone ?? f.creatorPhone,
   };
   const errors = fieldErrors(clubSchema, input);
   if (
@@ -107,6 +127,33 @@ export function ClubPicker({ onDone }: { onDone: () => void }) {
             {money(input.target_amount)}
           </p>
         )}
+        <fieldset className="space-y-3 rounded-2xl border bg-card p-3">
+          <legend className="px-1 text-sm font-semibold text-muted-foreground">
+            {t("role_admin")}
+          </legend>
+          <TextField
+            id="club-creator_name"
+            label={t("yourName")}
+            autoComplete="name"
+            maxLength={80}
+            value={f.creatorName}
+            error={shown("creator_name")}
+            onChange={(e) => edit({ creatorName: e.target.value })}
+          />
+          <TextField
+            id="club-creator_phone"
+            label={t("phone")}
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
+            className={phone ? "num bg-muted text-muted-foreground" : "num"}
+            value={phone ?? f.creatorPhone}
+            readOnly={!!phone}
+            error={shown("creator_phone")}
+            onChange={(e) => edit({ creatorPhone: normalizePhone(e.target.value) })}
+          />
+          <p className="text-sm text-muted-foreground">{t("creatorHint")}</p>
+        </fieldset>
         <div className="grid grid-cols-2 gap-3">
           <button type="button" className="btn btn-outline" onClick={() => setCreating(false)}>
             {t("cancel")}

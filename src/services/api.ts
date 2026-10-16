@@ -320,6 +320,7 @@ export const api = {
     let slug = base;
     for (let i = 2; db.clubs.some((c) => c.slug === slug); i++) slug = `${base}-${i}`;
     // A user-entered name is stored once, as typed, in both language slots.
+    const at = now();
     const club: Club = {
       id: uuid(),
       slug,
@@ -328,10 +329,20 @@ export const api = {
       area_label: [input.para, input.zone].filter(Boolean).join(" · "),
       target_amount: input.target_amount,
       puja_year: input.puja_year,
-      created_at: now(),
+      created_at: at,
     };
     db.clubs.push(club);
     db.active_club_id = club.id;
+    // Same write as the club: a club can never exist without someone able to run it.
+    db.members.push({
+      id: uuid(),
+      club_id: club.id,
+      name: input.creator_name,
+      role: "admin",
+      phone: input.creator_phone,
+      collector_code: nextCollectorCode(db, "admin"),
+      created_at: at,
+    });
     write(db);
     return club;
   },

@@ -49,6 +49,12 @@ All notable changes to Pujo Khata. Format follows
 - Expense dates can't be in the future; the store refuses non-image or oversized vouchers.
 - Expense rows show the expense date instead of "time ago".
 
+### Fixed
+- A newly created club had no members, so chanda couldn't be collected (no collector)
+  and expenses couldn't be approved (no treasurer/admin). The create-club form now asks
+  for the creator's name (phone comes from the OTP login, or is entered in demo), and the
+  creator is saved as the club's admin in the same write; creating a club signs them in.
+
 ### Removed
 - Household pledge fields (pledges are now `promised` chanda entries) and event slots.
 

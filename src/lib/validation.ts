@@ -24,6 +24,13 @@ export function normalizePhone(raw: string) {
 export const phoneSchema = z.string().regex(/^[6-9]\d{9}$/, m("err_phone"));
 export const otpSchema = z.string().regex(/^\d{4}$/, m("err_otp"));
 
+const personName = z
+  .string()
+  .trim()
+  .min(1, m("err_required"))
+  .min(2, m("err_nameShort"))
+  .max(80, m("err_tooLong"));
+
 export const clubSchema = z.object({
   name: z
     .string()
@@ -39,6 +46,9 @@ export const clubSchema = z.object({
     .int(m("err_target"))
     .min(TARGET_MIN, m("err_target"))
     .max(TARGET_MAX, m("err_target")),
+  // Whoever creates the club becomes its first admin, so it can collect and approve at once.
+  creator_name: personName,
+  creator_phone: phoneSchema,
 });
 export type ClubInput = z.infer<typeof clubSchema>;
 
@@ -54,12 +64,7 @@ const optionalPhone = z
   .refine((v) => !v || phoneSchema.safeParse(v).success, m("err_phone"));
 
 export const householdSchema = z.object({
-  resident_name: z
-    .string()
-    .trim()
-    .min(1, m("err_required"))
-    .min(2, m("err_nameShort"))
-    .max(80, m("err_tooLong")),
+  resident_name: personName,
   house_flat_no: z.string().trim().min(1, m("err_required")).max(20, m("err_tooLong")),
   lane_block: z.string().trim().min(1, m("err_required")).max(60, m("err_tooLong")),
   // Phone is optional for a household, but must be a valid mobile when given.

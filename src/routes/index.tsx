@@ -132,7 +132,7 @@ function Onboarding() {
         {step === "club" ? (
           <>
             <h2 className="text-xl font-bold">{t("chooseClub")}</h2>
-            <ClubPicker onDone={finish} />
+            <ClubPicker phone={phone} onDone={finish} />
           </>
         ) : (
           <>

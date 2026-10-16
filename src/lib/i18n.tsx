@@ -128,6 +128,11 @@ const dict = {
   switchClub: ["ক্লাব বদলান", "Switch club"],
   createClub: ["নতুন ক্লাব তৈরি", "Create new club"],
   clubName: ["ক্লাবের নাম", "Club name"],
+  yourName: ["আপনার নাম", "Your name"],
+  creatorHint: [
+    "আপনি এই ক্লাবের অ্যাডমিন হবেন — পরে সদস্য যোগ করতে পারবেন",
+    "You'll be this club's admin — you can add members later",
+  ],
   para: ["পাড়া / লেন", "Para / Lane"],
   zone: ["জোন", "Zone"],
   year: ["পুজোর বছর", "Puja year"],
