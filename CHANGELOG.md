@@ -17,12 +17,23 @@ All notable changes to Pujo Khata. Format follows
 - Receipt numbers per collector: `PK-{year}-{collector_code}-{seq}`.
 - Expense form: paid to and date fields; voucher photos stored in IndexedDB.
 - React Query hooks and mutations that invalidate the affected queries.
+- Receipt module (M3b, SPEC Story 2.2) in `src/features/receipt`: one view-model drives the
+  on-screen card, the WhatsApp/share text and a PNG, so they always match.
+  - Amount in words in Bengali and English via the new `words()` i18n helper
+    (`1001` → এক হাজার এক / One Thousand One).
+  - Share on WhatsApp to the donor's number, native share sheet where available, receipt
+    as an image (shared as a file on phones, downloaded elsewhere) and print.
+  - `/receipt/$id` page to re-open and re-share a receipt; reached from the home activity
+    feed and a Receipt button in the chanda register.
+  - Voided receipts stay viewable and printable with a VOID mark, but can't be sent.
+- `t()` fills `{name}` placeholders; shared `PrintPortal`, canvas and file-share helpers.
 
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and
   sync immediately when online.
 - Roles are admin / treasurer / collector; only admins and treasurers approve expenses.
 - Share texts and the story card format money through i18n; no local-only links shared.
+- Receipt share text is fully bilingual and self-contained (no local-only link).
 
 ### Removed
 - Household pledge fields (pledges are now `promised` chanda entries) and event slots.

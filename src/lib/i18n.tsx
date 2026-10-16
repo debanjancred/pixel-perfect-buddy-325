@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { indian, toBnDigits } from "./format";
+import { numberToWords } from "./number-words";
 
 export type Lang = "bn" | "en";
 
@@ -64,11 +65,27 @@ const dict = {
   receipt: ["চাঁদার রসিদ", "Chanda Receipt"],
   receiptNo: ["রসিদ নং", "Receipt No"],
   date: ["তারিখ", "Date"],
-  receivedFrom: ["প্রাপক / দাতা", "Received from"],
-  inWords: ["কথায়", "In words"],
   share: ["শেয়ার করুন", "Share"],
   whatsapp: ["হোয়াটসঅ্যাপ", "WhatsApp"],
   done: ["ঠিক আছে", "Done"],
+  donor: ["দাতা", "Donor"],
+  address: ["ঠিকানা", "Address"],
+  paidVia: ["মাধ্যম", "Paid via"],
+  amountInWords: ["{words} টাকা মাত্র", "Rupees {words} Only"],
+  receiptThanks: ["আপনার চাঁদার জন্য আন্তরিক ধন্যবাদ 🙏", "Thank you for your chanda 🙏"],
+  receiptFooter: ["পুজো খাতা · ডিজিটাল রসিদ", "Pujo Khata · Digital receipt"],
+  receiptVoid: ["বাতিল", "VOID"],
+  receiptVoidNote: ["এই রসিদটি বাতিল করা হয়েছে", "This receipt has been voided"],
+  receiptNotFound: ["রসিদটি পাওয়া যায়নি", "Receipt not found"],
+  receiptNotFoundHint: [
+    "এন্ট্রিটি হয়তো এই ফোনে নেই বা এটি শুধু প্রতিশ্রুতি",
+    "The entry may not be on this phone, or it is only a pledge",
+  ],
+  viewReceipt: ["রসিদ", "Receipt"],
+  print: ["প্রিন্ট", "Print"],
+  receiptImage: ["ছবি", "Image"],
+  imageFailed: ["ছবি তৈরি করা যায়নি", "Couldn't create the image"],
+  back: ["ফিরে যান", "Back"],
   expenseLedger: ["খরচের খাতা", "Expense Ledger"],
   cat_pandal: ["প্যান্ডেল", "Pandal"],
   cat_idol: ["প্রতিমা", "Idol"],
@@ -203,14 +220,19 @@ interface Ctx {
   setBnDigits: (b: boolean) => void;
   dark: boolean;
   setDark: (b: boolean) => void;
-  t: (k: TKey) => string;
+  /** Translates a key; `{name}` placeholders are filled from `vars`. */
+  t: (k: TKey, vars?: Record<string, string>) => string;
   n: (v: number | string) => string;
   money: (v: number) => string;
+  /** Whole number in words in the current language, e.g. 1001 → "এক হাজার এক". */
+  words: (v: number) => string;
   ago: (iso: string) => string;
   /** Calendar date in the current language; digits follow the Bengali-numerals setting. */
   date: (iso: string) => string;
   pick: (bn: string, en: string) => string;
 }
+
+export type I18n = Ctx;
 
 const I18nCtx = createContext<Ctx | null>(null);
 const PREF = "pk_prefs_v1";
@@ -248,7 +270,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<Ctx>(() => {
-    const t = (k: TKey) => dict[k][lang === "bn" ? 0 : 1];
+    const t = (k: TKey, vars?: Record<string, string>) => {
+      const s: string = dict[k][lang === "bn" ? 0 : 1];
+      return vars ? s.replace(/\{(\w+)\}/g, (m, v: string) => vars[v] ?? m) : s;
+    };
     return {
       lang,
       setLang,
@@ -259,6 +284,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       t,
       n,
       money: (v) => (v < 0 ? "−₹" + n(-v) : "₹" + n(v)),
+      words: (v) => numberToWords(v, lang),
       pick: (bn, en) => (lang === "bn" ? bn : en),
       ago: (iso) => {
         const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));

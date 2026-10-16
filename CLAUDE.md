@@ -26,8 +26,13 @@ defined in `src/styles.css`.
   backed by localStorage today, a Laravel REST API later.
 - Data reads happen in client-side react-query hooks in `src/hooks/use-data.ts`,
   not in route loaders.
-- Every user-visible string goes through `src/lib/i18n.tsx` (`t`, `n`, `money`, `pick`)
+- Every user-visible string goes through `src/lib/i18n.tsx` (`t` with `{name}` placeholders,
+  `n`, `money`, `words` for amounts in words, `date`, `pick`)
   so Bengali/English and Bengali numerals switch globally.
+- Module code lives in `src/features/<module>/`: a pure model (domain → view data,
+  unit-tested), hooks, and components, exposed only through its `index.ts`. Routes stay
+  thin and compose features; `src/components/pk` holds shared UI primitives and
+  `src/lib` shared pure helpers. First example: `src/features/receipt`.
 - Mobile-first at 360px, touch targets at least 48px.
 - Palette: vermilion `#B71C1C`/`#C8102E`, antique gold `#B8860B`, canvas `#FDFBF7`.
   Fonts: Hind Siliguri for Bengali, Inter for English. The alpona motif belongs only

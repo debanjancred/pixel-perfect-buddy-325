@@ -21,7 +21,7 @@ We work one module at a time. Each phase ships as a minor release.
 | 2 | M1 Auth & onboarding | Phone/OTP validation, sessions, route guard, create club | Done |
 | 3 | M2 Home dashboard | Summary, activity, loading/empty/error states | Done |
 | 4 | M3 Chanda register & collect | Search, filters, partial payments, receipt numbers, validation | Done |
-| 5 | M3b Receipt | Amount in words, bilingual share text, print/image | Todo |
+| 5 | M3b Receipt | Amount in words, bilingual share text, print/image | Done |
 | 6 | M4 Expenses | Ledger, receipt photo compression, approver, validation | Todo |
 | 7 | M5 Events | Slot capacity, full state, share link | Todo |
 | 8 | M6 Public audit | Read-only without login, charts, story card | Todo |

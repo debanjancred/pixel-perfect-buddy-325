@@ -13,7 +13,7 @@ import {
   useMembers,
   useTransactions,
 } from "@/hooks/use-data";
-import type { ChandaTransaction, Household, PaymentMethod } from "@/types/domain";
+import type { Household, PaymentMethod } from "@/types/domain";
 import { AppShell } from "@/components/pk/AppShell";
 import { FieldError, Label, StatusBadge, TextField } from "@/components/pk/ui";
 import { householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
@@ -26,7 +26,7 @@ import {
   normalizePhone,
   type ErrKey,
 } from "@/lib/validation";
-import { ReceiptModal } from "@/components/pk/ReceiptModal";
+import { ReceiptModal } from "@/features/receipt";
 
 export const Route = createFileRoute("/collect")({
   validateSearch: z.object({ household: z.string().optional() }),
@@ -80,7 +80,7 @@ function CollectPage() {
   const [collector, setCollector] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [serverErr, setServerErr] = useState<{ field: Field; key: ErrKey } | null>(null);
-  const [receipt, setReceipt] = useState<ChandaTransaction | null>(null);
+  const [receiptId, setReceiptId] = useState<string | null>(null);
   const preselectUsed = useRef(false);
   // Client-generated id = idempotency key: a double tap or retry can't create two entries.
   const txId = useRef<string | null>(null);
@@ -198,7 +198,7 @@ function CollectPage() {
         collector_id: collector,
       });
       if (!navigator.onLine) toast(t("offlineSaved"));
-      setReceipt(c);
+      setReceiptId(c.id);
     } catch (ex) {
       if (!(ex instanceof ValidationError)) throw ex;
       setServerErr({ field: FIELD_OF[ex.field] ?? (ex.field as Field), key: ex.key });
@@ -469,12 +469,9 @@ function CollectPage() {
       <div className="h-6" />
 
       <ReceiptModal
-        transaction={receipt}
-        club={club ?? undefined}
-        household={hh ?? undefined}
-        collector={members.find((m) => m.id === receipt?.collector_id)}
+        transactionId={receiptId}
         onClose={() => {
-          setReceipt(null);
+          setReceiptId(null);
           reset();
         }}
       />

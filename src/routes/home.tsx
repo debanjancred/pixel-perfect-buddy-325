@@ -164,36 +164,53 @@ function HomePage() {
           </div>
         ) : (
           <ul className="divide-y rounded-2xl border bg-card shadow-card">
-            {stream.map((x) => (
-              <li key={x.id} className="flex items-center gap-3 p-3">
-                <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${x.kind === "in" ? "bg-success-soft text-success" : "bg-primary-soft text-primary"}`}
-                >
-                  {x.kind === "in" ? (
-                    <ArrowDownLeft className="h-5 w-5" />
-                  ) : (
-                    <ArrowUpRight className="h-5 w-5" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold">{x.name}</div>
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                    <span>{x.sub}</span>
-                    <span>·</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
-                      {ago(x.at)}
-                    </span>
-                    <SyncBadge status={x.sync} />
+            {stream.map((x) => {
+              const row = (
+                <>
+                  <div
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${x.kind === "in" ? "bg-success-soft text-success" : "bg-primary-soft text-primary"}`}
+                  >
+                    {x.kind === "in" ? (
+                      <ArrowDownLeft className="h-5 w-5" />
+                    ) : (
+                      <ArrowUpRight className="h-5 w-5" />
+                    )}
                   </div>
-                </div>
-                <div
-                  className={`num font-bold ${x.kind === "in" ? "text-success" : "text-primary"}`}
-                >
-                  {x.kind === "in" ? "+" : "−"}
-                  {money(x.amount)}
-                </div>
-              </li>
-            ))}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold">{x.name}</div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>{x.sub}</span>
+                      <span>·</span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
+                        {ago(x.at)}
+                      </span>
+                      <SyncBadge status={x.sync} />
+                    </div>
+                  </div>
+                  <div
+                    className={`num font-bold ${x.kind === "in" ? "text-success" : "text-primary"}`}
+                  >
+                    {x.kind === "in" ? "+" : "−"}
+                    {money(x.amount)}
+                  </div>
+                </>
+              );
+              return (
+                <li key={x.id}>
+                  {x.kind === "in" ? (
+                    <Link
+                      to="/receipt/$id"
+                      params={{ id: x.id }}
+                      className="flex items-center gap-3 p-3 active:bg-muted"
+                    >
+                      {row}
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3">{row}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

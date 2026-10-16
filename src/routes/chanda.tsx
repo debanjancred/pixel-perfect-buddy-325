@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Search, MessageCircle, MapPin } from "lucide-react";
+import { Search, MessageCircle, MapPin, ReceiptText } from "lucide-react";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { useClub, useHouseholds, useMembers, useTransactions } from "@/hooks/use-data";
 import { AppShell, Fab } from "@/components/pk/AppShell";
@@ -144,7 +144,7 @@ function ChandaPage() {
             </span>
           </h2>
           <ul className="space-y-2">
-            {rows.map(({ h, collected, due, status, last, collector }) => {
+            {rows.map(({ h, collected, due, status, last, lastCollected, collector }) => {
               const msg = reminderText(
                 lang,
                 h.resident_name,
@@ -187,23 +187,36 @@ function ChandaPage() {
                       </div>
                     </div>
                   </div>
-                  {status !== "paid" && (
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <a
-                        href={waLink(h.phone_number, msg)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn btn-whatsapp min-h-12 text-sm"
-                      >
-                        <MessageCircle className="h-4 w-4" /> {t("remind")}
-                      </a>
-                      <Link
-                        to="/collect"
-                        search={{ household: h.id }}
-                        className="btn btn-outline min-h-12 text-sm"
-                      >
-                        {t("collect")}
-                      </Link>
+                  {(status !== "paid" || lastCollected) && (
+                    <div className="mt-3 flex gap-2 [&>*]:flex-1">
+                      {status !== "paid" && (
+                        <a
+                          href={waLink(h.phone_number, msg)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-whatsapp min-h-12 px-2 text-sm"
+                        >
+                          <MessageCircle className="h-4 w-4" /> {t("remind")}
+                        </a>
+                      )}
+                      {status !== "paid" && (
+                        <Link
+                          to="/collect"
+                          search={{ household: h.id }}
+                          className="btn btn-outline min-h-12 px-2 text-sm"
+                        >
+                          {t("collect")}
+                        </Link>
+                      )}
+                      {lastCollected && (
+                        <Link
+                          to="/receipt/$id"
+                          params={{ id: lastCollected.id }}
+                          className="btn btn-outline min-h-12 px-2 text-sm"
+                        >
+                          <ReceiptText className="h-4 w-4" /> {t("viewReceipt")}
+                        </Link>
+                      )}
                     </div>
                   )}
                 </li>

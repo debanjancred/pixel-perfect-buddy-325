@@ -266,3 +266,23 @@
     display: none;
   }
 }
+
+/* Printing: only PrintPortal content is printed (e.g. a receipt), always on a light page. */
+.print-portal {
+  display: none;
+}
+@media print {
+  body > :not(.print-portal) {
+    display: none !important;
+  }
+  .print-portal {
+    display: block;
+    max-width: 120mm;
+    margin: 0 auto;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  @page {
+    margin: 12mm;
+  }
+}

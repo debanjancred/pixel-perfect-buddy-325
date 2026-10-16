@@ -12,6 +12,8 @@ export interface HouseholdLedger {
   status: HouseholdStatus;
   /** Newest non-void entry, if any. */
   last?: ChandaTransaction;
+  /** Newest non-void collected entry — the receipt to re-share. */
+  lastCollected?: ChandaTransaction;
 }
 
 /** Search by name, flat no., lane/block or phone; Bengali digits match ASCII ones. */
@@ -36,7 +38,10 @@ export function householdLedgers(chanda: ChandaTransaction[]) {
   for (const c of newest) {
     const l = map.get(c.household_id) ?? { collected: 0, promised: 0, due: 0, status: "pending" };
     l.last ??= c;
-    if (c.status === "collected") l.collected += c.amount;
+    if (c.status === "collected") {
+      l.collected += c.amount;
+      l.lastCollected ??= c;
+    }
     if (c.status === "promised") l.promised += c.amount;
     map.set(c.household_id, l);
   }
