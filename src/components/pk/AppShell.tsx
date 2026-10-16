@@ -25,7 +25,7 @@ import { AlponaStrip, LangToggle, Modal } from "./ui";
 import { ClubPicker } from "./ClubPicker";
 
 const NAV: {
-  to: "/home" | "/chanda" | "/expenses" | "/events" | "/admin";
+  to: "/home" | "/chanda" | "/expenses" | "/events" | "/settings";
   icon: typeof Home;
   k: TKey;
 }[] = [
@@ -33,7 +33,7 @@ const NAV: {
   { to: "/chanda", icon: BookOpen, k: "chanda" },
   { to: "/expenses", icon: Receipt, k: "expense" },
   { to: "/events", icon: Trophy, k: "events" },
-  { to: "/admin", icon: Settings, k: "admin" },
+  { to: "/settings", icon: Settings, k: "admin" },
 ];
 
 export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNode }) {

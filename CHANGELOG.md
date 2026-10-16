@@ -56,6 +56,16 @@ All notable changes to Pujo Khata. Format follows
     target progress, cash vs UPI split.
   - Category donut with a labelled table (percentages always add up to 100%) and hover
     tooltips; WhatsApp summary text and a story-card image.
+- Settings module (M7, SPEC Story 6.2) in `src/features/settings`, at `/settings`
+  (`/admin` forwards):
+  - Members grouped by role with name, phone and collector code; role changes confirm
+    with a toast. The last admin can't be demoted; a phone can't be added twice.
+  - Add-member form with labelled fields and inline errors.
+  - CSV export (UTF-8 with BOM, headers and labels in the current language, amounts as
+    plain numbers, voided rows marked; cells that look like formulas are neutralised).
+  - Preferences with labelled switches; Reset demo only in the sample club; reset and
+    log out ask first; app version shown.
+- Shared `ConfirmDialog` and `lib/csv.ts`.
 
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and

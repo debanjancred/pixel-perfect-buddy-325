@@ -17,6 +17,7 @@ import { Route as CollectRouteImport } from './routes/collect'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReceiptIdRouteImport } from './routes/receipt.$id'
 import { Route as ClubSlugAccountsRouteImport } from './routes/club/$slug/accounts'
 
@@ -60,6 +61,11 @@ const HomeRoute = HomeRouteImport.update({
   path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReceiptIdRoute = ReceiptIdRouteImport.update({
   id: '/receipt/$id',
   path: '/receipt/$id',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
+  '/settings': typeof SettingsRoute
   '/receipt/$id': typeof ReceiptIdRoute
   '/club/$slug/accounts': typeof ClubSlugAccountsRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRoute
   '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
+  '/settings': typeof SettingsRoute
   '/receipt/$id': typeof ReceiptIdRoute
   '/club/$slug/accounts': typeof ClubSlugAccountsRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
+  '/settings': typeof SettingsRoute
   '/receipt/$id': typeof ReceiptIdRoute
   '/club/$slug/accounts': typeof ClubSlugAccountsRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/expenses'
     | '/home'
+    | '/settings'
     | '/receipt/$id'
     | '/club/$slug/accounts'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/expenses'
     | '/home'
+    | '/settings'
     | '/receipt/$id'
     | '/club/$slug/accounts'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/expenses'
     | '/home'
+    | '/settings'
     | '/receipt/$id'
     | '/club/$slug/accounts'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   ExpensesRoute: typeof ExpensesRoute
   HomeRoute: typeof HomeRoute
+  SettingsRoute: typeof SettingsRoute
   ReceiptIdRoute: typeof ReceiptIdRoute
   ClubSlugAccountsRoute: typeof ClubSlugAccountsRoute
 }
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/receipt/$id': {
       id: '/receipt/$id'
       path: '/receipt/$id'
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   ExpensesRoute: ExpensesRoute,
   HomeRoute: HomeRoute,
+  SettingsRoute: SettingsRoute,
   ReceiptIdRoute: ReceiptIdRoute,
   ClubSlugAccountsRoute: ClubSlugAccountsRoute,
 }

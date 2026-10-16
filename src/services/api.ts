@@ -368,6 +368,9 @@ export const api = {
     const input = parseOrThrow(memberSchema, raw);
     const db = read();
     const club = requireClub(db);
+    // The phone identifies the signed-in member, so it must be unique within a club.
+    if (mine(db, db.members).some((x) => x.phone === input.phone))
+      throw new ValidationError("phone", "err_memberExists");
     const m: ClubMember = {
       ...input,
       id: uuid(),
@@ -383,8 +386,13 @@ export const api = {
   async updateMemberRole(id: string, role: UserRole) {
     await delay();
     const db = read();
-    const m = mine(db, db.members).find((x) => x.id === id);
+    const members = mine(db, db.members);
+    const m = members.find((x) => x.id === id);
     if (!m) throw new ValidationError("member_id", "err_notFound");
+    // A club must always keep someone who can manage members.
+    const admins = members.filter((x) => x.role === "admin");
+    if (m.role === "admin" && role !== "admin" && admins.length === 1)
+      throw new ValidationError("role", "err_lastAdmin");
     m.role = role;
     write(db);
     return m;
