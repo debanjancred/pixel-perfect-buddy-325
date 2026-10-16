@@ -22,7 +22,7 @@ export function EventCard({
 
   return (
     <article
-      className={`rounded-3xl border bg-card p-4 shadow-card ${open ? "" : "opacity-75"}`}
+      className={`rounded-3xl border bg-card p-4 shadow-card ${open ? "" : "border-dashed bg-muted/40"}`}
       aria-label={pick(e.title_bn, e.title_en)}
     >
       <div className="flex items-start gap-3">

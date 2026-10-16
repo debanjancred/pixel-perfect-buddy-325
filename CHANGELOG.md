@@ -104,6 +104,18 @@ All notable changes to Pujo Khata. Format follows
 - Session storage moved to `src/services/session.ts` (still re-exported from use-data).
 - Modals render in a portal with a stack: a dialog over a sheet isn't clipped, Escape
   closes only the top one, and the page stays scroll-locked until the last one closes.
+- QA pass (M10): every screen audited in Bengali/English × light/dark at 360px with axe
+  (WCAG 2.1 AA), touch-target and overflow checks — 0 issues remaining. Fixes:
+  - Dark mode splits red into a deeper fill (white text on buttons passes AA) and a
+    lighter `--primary-ink` for red text; dark `--destructive` lightened.
+  - WhatsApp green, warning text and chip counters meet 4.5:1; text on gold uses a
+    dark `--on-gold` in both modes; language toggle halves are at least 48px wide.
+  - The accounts donut no longer puts hidden chart parts in the tab order.
+- Copy review: "বাতিল" now only means Void (Cancel is "না, থাক"); the collector role is
+  "সংগ্রাহক" everywhere; pending records say "সিঙ্কের অপেক্ষায়" instead of "offline";
+  the accounts page no longer claims "verified"; unused strings removed.
+- The language choice is stored under `app_locale` (SPEC 1.2), migrated from the old
+  preferences key.
 
 ### Fixed
 - A newly created club had no members, so chanda couldn't be collected (no collector)

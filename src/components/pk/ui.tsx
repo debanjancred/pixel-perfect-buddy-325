@@ -40,7 +40,7 @@ export function LangToggle() {
           key={l}
           onClick={() => setLang(l)}
           data-active={lang === l}
-          className="min-h-12 rounded-full px-3 transition data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+          className="min-h-12 min-w-12 rounded-full px-3 transition data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
         >
           {l === "bn" ? "বাংলা" : "EN"}
         </button>
@@ -74,7 +74,7 @@ export function SyncBadge({ status }: { status: SyncStatus }) {
   if (status !== "pending") return null;
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-gold-soft px-2 py-0.5 text-[11px] font-bold text-gold-ink">
-      <CloudOff className="h-3 w-3" /> {t("offlineSaved")}
+      <CloudOff className="h-3 w-3" /> {t("syncPending")}
     </span>
   );
 }

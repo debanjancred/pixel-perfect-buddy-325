@@ -27,7 +27,7 @@ const dict = {
   addChanda: ["চাঁদা জমা", "Add Chanda"],
   addExpense: ["খরচ লিখুন", "Add Expense"],
   shareAccounts: ["হিসাব শেয়ার", "Share Accounts"],
-  recent: ["সাম্প্রতিক কার্যকলাপ", "Live activity"],
+  recent: ["সাম্প্রতিক কার্যকলাপ", "Recent activity"],
   offlineSaved: ["অফলাইন — ফোনে সংরক্ষিত", "Offline — Saved locally"],
   offlineBanner: [
     "অফলাইন মোড — ডেটা আপনার ফোনে সংরক্ষিত হচ্ছে",
@@ -39,7 +39,6 @@ const dict = {
   online: ["অনলাইন", "Online"],
   pendingSync: ["টি সিঙ্কের অপেক্ষায়", "waiting to sync"],
   synced: ["সব সিঙ্ক হয়েছে", "All changes synced"],
-  pullRefresh: ["ছেড়ে দিন, রিফ্রেশ হবে", "Release to refresh"],
   refreshed: ["হালনাগাদ হয়েছে", "Refreshed"],
   chandaRegister: ["চাঁদার খাতা", "Chanda Register"],
   all: ["সব", "All"],
@@ -50,7 +49,7 @@ const dict = {
   search: ["নাম বা বাড়ি নম্বর খুঁজুন", "Search name or house no."],
   remind: ["রিমাইন্ডার", "Remind"],
   collect: ["আদায়", "Collect"],
-  collector: ["আদায়কারী", "Collector"],
+  collector: ["সংগ্রাহক", "Collector"],
   pledged: ["প্রতিশ্রুতি", "Pledged"],
   houses: ["বাড়ি", "houses"],
   noResults: ["কিছু পাওয়া যায়নি", "Nothing found"],
@@ -106,17 +105,16 @@ const dict = {
   receiptPhoto: ["রসিদ / ভাউচারের ছবি", "Receipt / voucher photo"],
   takePhoto: ["ছবি তুলুন বা আপলোড", "Take or upload photo"],
   publicAudit: ["সর্বজনীন স্বচ্ছ হিসাব", "Public Audit"],
-  verified: ["স্বচ্ছ খাতা · যাচাইকৃত", "Verified Public Account"],
+  // No "verified" claim: the figures are this device's records, not independently audited.
+  verified: ["স্বচ্ছ খাতা", "Open accounts"],
   readOnly: ["শুধু দেখার জন্য · লগইন লাগবে না", "Read-only · No login needed"],
   byCategory: ["বিভাগ অনুযায়ী খরচ", "Spending by category"],
-  collVsExp: ["আদায় বনাম খরচ", "Collections vs expenses"],
   storyCard: ["স্টোরি কার্ড", "Story card"],
   accountsNotFound: ["এই ক্লাবের হিসাব পাওয়া যায়নি", "No accounts found for this club"],
   accountsNotFoundHint: [
     "এখন হিসাব শুধু যে ফোনে লেখা হয়েছে সেখানেই দেখা যায়",
     "For now, accounts can only be viewed on the phone they were recorded on",
   ],
-  download: ["ডাউনলোড", "Download"],
   eventsTitle: ["পুজো প্রতিযোগিতা", "Pujo Competitions"],
   registered: ["নাম নথিভুক্ত", "registered"],
   register: ["নাম লেখান", "Register"],
@@ -157,7 +155,6 @@ const dict = {
   handoverFrom: ["{name}-এর কাছ থেকে নগদ", "Cash from {name}"],
   handoverHistory: ["জমার ইতিহাস", "Handover history"],
   handoverSaved: ["{amount} জমা নেওয়া হয়েছে", "{amount} received"],
-  receivedBy: ["গ্রহণ করেছেন", "Received by"],
   noHandovers: ["এখনো কোনো জমা নেই", "No handovers yet"],
   noCashYet: ["এখনো কেউ নগদ আদায় করেননি", "No cash collected yet"],
   err_handoverTooMuch: [
@@ -209,7 +206,7 @@ const dict = {
   csv_amount: ["টাকা", "Amount (₹)"],
   csv_method: ["মাধ্যম", "Method"],
   csv_status: ["অবস্থা", "Status"],
-  csv_collector: ["আদায়কারী", "Collector"],
+  csv_collector: ["সংগ্রাহক", "Collector"],
   csv_void_reason: ["বাতিলের কারণ", "Void reason"],
   csv_category: ["বিভাগ", "Category"],
   csv_title: ["বিবরণ", "Item"],
@@ -221,7 +218,7 @@ const dict = {
   err_eventPast: ["আজ বা পরের কোনো তারিখ দিন", "Choose today or a later date"],
   role_admin: ["অ্যাডমিন", "Admin"],
   role_treasurer: ["কোষাধ্যক্ষ", "Treasurer"],
-  role_collector: ["চাঁদা সংগ্রাহক", "Field Collector"],
+  role_collector: ["সংগ্রাহক", "Collector"],
   addMember: ["সদস্য যোগ করুন", "Add member"],
   name: ["নাম", "Name"],
   export: ["ডেটা এক্সপোর্ট (Excel / CSV)", "Export data (Excel / CSV)"],
@@ -244,7 +241,8 @@ const dict = {
   para: ["পাড়া / লেন", "Para / Lane"],
   zone: ["জোন", "Zone"],
   year: ["পুজোর বছর", "Puja year"],
-  cancel: ["বাতিল", "Cancel"],
+  // Not "বাতিল": that word means Void here, and both appear in the void dialog.
+  cancel: ["না, থাক", "Cancel"],
   tagline: [
     "পাড়ার পুজোর চাঁদা ও খরচের স্বচ্ছ হিসাব",
     "Transparent chanda & expense accounts for your para's puja",
@@ -300,6 +298,7 @@ const dict = {
   recorded: ["লেখা হয়েছে", "Recorded"],
   syncStatus: ["সিঙ্ক", "Sync"],
   syncedOne: ["সিঙ্ক হয়েছে", "Synced"],
+  syncPending: ["সিঙ্কের অপেক্ষায়", "Waiting to sync"],
   syncFailed: ["সিঙ্ক ব্যর্থ", "Sync failed"],
   voidedExpense: ["এই খরচটি বাতিল করা হয়েছে", "This expense has been voided"],
   voidReason: ["কারণ", "Reason"],
@@ -335,7 +334,7 @@ const dict = {
     "এই বাড়িতে এই নামে আগে থেকেই নথিভুক্ত আছে",
     "This resident is already registered at this house",
   ],
-  err_collector: ["আদায়কারী বেছে নিন", "Choose a collector"],
+  err_collector: ["সংগ্রাহক বেছে নিন", "Choose a collector"],
   dueAmount: ["বাকি আছে", "Balance due"],
   paidSoFar: ["জমা হয়েছে", "Paid so far"],
   emptyRegister: ["এখনো কোনো বাড়ি যোগ হয়নি", "No households yet"],
@@ -374,7 +373,10 @@ interface Ctx {
 export type I18n = Ctx;
 
 const I18nCtx = createContext<Ctx | null>(null);
-const PREF = "pk_prefs_v1";
+const PREF = "pk_prefs_v1"; // numerals + dark mode
+// SPEC Story 1.2: the language lives under `app_locale`, read and written only here.
+const LOCALE = "app_locale";
+const isLang = (v: unknown): v is Lang => v === "bn" || v === "en";
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>("bn");
@@ -385,7 +387,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const p = JSON.parse(localStorage.getItem(PREF) ?? "{}");
-      if (p.lang) setLang(p.lang);
+      // Older builds kept the language inside the prefs object; honour it once.
+      const stored = localStorage.getItem(LOCALE) ?? p.lang;
+      if (isLang(stored)) setLang(stored);
       if (typeof p.bnDigits === "boolean") setBnDigits(p.bnDigits);
       if (typeof p.dark === "boolean") setDark(p.dark);
     } catch {
@@ -397,7 +401,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.classList.toggle("dark", dark);
-    if (loaded) localStorage.setItem(PREF, JSON.stringify({ lang, bnDigits, dark }));
+    if (loaded) {
+      localStorage.setItem(LOCALE, lang);
+      localStorage.setItem(PREF, JSON.stringify({ bnDigits, dark }));
+    }
   }, [lang, bnDigits, dark, loaded]);
 
   const n = useCallback(

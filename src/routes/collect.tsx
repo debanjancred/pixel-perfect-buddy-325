@@ -439,7 +439,7 @@ function CollectPage() {
                 onClick={() => setMode(m)}
                 data-active={mode === m}
                 aria-pressed={mode === m}
-                className="flex min-h-14 items-center justify-center gap-2 rounded-xl font-bold text-muted-foreground transition data-[active=true]:bg-card data-[active=true]:text-primary data-[active=true]:shadow-card"
+                className="flex min-h-14 items-center justify-center gap-2 rounded-xl font-bold text-muted-foreground transition data-[active=true]:bg-card data-[active=true]:text-primary-ink data-[active=true]:shadow-card"
               >
                 <Icon className="h-5 w-5" /> {l}
               </button>

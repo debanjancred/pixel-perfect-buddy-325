@@ -33,6 +33,8 @@ export function CategoryDonut({ shares, total }: { shares: CategoryShare[]; tota
                   stroke="var(--card)"
                   strokeWidth={2}
                   isAnimationActive={false}
+                  // Decorative for keyboard/screen-reader users: the table below carries the data.
+                  rootTabIndex={-1}
                 >
                   {data.map((d) => (
                     <Cell key={d.category} fill={d.color} />

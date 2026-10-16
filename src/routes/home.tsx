@@ -116,7 +116,7 @@ function HomePage() {
             <span className="num">
               {s ? `${money(s.total_collected)} / ${money(s.collection_target)}` : ""}
             </span>
-            <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-extrabold text-foreground">
+            <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-extrabold text-on-gold">
               {n(String(pct))}%
             </span>
           </div>

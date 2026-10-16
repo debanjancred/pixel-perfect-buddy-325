@@ -113,7 +113,7 @@ function ChandaPage() {
             aria-pressed={filter === f.k}
             onClick={() => setFilter(f.k)}
           >
-            {t(f.t)} <span className="num opacity-75">{n(String(counts[f.k]))}</span>
+            {t(f.t)} <span className="num">{n(String(counts[f.k]))}</span>
           </button>
         ))}
       </div>

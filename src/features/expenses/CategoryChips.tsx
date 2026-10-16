@@ -34,7 +34,7 @@ export function CategoryChips({
           aria-pressed={value === c.key}
           onClick={() => onChange(c.key)}
         >
-          {c.label} <span className="num opacity-75">{n(String(count(c.key)))}</span>
+          {c.label} <span className="num">{n(String(count(c.key)))}</span>
         </button>
       ))}
     </div>

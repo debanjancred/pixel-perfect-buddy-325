@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -141,5 +141,23 @@ describe("i18n t() interpolation", () => {
     expect(result.current.t("amountInWords", { words: "দশ" })).toBe("দশ টাকা মাত্র");
     expect(result.current.t("amountInWords", {})).toBe("{words} টাকা মাত্র");
     expect(result.current.words(1001)).toBe("এক হাজার এক");
+  });
+});
+
+describe("locale persistence (SPEC 1.2)", () => {
+  it("stores the language under app_locale and reads the old prefs key once", async () => {
+    localStorage.setItem(
+      "pk_prefs_v1",
+      JSON.stringify({ lang: "en", bnDigits: true, dark: false }),
+    );
+    const { result } = renderI18n();
+    await waitFor(() => expect(result.current.lang).toBe("en"));
+    expect(localStorage.getItem("app_locale")).toBe("en");
+    act(() => result.current.setLang("bn"));
+    await waitFor(() => expect(localStorage.getItem("app_locale")).toBe("bn"));
+    expect(JSON.parse(localStorage.getItem("pk_prefs_v1")!)).toEqual({
+      bnDigits: true,
+      dark: false,
+    });
   });
 });

@@ -25,6 +25,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-deep: var(--primary-deep);
   --color-primary-soft: var(--primary-soft);
+  --color-primary-ink: var(--primary-ink);
+  --color-on-gold: var(--on-gold);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -66,6 +68,10 @@
   --primary-deep: oklch(0.38 0.15 26);
   --primary-soft: oklch(0.95 0.03 25);
   --primary-foreground: oklch(0.99 0.005 85);
+  /* Red for text. Same as --primary on light surfaces; lighter in dark mode (WCAG AA). */
+  --primary-ink: oklch(0.5 0.19 27);
+  /* Text on gold fills (e.g. progress pills) — dark in both modes. */
+  --on-gold: oklch(0.22 0.025 30);
   --secondary: oklch(0.955 0.012 80);
   --secondary-foreground: oklch(0.22 0.025 30);
   --muted: oklch(0.955 0.01 80);
@@ -82,11 +88,11 @@
   --gold-soft: oklch(0.94 0.045 85);
   --success: oklch(0.42 0.11 145);
   --success-soft: oklch(0.96 0.025 150);
-  --warning: oklch(0.58 0.18 45);
+  --warning: oklch(0.52 0.15 55); /* 5.3:1 on --warning-soft */
   --warning-soft: oklch(0.97 0.03 75);
   --info: oklch(0.42 0.15 260);
   --info-soft: oklch(0.95 0.025 240);
-  --whatsapp: oklch(0.55 0.15 150);
+  --whatsapp: oklch(0.52 0.14 150); /* white text 5:1 */
   /* Categorical series, in fixed order (validated: lightness band, chroma floor, CVD
      and normal-vision separation of adjacent slots incl. the donut wrap, both modes).
      Light slots 3–5 are under 3:1 on the card, so charts must keep visible labels. */
@@ -114,7 +120,11 @@
   --card-foreground: oklch(0.96 0.01 80);
   --popover: oklch(0.22 0.02 30);
   --popover-foreground: oklch(0.96 0.01 80);
-  --primary: oklch(0.6 0.19 27);
+  /* Dark mode splits red in two: a deeper fill so white text on buttons passes AA, and a
+     lighter ink for red text on dark surfaces (see .dark .text-primary below). */
+  --primary: oklch(0.55 0.19 27);
+  --primary-ink: oklch(0.7 0.16 27);
+  --destructive: oklch(0.68 0.19 25); /* text on dark surfaces ≥ 4.5:1 */
   --primary-deep: oklch(0.42 0.15 26);
   --primary-soft: oklch(0.3 0.07 25);
   --primary-foreground: oklch(0.99 0.005 85);
@@ -295,4 +305,10 @@
   @page {
     margin: 12mm;
   }
+}
+
+/* In dark mode red *text* uses the lighter ink; red *fills* keep --primary. Unlayered so
+   it wins over the text-primary utility without touching every component. */
+.dark .text-primary {
+  color: var(--primary-ink);
 }

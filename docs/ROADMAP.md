@@ -28,5 +28,5 @@ We work one module at a time. Each phase ships as a minor release.
 | 9 | M7 Admin | `/settings` (SPEC 6.2; `/admin` forwards): members grouped by role, last-admin and duplicate-phone guards, localised CSV export with formula protection, preferences, confirmed reset/logout, app version | Done |
 | 10 | M8 Roles & permissions | Permission table enforced in `api.ts` and the UI, demo "acting as" switch, void flow (SPEC 2.3), cash handover at `/cash` (SPEC 6.3) | Done |
 | 11 | M9 Offline & PWA | SPEC offline banner, sync adapter seam with failed + retry, hand-written service worker (approach in AGENTS.md), maskable icon; verified offline on a production build | Done |
-| 12 | M10 QA | Tests per module, 360px & 48px audit, a11y, Bengali copy review | Todo |
+| 12 | M10 QA | axe WCAG 2.1 AA + 48px + 360px audit of every screen in bn/en × light/dark (0 issues), contrast token fixes, Bengali copy review, `app_locale` | Done |
 | 13–15 | M11 API swap | REST client in `api.ts`, real OTP, offline conflict handling | Blocked on API |
