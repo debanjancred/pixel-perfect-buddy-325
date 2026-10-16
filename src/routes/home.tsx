@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus, Minus, Megaphone, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
+  usePermission,
   useExpenses,
   useHouseholds,
   useMembers,
@@ -40,6 +41,7 @@ function HomePage() {
   const { data: expenses = [], isPending: expensesLoading } = useExpenses();
   const { data: members = [] } = useMembers();
   const pct = s?.progress_pct ?? 0;
+  const canExpense = usePermission("expense.add");
 
   const stream = [
     // Money actually received: collected, non-void entries only.
@@ -117,20 +119,22 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="mt-5 grid grid-cols-3 gap-3">
+      <section className={`mt-5 grid gap-3 ${canExpense ? "grid-cols-3" : "grid-cols-2"}`}>
         <QuickAction
           to="/collect"
           icon={<Plus className="h-7 w-7" />}
           label={t("addChanda")}
           tone="bg-primary text-primary-foreground"
         />
-        <QuickAction
-          to="/expenses"
-          search={{ add: true }}
-          icon={<Minus className="h-7 w-7" />}
-          label={t("addExpense")}
-          tone="bg-card text-primary border-2 border-primary/30"
-        />
+        {canExpense && (
+          <QuickAction
+            to="/expenses"
+            search={{ add: true }}
+            icon={<Minus className="h-7 w-7" />}
+            label={t("addExpense")}
+            tone="bg-card text-primary border-2 border-primary/30"
+          />
+        )}
         <QuickAction
           to="/audit"
           icon={<Megaphone className="h-7 w-7" />}

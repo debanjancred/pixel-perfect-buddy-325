@@ -3,6 +3,7 @@ import { useI18n } from "@/lib/i18n";
 import { AppShell } from "@/components/pk/AppShell";
 import {
   AccountSection,
+  DemoActorSection,
   ExportSection,
   MembersSection,
   PreferencesSection,
@@ -29,6 +30,7 @@ function SettingsPage() {
     <AppShell>
       <h1 className="text-2xl font-extrabold">{t("settingsTitle")}</h1>
       <div className="mt-4 space-y-4">
+        <DemoActorSection />
         <MembersSection />
         <ExportSection />
         <PreferencesSection />

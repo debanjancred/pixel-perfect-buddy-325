@@ -138,6 +138,17 @@ const dict = {
     "এই নম্বরে আগে থেকেই একজন সদস্য আছেন",
     "A member with this number already exists",
   ],
+  err_forbidden: ["আপনার এই কাজের অনুমতি নেই", "You don't have permission to do this"],
+  noAccess: ["অনুমতি নেই", "No access"],
+  noAccessHint: [
+    "এই কাজটি আপনার দায়িত্বের মধ্যে পড়ে না। ক্লাবের অ্যাডমিনের সাথে যোগাযোগ করুন।",
+    "This isn't part of your role. Ask the club's admin.",
+  ],
+  actingAs: ["ডেমো: যাঁর হয়ে দেখছেন", "Demo: acting as"],
+  actingAsHint: [
+    "অন্য দায়িত্বে অ্যাপটি কেমন দেখায়, পরখ করুন",
+    "Try how the app looks for each role",
+  ],
   err_lastAdmin: ["ক্লাবে অন্তত একজন অ্যাডমিন থাকতে হবে", "The club must keep at least one admin"],
   settingsTitle: ["সেটিংস", "Settings"],
   members: ["সদস্য", "Members"],

@@ -2,6 +2,8 @@
 // Every method is async with a short delay so it can be swapped for the Laravel REST
 // client later without touching UI code. Inputs are validated here as well as in forms.
 import { computeSummary } from "@/lib/accounts";
+import { can, type Permission } from "@/lib/permissions";
+import { session } from "./session";
 import { buildDemoData, DEMO_SLUG } from "@/mocks/mockData";
 import {
   VOUCHER_MAX_BYTES,
@@ -87,6 +89,27 @@ function requireClub(db: Store): Club {
   if (!club) throw new ValidationError("club_id", "err_noClub");
   return club;
 }
+/**
+ * The member acting in the active club: the signed-in phone, or in a demo the chosen
+ * member (default: the club's admin). Null when the user isn't a member of this club.
+ */
+function currentMember(db: Store): ClubMember | null {
+  const s = session.get();
+  const members = mine(db, db.members);
+  if (!s) return null;
+  if (s.mode === "user") return members.find((m) => m.phone === s.phone) ?? null;
+  return (
+    members.find((m) => m.id === s.member_id) ?? members.find((m) => m.role === "admin") ?? null
+  );
+}
+
+/** Refuses the call unless the acting member has `p` (SPEC 6.2: enforced in api.ts too). */
+function authorize(db: Store, p: Permission): ClubMember {
+  const me = currentMember(db);
+  if (!can(me, p)) throw new ValidationError("permission", "err_forbidden");
+  return me!;
+}
+
 const mine = <T extends { club_id: string }>(db: Store, list: T[]) =>
   list.filter((x) => x.club_id === db.active_club_id);
 const newestFirst = <T extends { created_at: string }>(list: T[]) =>
@@ -182,6 +205,7 @@ async function createChanda(raw: ChandaInput): Promise<ChandaTransaction> {
   const existing = db.chanda.find((c) => c.id === input.id);
   if (existing) return existing;
   const club = requireClub(db);
+  authorize(db, "chanda.add");
   if (!mine(db, db.households).some((h) => h.id === input.household_id))
     throw new ValidationError("household_id", "err_household");
   const collector = mine(db, db.members).find((m) => m.id === input.collector_id);
@@ -208,6 +232,7 @@ async function createExpense(raw: ExpenseInput): Promise<ExpenseRecord> {
   const existing = db.expenses.find((e) => e.id === input.id);
   if (existing) return existing;
   const club = requireClub(db);
+  authorize(db, "expense.add");
   const by = mine(db, db.members).find((m) => m.id === input.authorized_by_id);
   if (!by || by.role === "collector")
     throw new ValidationError("authorized_by_id", "err_authorizer");
@@ -244,6 +269,8 @@ async function seedDemo(): Promise<void> {
     db.active_club_id = d.club.id;
   }
   write(db);
+  // Opening the sample club signs a visitor into the demo; a signed-in user stays themselves.
+  if (!session.get()) session.set({ mode: "demo" });
 }
 
 /** Everything the public accounts page shows for one club. */
@@ -354,10 +381,17 @@ export const api = {
       created_at: at,
     });
     write(db);
+    // The creator is signed in as the new club's admin.
+    session.set({ mode: "user", phone: input.creator_phone });
     return club;
   },
 
   // --- Members ---
+  /** The member the app acts as in the active club, or null (not a member: read-only). */
+  async getCurrentMember(): Promise<ClubMember | null> {
+    await delay();
+    return currentMember(read());
+  },
   async listMembers(): Promise<ClubMember[]> {
     await delay();
     const db = read();
@@ -368,6 +402,7 @@ export const api = {
     const input = parseOrThrow(memberSchema, raw);
     const db = read();
     const club = requireClub(db);
+    authorize(db, "member.manage");
     // The phone identifies the signed-in member, so it must be unique within a club.
     if (mine(db, db.members).some((x) => x.phone === input.phone))
       throw new ValidationError("phone", "err_memberExists");
@@ -386,6 +421,7 @@ export const api = {
   async updateMemberRole(id: string, role: UserRole) {
     await delay();
     const db = read();
+    authorize(db, "member.manage");
     const members = mine(db, db.members);
     const m = members.find((x) => x.id === id);
     if (!m) throw new ValidationError("member_id", "err_notFound");
@@ -409,6 +445,7 @@ export const api = {
     const input = parseOrThrow(householdSchema, raw);
     const db = read();
     const club = requireClub(db);
+    authorize(db, "chanda.add");
     const taken = mine(db, db.households).some(
       (h) =>
         sameName(h.lane_block, input.lane_block) &&
@@ -441,6 +478,7 @@ export const api = {
   async voidChanda(id: string, reason: string): Promise<ChandaTransaction> {
     await delay();
     const db = read();
+    authorize(db, "entry.void");
     const rec = voidRecord(mine(db, db.chanda), id, reason, "chanda_id");
     rec.status = "void";
     write(db);
@@ -461,6 +499,7 @@ export const api = {
   async voidExpense(id: string, reason: string): Promise<ExpenseRecord> {
     await delay();
     const db = read();
+    authorize(db, "entry.void");
     const rec = voidRecord(mine(db, db.expenses), id, reason, "expense_id");
     write(db);
     return rec;
@@ -515,6 +554,7 @@ export const api = {
     const input = parseOrThrow(eventSchema, raw);
     const db = read();
     const club = requireClub(db);
+    authorize(db, "event.manage");
     const ev: ClubEvent = {
       id: uuid(),
       club_id: club.id,

@@ -8,6 +8,7 @@ import {
   useAddHousehold,
   useAddTransaction,
   useClub,
+  useAccess,
   useCurrentMember,
   useHouseholds,
   useMembers,
@@ -27,6 +28,7 @@ import {
   type ErrKey,
 } from "@/lib/validation";
 import { ReceiptModal } from "@/features/receipt";
+import { NoAccess } from "@/components/pk/NoAccess";
 
 export const Route = createFileRoute("/collect")({
   validateSearch: z.object({ household: z.string().optional() }),
@@ -66,6 +68,7 @@ function CollectPage() {
   const { data: chandas = [], isSuccess: chandasReady } = useTransactions();
   const { data: members = [] } = useMembers();
   const me = useCurrentMember();
+  const access = useAccess("chanda.add");
   const addHousehold = useAddHousehold();
   const addTransaction = useAddTransaction();
 
@@ -206,6 +209,14 @@ function CollectPage() {
   };
 
   const hhLedger = hh ? ledgerOf(ledgers, hh.id) : null;
+
+  if (!access.isPending && !access.allowed)
+    return (
+      <AppShell>
+        <h1 className="text-2xl font-extrabold">{t("collectTitle")}</h1>
+        <NoAccess />
+      </AppShell>
+    );
 
   return (
     <AppShell>

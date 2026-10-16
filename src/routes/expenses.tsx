@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useI18n } from "@/lib/i18n";
 import { AppShell } from "@/components/pk/AppShell";
 import { useSearchModal } from "@/hooks/use-search-modal";
+import { usePermission } from "@/hooks/use-data";
 import {
   CategoryChips,
   EXPENSE_CATEGORIES,
@@ -57,6 +58,7 @@ function ExpensesPage() {
   const addSheet = useSearchModal("add");
   const detailSheet = useSearchModal("expense");
   const photoView = useSearchModal("photo");
+  const canAdd = usePermission("expense.add");
 
   const setFilter = (c: CategoryFilter) =>
     navigate({
@@ -68,13 +70,15 @@ function ExpensesPage() {
   return (
     <AppShell
       fab={
-        <button
-          type="button"
-          onClick={() => addSheet.open()}
-          className="btn btn-primary shadow-fab fixed bottom-24 right-4 z-40 h-16 rounded-full px-6"
-        >
-          <Plus className="h-6 w-6" /> {t("addExpense")}
-        </button>
+        canAdd && (
+          <button
+            type="button"
+            onClick={() => addSheet.open()}
+            className="btn btn-primary shadow-fab fixed bottom-24 right-4 z-40 h-16 rounded-full px-6"
+          >
+            <Plus className="h-6 w-6" /> {t("addExpense")}
+          </button>
+        )
       }
     >
       <h1 className="text-2xl font-extrabold">{t("expenseLedger")}</h1>
@@ -122,7 +126,7 @@ function ExpensesPage() {
       )}
       <div className="h-16" />
 
-      {search.add && (
+      {search.add && canAdd && (
         <ExpenseForm
           category={search.category ?? "pandal"}
           onClose={addSheet.close}

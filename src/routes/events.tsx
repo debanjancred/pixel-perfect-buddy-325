@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { isoDate } from "@/lib/format";
-import { useEvents } from "@/hooks/use-data";
+import { useEvents, usePermission } from "@/hooks/use-data";
 import { useSearchModal } from "@/hooks/use-search-modal";
 import { AppShell } from "@/components/pk/AppShell";
 import {
@@ -45,6 +45,7 @@ function EventsPage() {
   const { data: events = [], isPending, isError, refetch } = useEvents();
   const actions = useEventActions();
   const addSheet = useSearchModal("add");
+  const canManage = usePermission("event.manage");
   // Events only render after the client-side query resolves, so this never runs on the server.
   const today = isoDate();
   const sections = groupEvents(events, today);
@@ -52,13 +53,15 @@ function EventsPage() {
   return (
     <AppShell
       fab={
-        <button
-          type="button"
-          onClick={() => addSheet.open()}
-          className="btn btn-primary shadow-fab fixed bottom-24 right-4 z-40 h-16 rounded-full px-6"
-        >
-          <Plus className="h-6 w-6" /> {t("addEvent")}
-        </button>
+        canManage && (
+          <button
+            type="button"
+            onClick={() => addSheet.open()}
+            className="btn btn-primary shadow-fab fixed bottom-24 right-4 z-40 h-16 rounded-full px-6"
+          >
+            <Plus className="h-6 w-6" /> {t("addEvent")}
+          </button>
+        )
       }
     >
       <h1 className="text-2xl font-extrabold">{t("eventsTitle")}</h1>
@@ -111,7 +114,7 @@ function EventsPage() {
       )}
       <div className="h-20" />
 
-      {add && (
+      {add && canManage && (
         <EventForm
           onClose={addSheet.close}
           onSaved={() => {

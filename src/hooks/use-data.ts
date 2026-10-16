@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 import { api } from "@/services/api";
-import { phoneSchema, type ExpenseInput } from "@/lib/validation";
+import { session } from "@/services/session";
+import { can, type Permission } from "@/lib/permissions";
+import type { ExpenseInput } from "@/lib/validation";
 import type { ClubEvent } from "@/types/domain";
 
 // Data lives in the browser (offline-first), so queries run client-side only.
@@ -14,6 +15,7 @@ export const queryKeys = {
   // Under "summary" so every mutation that refreshes the summary refreshes this too.
   accounts: (slug: string) => ["summary", "accounts", slug],
   members: ["members"],
+  me: ["members", "me"],
   households: ["households"],
   transactions: ["transactions"],
   expenses: ["expenses"],
@@ -53,15 +55,31 @@ export function useVoucherImage(id: string | undefined) {
   return url;
 }
 
-/** The signed-in member (matched by phone); demo sessions act as the first collector. */
+/**
+ * The member the app acts as in the active club (signed-in phone, or the demo's chosen
+ * member). Undefined when the user isn't a member of this club: then nothing is allowed.
+ */
 export function useCurrentMember() {
-  const { data: members = [] } = useMembers();
-  const s = session.get();
-  return (
-    (s?.mode === "user" ? members.find((m) => m.phone === s.phone) : undefined) ??
-    members.find((m) => m.role === "collector") ??
-    members[0]
-  );
+  const { data } = useQuery({ queryKey: queryKeys.me, queryFn: api.getCurrentMember });
+  return data ?? undefined;
+}
+
+/** Whether the current member may do `p` — for hiding actions; api.ts enforces it too. */
+export const usePermission = (p: Permission) => can(useCurrentMember(), p);
+
+/** For gating a whole screen: `isPending` avoids flashing "no access" while loading. */
+export function useAccess(p: Permission) {
+  const { data, isPending } = useQuery({ queryKey: queryKeys.me, queryFn: api.getCurrentMember });
+  return { allowed: can(data, p), isPending };
+}
+
+/** Demo only: act as another member of the sample club to try each role. */
+export function useSetDemoActor() {
+  const qc = useQueryClient();
+  return (member_id: string) => {
+    session.set({ mode: "demo", member_id });
+    return qc.invalidateQueries();
+  };
 }
 
 // Mutations return the invalidation promise so `mutateAsync` resolves only after the
@@ -222,13 +240,8 @@ function useClubMutation<A, R>(fn: (arg: A) => Promise<R>) {
 }
 export const useSeedDemo = () => useClubMutation(api.seedDemo);
 export const useResetDemo = () => useClubMutation(api.resetDemo);
-/** Creating a club signs its creator in, so the app acts as them (its admin) from now on. */
-export const useCreateClub = () =>
-  useClubMutation(async (input: Parameters<typeof api.createClub>[0]) => {
-    const club = await api.createClub(input);
-    session.set({ mode: "user", phone: input.creator_phone });
-    return club;
-  });
+/** api.createClub signs the creator in, so the app acts as them (its admin) from now on. */
+export const useCreateClub = () => useClubMutation(api.createClub);
 export const useSetActiveClub = () => useClubMutation(api.setActiveClub);
 
 export function useOnline() {
@@ -252,27 +265,5 @@ export function useInvalidateAll() {
   return () => qc.invalidateQueries();
 }
 
-const SESSION = "pk_session_v1";
-const sessionSchema = z.union([
-  z.object({ mode: z.literal("demo") }),
-  z.object({ mode: z.literal("user"), phone: phoneSchema }),
-]);
-type Session = z.infer<typeof sessionSchema>;
-
-export const session = {
-  /** Returns null for a missing or tampered session so guards treat it as logged out. */
-  get(): Session | null {
-    try {
-      const r = sessionSchema.safeParse(JSON.parse(localStorage.getItem(SESSION) ?? "null"));
-      return r.success ? r.data : null;
-    } catch {
-      return null;
-    }
-  },
-  set(s: Session) {
-    localStorage.setItem(SESSION, JSON.stringify(sessionSchema.parse(s)));
-  },
-  clear() {
-    localStorage.removeItem(SESSION);
-  },
-};
+// Session storage lives in the service layer; re-exported for existing imports.
+export { session } from "@/services/session";

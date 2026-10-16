@@ -102,8 +102,7 @@ function Onboarding() {
   };
   const demo = () =>
     run(async () => {
-      await seedDemo.mutateAsync();
-      session.set({ mode: "demo" });
+      await seedDemo.mutateAsync(); // also signs the visitor into the demo
       navigate({ to: "/home" });
     });
 

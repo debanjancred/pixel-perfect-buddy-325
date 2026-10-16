@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
-import { useMembers, useUpdateMemberRole } from "@/hooks/use-data";
+import { useMembers, usePermission, useUpdateMemberRole } from "@/hooks/use-data";
 import { ValidationError } from "@/lib/validation";
 import type { ClubMember, UserRole } from "@/types/domain";
 import { ROLES, membersByRole } from "./model";
@@ -10,6 +10,7 @@ import { AddMemberForm } from "./AddMemberForm";
 export function MembersSection() {
   const { t } = useI18n();
   const { data: members = [], isPending } = useMembers();
+  const manage = usePermission("member.manage");
 
   return (
     <section className="rounded-3xl border bg-card p-4 shadow-card" aria-labelledby="set-members">
@@ -29,19 +30,19 @@ export function MembersSection() {
             ) : (
               <ul className="divide-y">
                 {g.members.map((m) => (
-                  <MemberRow key={m.id} member={m} />
+                  <MemberRow key={m.id} member={m} editable={manage} />
                 ))}
               </ul>
             )}
           </div>
         ))
       )}
-      <AddMemberForm />
+      {manage && <AddMemberForm />}
     </section>
   );
 }
 
-function MemberRow({ member: m }: { member: ClubMember }) {
+function MemberRow({ member: m, editable }: { member: ClubMember; editable: boolean }) {
   const { t, n } = useI18n();
   const updateRole = useUpdateMemberRole();
   const change = (role: UserRole) =>
@@ -66,19 +67,25 @@ function MemberRow({ member: m }: { member: ClubMember }) {
           {n(m.phone)} · {m.collector_code}
         </div>
       </div>
-      <select
-        className="field w-auto min-w-0 text-sm"
-        aria-label={`${t("role")}: ${m.name}`}
-        value={m.role}
-        disabled={updateRole.isPending}
-        onChange={(e) => change(e.target.value as UserRole)}
-      >
-        {ROLES.map((r) => (
-          <option key={r} value={r}>
-            {t(`role_${r}`)}
-          </option>
-        ))}
-      </select>
+      {!editable ? (
+        <span className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">
+          {t(`role_${m.role}`)}
+        </span>
+      ) : (
+        <select
+          className="field w-auto min-w-0 text-sm"
+          aria-label={`${t("role")}: ${m.name}`}
+          value={m.role}
+          disabled={updateRole.isPending}
+          onChange={(e) => change(e.target.value as UserRole)}
+        >
+          {ROLES.map((r) => (
+            <option key={r} value={r}>
+              {t(`role_${r}`)}
+            </option>
+          ))}
+        </select>
+      )}
     </li>
   );
 }
