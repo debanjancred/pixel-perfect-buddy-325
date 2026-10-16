@@ -4,6 +4,7 @@
 import { computeSummary } from "@/lib/accounts";
 import { buildDemoData, DEMO_SLUG } from "@/mocks/mockData";
 import {
+  VOUCHER_MAX_BYTES,
   ValidationError,
   chandaSchema,
   check,
@@ -435,7 +436,10 @@ export const api = {
     write(db);
     return rec;
   },
+  /** Stores an (already compressed) image and returns its id for `voucher_image_id`. */
   async saveVoucherImage(blob: Blob): Promise<string> {
+    if (!blob.type.startsWith("image/")) throw new ValidationError("voucher", "err_photoType");
+    if (blob.size > VOUCHER_MAX_BYTES) throw new ValidationError("voucher", "err_photoTooLarge");
     const id = uuid();
     await voucherTx("readwrite", (s) => s.put(blob, id));
     return id;
@@ -446,6 +450,10 @@ export const api = {
     } catch {
       return null;
     }
+  },
+  /** Removes an image no record points at (e.g. the expense save failed). Not in SPEC §4. */
+  async deleteVoucherImage(id: string): Promise<void> {
+    await voucherTx("readwrite", (s) => s.delete(id));
   },
 
   // --- Events ---

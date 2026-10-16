@@ -2,6 +2,7 @@
 // same rule shows in Bengali or English, and the Laravel API can return the same keys.
 import { z } from "zod";
 import type { TKey } from "./i18n";
+import { isoDate } from "./format";
 
 export type ErrKey = Extract<TKey, `err_${string}`>;
 const m = (message: ErrKey) => ({ message });
@@ -9,6 +10,8 @@ const m = (message: ErrKey) => ({ message });
 export const TARGET_MIN = 1_000;
 export const TARGET_MAX = 100_000_000; // ₹10 crore
 export const AMOUNT_MAX = 1_000_000; // ₹10 lakh per receipt
+/** Stored voucher photos are compressed on the device first; this guards the store. */
+export const VOUCHER_MAX_BYTES = 1_500_000;
 
 /** Strip spaces, dashes and a leading +91 / 0 so pasted numbers still validate. */
 export function normalizePhone(raw: string) {
@@ -88,7 +91,9 @@ export const expenseSchema = z.object({
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, m("err_date"))
-    .refine((v) => !Number.isNaN(Date.parse(v)), m("err_date")),
+    .refine((v) => !Number.isNaN(Date.parse(v)), m("err_date"))
+    // ISO dates compare correctly as strings; "today" is the device's local date.
+    .refine((v) => v <= isoDate(), m("err_dateFuture")),
 });
 export type ExpenseInput = z.infer<typeof expenseSchema>;
 

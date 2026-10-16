@@ -100,7 +100,11 @@ export function useVoidTransaction() {
   });
 }
 
-/** Saves the voucher photo (if any) to IndexedDB first, then the expense pointing at it. */
+/**
+ * Saves the voucher photo (if any) to IndexedDB first, then the expense pointing at it.
+ * A photo that ends up unreferenced (expense rejected, or a retry of an already-saved
+ * expense) is deleted so IndexedDB holds no orphans.
+ */
 export function useAddExpense() {
   const invalidate = useInvalidate();
   return useMutation({
@@ -109,7 +113,20 @@ export function useAddExpense() {
       ...input
     }: Omit<ExpenseInput, "voucher_image_id"> & { voucher?: Blob | null }) => {
       const voucher_image_id = voucher ? await api.saveVoucherImage(voucher) : undefined;
-      return api.addExpense({ ...input, ...(voucher_image_id ? { voucher_image_id } : {}) });
+      const discard = () =>
+        voucher_image_id ? api.deleteVoucherImage(voucher_image_id).catch(() => {}) : undefined;
+      try {
+        const saved = await api.addExpense({
+          ...input,
+          ...(voucher_image_id ? { voucher_image_id } : {}),
+        });
+        // An idempotent retry returns the record saved earlier, with its own photo.
+        if (saved.voucher_image_id !== voucher_image_id) await discard();
+        return saved;
+      } catch (e) {
+        await discard();
+        throw e;
+      }
     },
     onSuccess: async () => {
       await syncIfOnline();

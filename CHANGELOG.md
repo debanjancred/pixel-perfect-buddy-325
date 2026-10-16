@@ -27,6 +27,18 @@ All notable changes to Pujo Khata. Format follows
     feed and a Receipt button in the chanda register.
   - Voided receipts stay viewable and printable with a VOID mark, but can't be sent.
 - `t()` fills `{name}` placeholders; shared `PrintPortal`, canvas and file-share helpers.
+- Expense ledger module (M4, SPEC Stories 3.1, 3.2) in `src/features/expenses`:
+  - Per-category subtotals above the list (total, colour bar, tap a category to filter)
+    and category chips with counts.
+  - Tapping a row opens the expense details (amount in words, approver, dates, sync
+    state, void reason) with a full-screen voucher photo.
+  - Voucher photos are compressed on the phone (long side ≤ 1600px, ≈ 400 KB JPEG,
+    location metadata dropped); clear errors for non-images and unreadable photos;
+    photos can be changed or removed before saving.
+  - Filter, add form, details and photo live in the URL: refresh keeps them, they can be
+    linked to, and the phone's back button closes them (`useSearchModal`).
+- `api.deleteVoucherImage()`; photos left unreferenced by a failed or repeated save are
+  cleaned up.
 
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and
@@ -34,6 +46,8 @@ All notable changes to Pujo Khata. Format follows
 - Roles are admin / treasurer / collector; only admins and treasurers approve expenses.
 - Share texts and the story card format money through i18n; no local-only links shared.
 - Receipt share text is fully bilingual and self-contained (no local-only link).
+- Expense dates can't be in the future; the store refuses non-image or oversized vouchers.
+- Expense rows show the expense date instead of "time ago".
 
 ### Removed
 - Household pledge fields (pledges are now `promised` chanda entries) and event slots.

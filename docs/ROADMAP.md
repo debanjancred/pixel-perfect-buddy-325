@@ -7,7 +7,7 @@ We work one module at a time. Each phase ships as a minor release.
 |---|---|---|---|
 | v0.1.0 | Lovable prototype | All screens on localStorage | Released |
 | v0.2.0 | Stabilise + core collection | M0, M1, M2, M3 | Released |
-| v0.3.0 | Money modules | M3b Receipt, M4 Expenses | Next |
+| v0.3.0 | Money modules | M3b Receipt, M4 Expenses | Ready to release |
 | v0.4.0 | Community & admin | M5 Events, M6 Public audit, M7 Admin | Planned |
 | v0.5.0 | Cross-cutting | M8 Roles & permissions, M9 Offline & PWA | Planned |
 | v0.9.0 | Release candidate | M10 QA pass | Planned |
@@ -22,7 +22,7 @@ We work one module at a time. Each phase ships as a minor release.
 | 3 | M2 Home dashboard | Summary, activity, loading/empty/error states | Done |
 | 4 | M3 Chanda register & collect | Search, filters, partial payments, receipt numbers, validation | Done |
 | 5 | M3b Receipt | Amount in words, bilingual share text, print/image | Done |
-| 6 | M4 Expenses | Ledger, receipt photo compression, approver, validation | Todo |
+| 6 | M4 Expenses | Ledger, receipt photo compression, approver, validation | Done |
 | 7 | M5 Events | Slot capacity, full state, share link | Todo |
 | 8 | M6 Public audit | Read-only without login, charts, story card | Todo |
 | 9 | M7 Admin | Members & roles, CSV export, preferences, app version shown | Todo |

@@ -32,7 +32,10 @@ defined in `src/styles.css`.
 - Module code lives in `src/features/<module>/`: a pure model (domain → view data,
   unit-tested), hooks, and components, exposed only through its `index.ts`. Routes stay
   thin and compose features; `src/components/pk` holds shared UI primitives and
-  `src/lib` shared pure helpers. First example: `src/features/receipt`.
+  `src/lib` shared pure helpers. Examples: `src/features/receipt`, `src/features/expenses`.
+- Sheets, filters and other view state that should survive refresh or close on the phone's
+  back button go in the route's search params (zod `validateSearch` with `.catch`), opened
+  and closed through `useSearchModal` in `src/hooks/use-search-modal.ts`.
 - Mobile-first at 360px, touch targets at least 48px.
 - Palette: vermilion `#B71C1C`/`#C8102E`, antique gold `#B8860B`, canvas `#FDFBF7`.
   Fonts: Hind Siliguri for Bengali, Inter for English. The alpona motif belongs only
