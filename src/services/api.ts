@@ -4,6 +4,7 @@
 import { cashByCollector, computeSummary } from "@/lib/accounts";
 import { can, type Permission } from "@/lib/permissions";
 import { session } from "./session";
+import { getSyncAdapter, type SyncRecord } from "./sync";
 import { buildDemoData, DEMO_SLUG } from "@/mocks/mockData";
 import {
   VOUCHER_MAX_BYTES,
@@ -646,19 +647,46 @@ export const api = {
     };
   },
 
-  /** MVP sync adapter (Story 5.1): with no backend, mark pending records synced when online. */
+  /**
+   * Story 5.1: when online, push every pending or failed record through the sync adapter
+   * and record the outcome (synced / failed). Offline it does nothing: saving never waits.
+   */
   async sync(): Promise<{ synced: number; failed: number }> {
     await delay();
     if (!isOnline()) return { synced: 0, failed: 0 };
     const db = read();
+    const queue: SyncRecord[] = [
+      ...db.chanda.map((record) => ({ kind: "chanda" as const, record })),
+      ...db.expenses.map((record) => ({ kind: "expense" as const, record })),
+      ...db.handovers.map((record) => ({ kind: "handover" as const, record })),
+    ].filter((r) => r.record.sync_status !== "synced");
+    if (!queue.length) return { synced: 0, failed: 0 };
+    let results: { id: string; ok: boolean }[];
+    try {
+      results = await getSyncAdapter().push(queue);
+    } catch {
+      results = queue.map((r) => ({ id: r.record.id, ok: false }));
+    }
+    const ok = new Map(results.map((r) => [r.id, r.ok]));
     let synced = 0;
-    for (const list of [db.chanda, db.expenses, db.handovers] as { sync_status: string }[][])
-      for (const r of list)
-        if (r.sync_status !== "synced") {
-          r.sync_status = "synced";
-          synced++;
-        }
-    if (synced) write(db);
-    return { synced, failed: 0 };
+    let failed = 0;
+    for (const { record } of queue) {
+      const success = ok.get(record.id) === true;
+      record.sync_status = success ? "synced" : "failed";
+      if (success) synced++;
+      else failed++;
+    }
+    write(db);
+    return { synced, failed };
+  },
+  /** Counts for the sync banner: records waiting, and records whose last push failed. */
+  async getSyncStatus(): Promise<{ pending: number; failed: number }> {
+    await delay();
+    const db = read();
+    const rows = [...mine(db, db.chanda), ...mine(db, db.expenses), ...mine(db, db.handovers)];
+    return {
+      pending: rows.filter((r) => r.sync_status === "pending").length,
+      failed: rows.filter((r) => r.sync_status === "failed").length,
+    };
   },
 };

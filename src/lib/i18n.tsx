@@ -29,6 +29,12 @@ const dict = {
   shareAccounts: ["হিসাব শেয়ার", "Share Accounts"],
   recent: ["সাম্প্রতিক কার্যকলাপ", "Live activity"],
   offlineSaved: ["অফলাইন — ফোনে সংরক্ষিত", "Offline — Saved locally"],
+  offlineBanner: [
+    "অফলাইন মোড — ডেটা আপনার ফোনে সংরক্ষিত হচ্ছে",
+    "Offline mode — data is being saved on your phone",
+  ],
+  syncFailedCount: ["{count}টি এন্ট্রি সিঙ্ক হয়নি", "{count} entries didn't sync"],
+  retry: ["আবার চেষ্টা", "Retry"],
   offline: ["অফলাইন", "Offline"],
   online: ["অনলাইন", "Online"],
   pendingSync: ["টি সিঙ্কের অপেক্ষায়", "waiting to sync"],

@@ -77,6 +77,16 @@ All notable changes to Pujo Khata. Format follows
   outstanding; treasurers/admins receive cash (never more than outstanding, never from
   themselves), handovers are voided rather than edited; home shows cash still held by
   collectors to those who can receive it.
+- Offline & PWA (M9, SPEC 5.1 / 5.2):
+  - Service worker (`public/sw.js`, approach documented in `AGENTS.md`): the app opens
+    with no network after the first visit, with pages, JS/CSS, fonts and icons cached
+    per version. Disabled in development and in the Lovable preview.
+  - Offline banner with the SPEC wording; it sits in the header, never over inputs.
+  - Sync goes through a `SyncAdapter` (`src/services/sync.ts`) — the Laravel client
+    plugs in there. Records the adapter rejects are marked failed, shown with a badge
+    and a Retry bar, and retried automatically when the app loads online.
+  - Manifest: SPEC name and colours, and a proper maskable icon
+    (`icon-maskable-512.png`, art inside the safe zone).
 
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and

@@ -14,6 +14,7 @@ export const queryKeys = {
   summary: ["summary"],
   // Under "summary" so every mutation that refreshes the summary refreshes this too.
   accounts: (slug: string) => ["summary", "accounts", slug],
+  syncStatus: ["summary", "sync"],
   members: ["members"],
   me: ["members", "me"],
   households: ["households"],
@@ -27,6 +28,8 @@ export const queryKeys = {
 export const useClub = () => useQuery({ queryKey: queryKeys.club, queryFn: api.getClub });
 export const useClubs = () => useQuery({ queryKey: queryKeys.clubs, queryFn: api.listClubs });
 export const useSummary = () => useQuery({ queryKey: queryKeys.summary, queryFn: api.getSummary });
+export const useSyncStatus = () =>
+  useQuery({ queryKey: queryKeys.syncStatus, queryFn: api.getSyncStatus });
 export const useClubAccounts = (slug: string) =>
   useQuery({ queryKey: queryKeys.accounts(slug), queryFn: () => api.getClubAccounts(slug) });
 export const useMembers = () => useQuery({ queryKey: queryKeys.members, queryFn: api.listMembers });
@@ -251,8 +254,8 @@ export function useSync() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: api.sync,
-    onSuccess: ({ synced }) =>
-      synced > 0
+    onSuccess: ({ synced, failed }) =>
+      synced + failed > 0
         ? invalidate(
             queryKeys.transactions,
             queryKeys.expenses,

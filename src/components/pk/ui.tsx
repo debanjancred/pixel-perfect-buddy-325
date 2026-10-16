@@ -1,6 +1,6 @@
 import { useEffect, useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { X, CloudOff } from "lucide-react";
+import { X, CloudOff, CircleAlert } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { ErrKey } from "@/lib/validation";
@@ -65,6 +65,12 @@ export function StatusBadge({ status }: { status: HouseholdStatus }) {
 
 export function SyncBadge({ status }: { status: SyncStatus }) {
   const { t } = useI18n();
+  if (status === "failed")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-bold text-primary">
+        <CircleAlert className="h-3 w-3" /> {t("syncFailed")}
+      </span>
+    );
   if (status !== "pending") return null;
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-gold-soft px-2 py-0.5 text-[11px] font-bold text-gold-ink">

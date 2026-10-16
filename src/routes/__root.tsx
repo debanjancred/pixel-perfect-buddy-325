@@ -14,6 +14,7 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider, useI18n } from "../lib/i18n";
+import { registerServiceWorker } from "../lib/pwa";
 
 function NotFoundComponent() {
   const { t } = useI18n();
@@ -111,6 +112,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => void registerServiceWorker(), []);
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />

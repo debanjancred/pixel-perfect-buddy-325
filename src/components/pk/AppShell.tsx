@@ -18,11 +18,12 @@ import {
   useClub,
   useInvalidateAll,
   useOnline,
-  useSummary,
   useSync,
+  useSyncStatus,
 } from "@/hooks/use-data";
 import { AlponaStrip, LangToggle, Modal } from "./ui";
 import { ClubPicker } from "./ClubPicker";
+import { SyncBanner } from "./SyncBanner";
 
 const NAV: {
   to: "/home" | "/chanda" | "/expenses" | "/events" | "/settings";
@@ -42,7 +43,7 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
   const online = useOnline();
   const invalidate = useInvalidateAll();
   const { data: club, isSuccess: clubLoaded } = useClub();
-  const { data: summary } = useSummary();
+  const { data: syncStatus } = useSyncStatus();
   const sync = useSync();
   const [authed, setAuthed] = useState(false);
   const [clubOpen, setClubOpen] = useState(false);
@@ -123,9 +124,9 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
                   <CloudOff className="h-3 w-3 text-warning" />
                 )}
                 {online ? t("online") : t("offline")}
-                {summary && summary.pending_sync_count > 0 && (
+                {!!syncStatus?.pending && (
                   <span className="font-semibold text-gold-ink">
-                    · {n(String(summary.pending_sync_count))} {t("pendingSync")}
+                    · {n(String(syncStatus.pending))} {t("pendingSync")}
                   </span>
                 )}
                 <ChevronDown className="h-3 w-3" />
@@ -134,11 +135,12 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
           </button>
           <LangToggle />
         </div>
-        {!online && (
-          <div className="bg-warning-soft px-4 py-1.5 text-center text-xs font-semibold text-warning">
-            {t("offlineSaved")}
-          </div>
-        )}
+        <SyncBanner
+          online={online}
+          failed={syncStatus?.failed ?? 0}
+          retrying={sync.isPending}
+          onRetry={() => sync.mutate()}
+        />
       </header>
 
       <div
