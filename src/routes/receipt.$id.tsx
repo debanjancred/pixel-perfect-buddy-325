@@ -2,7 +2,7 @@ import { createFileRoute, Link, useCanGoBack, useRouter } from "@tanstack/react-
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { AppShell } from "@/components/pk/AppShell";
-import { ReceiptActions, ReceiptCard, useReceipt } from "@/features/receipt";
+import { ReceiptActions, ReceiptCard, ReceiptVoid, useReceipt } from "@/features/receipt";
 
 // Re-share or print a saved receipt (SPEC Story 2.2). Keyed by the chanda's UUID; the data
 // is on this device only, so the page resolves it client-side like every other screen.
@@ -55,6 +55,9 @@ function ReceiptPage() {
           <ReceiptCard receipt={receipt} />
           <div className="mt-4">
             <ReceiptActions receipt={receipt} />
+          </div>
+          <div className="mt-3">
+            <ReceiptVoid receipt={receipt} />
           </div>
         </>
       ) : (

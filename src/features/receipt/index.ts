@@ -3,6 +3,7 @@
 export { ReceiptCard } from "./ReceiptCard";
 export { ReceiptActions } from "./ReceiptActions";
 export { ReceiptModal } from "./ReceiptModal";
+export { ReceiptVoid } from "./ReceiptVoid";
 export { useReceipt } from "./use-receipt";
 export {
   amountInWords,

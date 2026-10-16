@@ -44,10 +44,11 @@ function HomePage() {
   const canExpense = usePermission("expense.add");
 
   const stream = [
-    // Money actually received: collected, non-void entries only.
+    // Money received, plus voided entries (shown struck through, SPEC 2.3); not pledges.
     ...chandas
-      .filter((c) => c.status === "collected" && !isVoid(c))
+      .filter((c) => c.status === "collected" || isVoid(c))
       .map((c) => ({
+        voided: isVoid(c),
         id: c.id,
         kind: "in" as const,
         name: households.find((h) => h.id === c.household_id)?.resident_name ?? "—",
@@ -56,20 +57,19 @@ function HomePage() {
         at: c.created_at,
         sync: c.sync_status,
       })),
-    ...expenses
-      .filter((e) => !isVoid(e))
-      .map((e) => {
-        const m = members.find((x) => x.id === e.authorized_by_id);
-        return {
-          id: e.id,
-          kind: "out" as const,
-          name: e.title,
-          amount: e.amount,
-          sub: m?.name ?? "",
-          at: e.created_at,
-          sync: e.sync_status,
-        };
-      }),
+    ...expenses.map((e) => {
+      const m = members.find((x) => x.id === e.authorized_by_id);
+      return {
+        voided: isVoid(e),
+        id: e.id,
+        kind: "out" as const,
+        name: e.title,
+        amount: e.amount,
+        sub: m?.name ?? "",
+        at: e.created_at,
+        sync: e.sync_status,
+      };
+    }),
   ]
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 5);
@@ -181,18 +181,27 @@ function HomePage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold">{x.name}</div>
+                    <div
+                      className={`truncate font-semibold ${x.voided ? "line-through opacity-60" : ""}`}
+                    >
+                      {x.name}
+                    </div>
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       <span>{x.sub}</span>
                       <span>·</span>
                       <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
                         {ago(x.at)}
                       </span>
+                      {x.voided && (
+                        <span className="rounded-full bg-primary-soft px-2 py-0.5 font-bold text-primary">
+                          {t("receiptVoid")}
+                        </span>
+                      )}
                       <SyncBadge status={x.sync} />
                     </div>
                   </div>
                   <div
-                    className={`num font-bold ${x.kind === "in" ? "text-success" : "text-primary"}`}
+                    className={`num font-bold ${x.kind === "in" ? "text-success" : "text-primary"} ${x.voided ? "line-through opacity-60" : ""}`}
                   >
                     {x.kind === "in" ? "+" : "−"}
                     {money(x.amount)}

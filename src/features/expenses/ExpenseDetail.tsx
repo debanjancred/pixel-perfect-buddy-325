@@ -1,4 +1,8 @@
-import { Expand } from "lucide-react";
+import { useState } from "react";
+import { Ban, Expand } from "lucide-react";
+import { toast } from "sonner";
+import { usePermission, useVoidExpense } from "@/hooks/use-data";
+import { VoidDialog } from "@/components/pk/VoidDialog";
 import { useI18n } from "@/lib/i18n";
 import { Modal, SyncBadge } from "@/components/pk/ui";
 import { isVoid } from "@/lib/accounts";
@@ -21,6 +25,9 @@ export function ExpenseDetail({
   const i18n = useI18n();
   const { t, money, words } = i18n;
   const voided = isVoid(e);
+  const canVoid = usePermission("entry.void") && !voided;
+  const voidExpense = useVoidExpense();
+  const [voiding, setVoiding] = useState(false);
 
   return (
     <Modal open onClose={onClose} title={t("expenseDetails")}>
@@ -90,9 +97,28 @@ export function ExpenseDetail({
         )}
       </div>
 
-      <button type="button" className="btn btn-primary mt-4 w-full" onClick={onClose}>
+      {canVoid && (
+        <button
+          type="button"
+          className="btn btn-outline mt-4 w-full text-destructive"
+          onClick={() => setVoiding(true)}
+        >
+          <Ban className="h-5 w-5" aria-hidden /> {t("void")}
+        </button>
+      )}
+      <button type="button" className="btn btn-primary mt-3 w-full" onClick={onClose}>
         {t("done")}
       </button>
+      {voiding && (
+        <VoidDialog
+          summary={`${e.title} · ${money(e.amount)}`}
+          onClose={() => setVoiding(false)}
+          onVoid={async (reason) => {
+            await voidExpense.mutateAsync({ id: e.id, reason });
+            toast.success(t("voided"));
+          }}
+        />
+      )}
     </Modal>
   );
 }

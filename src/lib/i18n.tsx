@@ -138,6 +138,14 @@ const dict = {
     "এই নম্বরে আগে থেকেই একজন সদস্য আছেন",
     "A member with this number already exists",
   ],
+  void: ["বাতিল করুন", "Void"],
+  voidTitle: ["এন্ট্রি বাতিল", "Void entry"],
+  voidHint: [
+    "বাতিল এন্ট্রি মোছে না — খাতায় কেটে দেখানো থাকে, কিন্তু হিসাবে আর ধরা হয় না।",
+    "Voiding doesn't delete: the entry stays in the ledger struck through, but stops counting.",
+  ],
+  voidReasonLabel: ["বাতিলের কারণ", "Reason for voiding"],
+  voided: ["বাতিল করা হয়েছে", "Voided"],
   err_forbidden: ["আপনার এই কাজের অনুমতি নেই", "You don't have permission to do this"],
   noAccess: ["অনুমতি নেই", "No access"],
   noAccessHint: [
