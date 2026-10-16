@@ -33,6 +33,8 @@ defined in `src/styles.css`.
   unit-tested), hooks, and components, exposed only through its `index.ts`. Routes stay
   thin and compose features; `src/components/pk` holds shared UI primitives and
   `src/lib` shared pure helpers. Examples: `src/features/receipt`, `src/features/expenses`.
+- Permissions: check with `usePermission` / `useAccess` in the UI **and** `authorize()` in
+  `api.ts`; the table is `src/lib/permissions.ts`.
 - Sheets, filters and other view state that should survive refresh or close on the phone's
   back button go in the route's search params (zod `validateSearch` with `.catch`), opened
   and closed through `useSearchModal` in `src/hooks/use-search-modal.ts`.

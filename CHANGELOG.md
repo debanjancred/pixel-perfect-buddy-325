@@ -66,6 +66,17 @@ All notable changes to Pujo Khata. Format follows
   - Preferences with labelled switches; Reset demo only in the sample club; reset and
     log out ask first; app version shown.
 - Shared `ConfirmDialog` and `lib/csv.ts`.
+- Roles & permissions (M8, SPEC 6.2): one permission table (`lib/permissions.ts`)
+  enforced in `api.ts` (`err_forbidden`) and used by the UI to hide actions — collectors
+  collect; treasurers also add expenses, void and receive cash; admins do everything.
+  Every role may collect chanda. The demo starts as admin with an "acting as" switch in
+  Settings; someone who isn't a member of the open club can't change anything.
+- Void flow (SPEC 2.3): void chanda (receipt) and expenses (details) with a required
+  reason; voided entries stay visible struck through, including in the home feed.
+- Cash handover (SPEC 6.3) at `/cash`: per collector cash collected, handed over and
+  outstanding; treasurers/admins receive cash (never more than outstanding, never from
+  themselves), handovers are voided rather than edited; home shows cash still held by
+  collectors to those who can receive it.
 
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and
@@ -80,6 +91,9 @@ All notable changes to Pujo Khata. Format follows
 - Chart colours replaced with a validated categorical palette (separate light and dark
   steps); the old set had near-identical orange/gold and a grey slot.
 - Bengali balance label is "নিট ব্যালান্স" (was "হাতে জমা", i.e. cash in hand), per SPEC §6.
+- Session storage moved to `src/services/session.ts` (still re-exported from use-data).
+- Modals render in a portal with a stack: a dialog over a sheet isn't clipped, Escape
+  closes only the top one, and the page stays scroll-locked until the last one closes.
 
 ### Fixed
 - A newly created club had no members, so chanda couldn't be collected (no collector)

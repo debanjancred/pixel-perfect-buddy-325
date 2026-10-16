@@ -1,4 +1,5 @@
-import { useEffect, type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X, CloudOff } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -72,6 +73,9 @@ export function SyncBadge({ status }: { status: SyncStatus }) {
   );
 }
 
+/** Ids of open modals, oldest first; the last one is on top. */
+const openModals: string[] = [];
+
 export function Modal({
   open,
   onClose,
@@ -84,24 +88,30 @@ export function Modal({
   children: ReactNode;
 }) {
   const { t } = useI18n();
+  const id = useId();
   useEffect(() => {
     if (!open) return;
-    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    openModals.push(id);
     document.body.style.overflow = "hidden";
+    // Only the topmost sheet reacts to Escape, so closing a dialog over a sheet keeps the sheet.
+    const k = (e: KeyboardEvent) => e.key === "Escape" && openModals.at(-1) === id && onClose();
     window.addEventListener("keydown", k);
     return () => {
-      document.body.style.overflow = "";
+      openModals.splice(openModals.indexOf(id), 1);
+      if (!openModals.length) document.body.style.overflow = "";
       window.removeEventListener("keydown", k);
     };
-  }, [open, onClose]);
-  if (!open) return null;
-  return (
+  }, [open, onClose, id]);
+  if (!open || typeof document === "undefined") return null;
+  // Portalled to <body>: a dialog opened from inside a sheet isn't clipped by its scroll box.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/50 animate-in fade-in sm:items-center"
       onClick={onClose}
     >
       <div
         role="dialog"
+        aria-modal="true"
         aria-label={title}
         className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 pb-8 animate-in slide-in-from-bottom-8 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
@@ -118,7 +128,8 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

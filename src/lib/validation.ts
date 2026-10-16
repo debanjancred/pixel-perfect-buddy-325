@@ -119,6 +119,14 @@ export const eventSchema = z.object({
 });
 export type EventInput = z.infer<typeof eventSchema>;
 
+/** A collector hands cash to the treasurer/admin recording it (SPEC 6.3). */
+export const handoverSchema = z.object({
+  id,
+  collector_id: z.string().min(1, m("err_collector")),
+  amount: amountSchema,
+});
+export type HandoverInput = z.infer<typeof handoverSchema>;
+
 export const memberSchema = z.object({
   name: z.string().trim().min(1, m("err_required")).max(80, m("err_tooLong")),
   phone: phoneSchema,

@@ -1,5 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Minus, Megaphone, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import {
+  Plus,
+  Minus,
+  Megaphone,
+  ArrowDownLeft,
+  ArrowUpRight,
+  HandCoins,
+  ChevronRight,
+} from "lucide-react";
+import { useCash } from "@/features/cash";
 import { useI18n } from "@/lib/i18n";
 import {
   usePermission,
@@ -42,6 +51,8 @@ function HomePage() {
   const { data: members = [] } = useMembers();
   const pct = s?.progress_pct ?? 0;
   const canExpense = usePermission("expense.add");
+  const canReceive = usePermission("handover.record");
+  const cash = useCash();
 
   const stream = [
     // Money received, plus voided entries (shown struck through, SPEC 2.3); not pledges.
@@ -142,6 +153,18 @@ function HomePage() {
           tone="bg-gold-soft text-gold-ink border-2 border-gold/40"
         />
       </section>
+
+      {canReceive && cash.totalOutstanding > 0 && (
+        <Link
+          to="/cash"
+          className="mt-4 flex min-h-14 items-center gap-3 rounded-2xl border-2 border-gold/40 bg-gold-soft p-3 text-gold-ink"
+        >
+          <HandCoins className="h-6 w-6 shrink-0" aria-hidden />
+          <span className="flex-1 font-semibold">{t("totalOutstanding")}</span>
+          <span className="num font-extrabold text-foreground">{money(cash.totalOutstanding)}</span>
+          <ChevronRight className="h-5 w-5" aria-hidden />
+        </Link>
+      )}
 
       <section className="mt-6">
         <div className="mb-2 flex items-center justify-between">

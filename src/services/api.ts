@@ -1,7 +1,7 @@
 // Service repository — the only module that touches localStorage or IndexedDB.
 // Every method is async with a short delay so it can be swapped for the Laravel REST
 // client later without touching UI code. Inputs are validated here as well as in forms.
-import { computeSummary } from "@/lib/accounts";
+import { cashByCollector, computeSummary } from "@/lib/accounts";
 import { can, type Permission } from "@/lib/permissions";
 import { session } from "./session";
 import { buildDemoData, DEMO_SLUG } from "@/mocks/mockData";
@@ -13,6 +13,7 @@ import {
   clubSchema,
   eventSchema,
   expenseSchema,
+  handoverSchema,
   householdSchema,
   memberSchema,
   otpSchema,
@@ -24,6 +25,7 @@ import {
   type ClubInput,
   type EventInput,
   type ExpenseInput,
+  type HandoverInput,
   type HouseholdInput,
   type MemberInput,
 } from "@/lib/validation";
@@ -567,6 +569,51 @@ export const api = {
     db.events.push(ev);
     write(db);
     return ev;
+  },
+
+  // --- Cash handovers (SPEC 6.3): never edited, only voided ---
+  async listHandovers(): Promise<CashHandover[]> {
+    await delay();
+    const db = read();
+    return newestFirst(mine(db, db.handovers));
+  },
+  /** The acting treasurer/admin receives `amount` in cash from a collector. */
+  async createHandover(raw: HandoverInput): Promise<CashHandover> {
+    await delay();
+    const input = parseOrThrow(handoverSchema, raw);
+    const db = read();
+    const existing = db.handovers.find((h) => h.id === input.id);
+    if (existing) return existing;
+    const club = requireClub(db);
+    const receiver = authorize(db, "handover.record");
+    const members = mine(db, db.members);
+    if (!members.some((m) => m.id === input.collector_id))
+      throw new ValidationError("collector_id", "err_collector");
+    if (input.collector_id === receiver.id)
+      throw new ValidationError("collector_id", "err_handoverSelf");
+    const position = cashByCollector(members, mine(db, db.chanda), mine(db, db.handovers)).find(
+      (r) => r.member_id === input.collector_id,
+    );
+    if (input.amount > (position?.outstanding ?? 0))
+      throw new ValidationError("amount", "err_handoverTooMuch");
+    const h: CashHandover = {
+      ...input,
+      club_id: club.id,
+      received_by_id: receiver.id,
+      created_at: now(),
+      sync_status: "pending",
+    };
+    db.handovers.push(h);
+    write(db);
+    return h;
+  },
+  async voidHandover(id: string, reason: string): Promise<CashHandover> {
+    await delay();
+    const db = read();
+    authorize(db, "entry.void");
+    const rec = voidRecord(mine(db, db.handovers), id, reason, "handover_id");
+    write(db);
+    return rec;
   },
 
   // --- Accounts ---

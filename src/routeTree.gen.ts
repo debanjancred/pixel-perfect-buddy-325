@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuditRouteImport } from './routes/audit'
+import { Route as CashRouteImport } from './routes/cash'
 import { Route as ChandaRouteImport } from './routes/chanda'
 import { Route as CollectRouteImport } from './routes/collect'
 import { Route as EventsRouteImport } from './routes/events'
@@ -34,6 +35,11 @@ const AdminRoute = AdminRouteImport.update({
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CashRoute = CashRouteImport.update({
+  id: '/cash',
+  path: '/cash',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChandaRoute = ChandaRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/audit': typeof AuditRoute
+  '/cash': typeof CashRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
   '/events': typeof EventsRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/audit': typeof AuditRoute
+  '/cash': typeof CashRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
   '/events': typeof EventsRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/audit': typeof AuditRoute
+  '/cash': typeof CashRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
   '/events': typeof EventsRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/audit'
+    | '/cash'
     | '/chanda'
     | '/collect'
     | '/events'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/audit'
+    | '/cash'
     | '/chanda'
     | '/collect'
     | '/events'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/audit'
+    | '/cash'
     | '/chanda'
     | '/collect'
     | '/events'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AuditRoute: typeof AuditRoute
+  CashRoute: typeof CashRoute
   ChandaRoute: typeof ChandaRoute
   CollectRoute: typeof CollectRoute
   EventsRoute: typeof EventsRoute
@@ -194,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cash': {
+      id: '/cash'
+      path: '/cash'
+      fullPath: '/cash'
+      preLoaderRoute: typeof CashRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chanda': {
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AuditRoute: AuditRoute,
+  CashRoute: CashRoute,
   ChandaRoute: ChandaRoute,
   CollectRoute: CollectRoute,
   EventsRoute: EventsRoute,

@@ -20,6 +20,7 @@ export const queryKeys = {
   transactions: ["transactions"],
   expenses: ["expenses"],
   events: ["events"],
+  handovers: ["handovers"],
   voucher: (id: string) => ["voucher", id],
 } as const;
 
@@ -36,6 +37,8 @@ export const useTransactions = () =>
 export const useExpenses = () =>
   useQuery({ queryKey: queryKeys.expenses, queryFn: api.listExpenses });
 export const useEvents = () => useQuery({ queryKey: queryKeys.events, queryFn: api.listEvents });
+export const useHandovers = () =>
+  useQuery({ queryKey: queryKeys.handovers, queryFn: api.listHandovers });
 
 /** Object URL for a stored voucher photo, revoked when the component unmounts. */
 export function useVoucherImage(id: string | undefined) {
@@ -169,6 +172,28 @@ export function useVoidExpense() {
   });
 }
 
+export function useCreateHandover() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: api.createHandover,
+    onSuccess: async () => {
+      await syncIfOnline();
+      await invalidate(queryKeys.handovers, queryKeys.summary);
+    },
+  });
+}
+
+export function useVoidHandover() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.voidHandover(id, reason),
+    onSuccess: async () => {
+      await syncIfOnline();
+      await invalidate(queryKeys.handovers, queryKeys.summary);
+    },
+  });
+}
+
 /**
  * Registration tally changes are applied to the cache immediately (taps during a busy
  * event must feel instant), rolled back if the save fails, then refetched.
@@ -228,7 +253,12 @@ export function useSync() {
     mutationFn: api.sync,
     onSuccess: ({ synced }) =>
       synced > 0
-        ? invalidate(queryKeys.transactions, queryKeys.expenses, queryKeys.summary)
+        ? invalidate(
+            queryKeys.transactions,
+            queryKeys.expenses,
+            queryKeys.handovers,
+            queryKeys.summary,
+          )
         : undefined,
   });
 }

@@ -5,6 +5,7 @@ import type {
   CashHandover,
   ChandaTransaction,
   Club,
+  ClubMember,
   ExpenseRecord,
 } from "@/types/domain";
 
@@ -41,4 +42,38 @@ export function computeSummary(
       (r) => r.sync_status !== "synced",
     ).length,
   };
+}
+
+export interface CollectorCash {
+  member_id: string;
+  /** Non-void chanda collected in cash by this member. */
+  collected: number;
+  /** Non-void handovers from this member. */
+  handed_over: number;
+  /** Cash still with the member: collected − handed over (SPEC 6.3). */
+  outstanding: number;
+}
+
+/** Cash position per member who has collected or handed over cash, most outstanding first. */
+export function cashByCollector(
+  members: ClubMember[],
+  chanda: ChandaTransaction[],
+  handovers: CashHandover[],
+): CollectorCash[] {
+  return members
+    .map((m) => {
+      const collected = sum(
+        chanda.filter(
+          (c) =>
+            c.collector_id === m.id &&
+            c.status === "collected" &&
+            c.payment_method === "cash" &&
+            !isVoid(c),
+        ),
+      );
+      const handed_over = sum(handovers.filter((h) => h.collector_id === m.id && !isVoid(h)));
+      return { member_id: m.id, collected, handed_over, outstanding: collected - handed_over };
+    })
+    .filter((r) => r.collected > 0 || r.handed_over > 0)
+    .sort((a, b) => b.outstanding - a.outstanding);
 }

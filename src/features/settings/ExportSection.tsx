@@ -1,4 +1,4 @@
-import { Eye, FileSpreadsheet } from "lucide-react";
+import { Eye, FileSpreadsheet, HandCoins } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { useClub, useExpenses, useHouseholds, useMembers, useTransactions } from "@/hooks/use-data";
@@ -51,6 +51,9 @@ export function ExportSection() {
       </div>
       <Link to="/audit" className="btn btn-gold mt-2 w-full">
         <Eye className="h-5 w-5" aria-hidden /> {t("publicAudit")}
+      </Link>
+      <Link to="/cash" className="btn btn-outline mt-2 w-full">
+        <HandCoins className="h-5 w-5" aria-hidden /> {t("cashTitle")}
       </Link>
     </section>
   );
