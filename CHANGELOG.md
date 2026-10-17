@@ -91,6 +91,10 @@ All notable changes to Pujo Khata. Format follows
 - Register lane / block filter (SPEC SHOULD): pick a lane to see only its households;
   status counts follow the lane, and both filters stay in the URL.
 
+- Browser QA suites in `scripts/qa/` (`npm run qa`): end-to-end checks per module in
+  real Chrome at 360px plus an axe accessibility audit of every screen in both
+  languages and themes; `playwright-core` and `axe-core` added as dev dependencies.
+
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and
   sync immediately when online.
