@@ -17,6 +17,7 @@ import { I18nProvider, useI18n } from "@/lib/i18n";
 import { ValidationError } from "@/lib/validation";
 import { api } from "@/services/api";
 import type { Club, ClubEvent } from "@/types/domain";
+import { seedAsAdmin } from "./helpers";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
@@ -96,14 +97,14 @@ describe("events api", () => {
     );
 
   it("seeds upcoming demo events relative to today", async () => {
-    await api.seedDemo();
+    await seedAsAdmin();
     const events = await api.listEvents();
     expect(events.map((e) => e.title_en)).toEqual(["Sit & Draw", "Dhunuchi Dance"]);
     expect(events.every((e) => e.date > isoDate())).toBe(true);
   });
 
   it("creates events from today on, stored once as typed", async () => {
-    await api.seedDemo();
+    await seedAsAdmin();
     const created = await api.createEvent({ title: "  শঙ্খ বাজানো ", date: isoDate() });
     expect(created).toMatchObject({
       title_bn: "শঙ্খ বাজানো",
@@ -116,7 +117,7 @@ describe("events api", () => {
   });
 
   it("undo never takes the tally below zero", async () => {
-    await api.seedDemo();
+    await seedAsAdmin();
     const e = await api.createEvent({ title: "নতুন", date: isoDate() });
     expect((await api.registerEvent(e.id)).registrations_count).toBe(1);
     expect((await api.unregisterEvent(e.id)).registrations_count).toBe(0);

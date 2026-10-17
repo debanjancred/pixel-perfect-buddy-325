@@ -16,6 +16,7 @@ import { I18nProvider, useI18n } from "@/lib/i18n";
 import { ValidationError } from "@/lib/validation";
 import { api } from "@/services/api";
 import type { ClubMember, ExpenseRecord } from "@/types/domain";
+import { seedAsAdmin } from "./helpers";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
@@ -112,7 +113,7 @@ describe("expense ledger model", () => {
 
 describe("expense validation and voucher store", () => {
   async function seeded() {
-    await api.seedDemo();
+    await seedAsAdmin();
     const treasurer = (await api.listMembers()).find((m) => m.role === "treasurer")!;
     return {
       id: crypto.randomUUID(),

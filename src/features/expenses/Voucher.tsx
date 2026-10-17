@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { createPortal } from "react-dom";
 import { ImageIcon, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -27,6 +28,8 @@ export function VoucherThumb({ id, className }: { id: string | undefined; classN
 export function VoucherViewer({ id, onClose }: { id: string; onClose: () => void }) {
   const { t } = useI18n();
   const url = useVoucherImage(id);
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref, true);
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", k);
@@ -35,6 +38,8 @@ export function VoucherViewer({ id, onClose }: { id: string; onClose: () => void
 
   return createPortal(
     <div
+      ref={ref}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={t("receiptPhoto")}

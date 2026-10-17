@@ -118,6 +118,16 @@ All notable changes to Pujo Khata. Format follows
   preferences key.
 
 ### Fixed
+- QA sweep:
+  - Dark mode is applied by an inline head script before first paint (no light flash on
+    every load for dark-mode users).
+  - The demo acts as কর্মী ০১ again, so Collect defaults to that collector (SPEC 2.1);
+    the header shows "ডেমো: কর্মী ০১ (সংগ্রাহক) · বদলান" linking to the role switch.
+  - Collect's household picker lists recent households first (SPEC 2.1).
+  - Signed-in users who aren't members of the open club see a "view only" notice, and
+    collect/expense actions are hidden instead of leading to a no-access screen.
+  - Modals and the photo viewer take keyboard focus, keep Tab inside, and return focus
+    to the button that opened them.
 - A newly created club had no members, so chanda couldn't be collected (no collector)
   and expenses couldn't be approved (no treasurer/admin). The create-club form now asks
   for the creator's name (phone comes from the OTP login, or is entered in demo), and the

@@ -7,6 +7,7 @@ import { I18nProvider, useI18n } from "@/lib/i18n";
 import { ValidationError } from "@/lib/validation";
 import { api } from "@/services/api";
 import type { ClubMember } from "@/types/domain";
+import { seedAsAdmin } from "./helpers";
 
 beforeEach(() => localStorage.clear());
 
@@ -38,7 +39,7 @@ describe("csv", () => {
 
 describe("ledger exports", () => {
   async function demo() {
-    await api.seedDemo();
+    await seedAsAdmin();
     const [chanda, households, members, expenses] = await Promise.all([
       api.listChanda(),
       api.listHouseholds(),
@@ -104,7 +105,7 @@ describe("members", () => {
   });
 
   it("refuses a duplicate phone in the same club", async () => {
-    await api.seedDemo();
+    await seedAsAdmin();
     const [first] = await api.listMembers();
     expect(
       await keyOf(api.createMember({ name: "নতুন", phone: first!.phone, role: "collector" })),
@@ -112,7 +113,7 @@ describe("members", () => {
   });
 
   it("never demotes the last admin, but allows it once another admin exists", async () => {
-    await api.seedDemo();
+    await seedAsAdmin();
     const admin = (await api.listMembers()).find((m) => m.role === "admin")!;
     expect(await keyOf(api.updateMemberRole(admin.id, "collector"))).toBe("err_lastAdmin");
     await api.createMember({ name: "দ্বিতীয় অ্যাডমিন", phone: "9000000999", role: "admin" });

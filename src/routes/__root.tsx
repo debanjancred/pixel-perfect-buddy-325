@@ -13,7 +13,7 @@ import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { I18nProvider, useI18n } from "../lib/i18n";
+import { I18nProvider, themeBootScript, useI18n } from "../lib/i18n";
 import { registerServiceWorker } from "../lib/pwa";
 
 function NotFoundComponent() {
@@ -76,6 +76,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    // Runs before first paint, so dark-mode users don't see a light flash while hydrating.
+    scripts: [{ children: themeBootScript }],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -97,7 +99,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="bn">
+    // The boot script may add "dark" before React hydrates <html>.
+    <html lang="bn" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>

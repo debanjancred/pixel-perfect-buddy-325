@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
 import { ValidationError } from "@/lib/validation";
 import { api } from "@/services/api";
+import { seedAsAdmin } from "./helpers";
 
 async function rejectsWith(p: Promise<unknown>, key: string) {
   const err = await p.catch((e: unknown) => e);
@@ -13,7 +14,7 @@ async function rejectsWith(p: Promise<unknown>, key: string) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 async function demo() {
-  await api.seedDemo();
+  await seedAsAdmin();
   const members = await api.listMembers();
   const collector = members.find((m) => m.role === "collector")!;
   const treasurer = members.find((m) => m.role === "treasurer")!;
@@ -50,14 +51,14 @@ describe("demo fixtures (SPEC Section 5)", () => {
   });
 
   it("is idempotent", async () => {
-    await api.seedDemo();
-    await api.seedDemo();
+    await seedAsAdmin();
+    await seedAsAdmin();
     expect((await api.listClubs()).clubs).toHaveLength(1);
     expect(await api.listHouseholds()).toHaveLength(15);
   });
 
   it("summarises the sample club", async () => {
-    await api.seedDemo();
+    await seedAsAdmin();
     expect(await api.getSummary()).toMatchObject({
       total_collected: 107010,
       total_promised: 5001,

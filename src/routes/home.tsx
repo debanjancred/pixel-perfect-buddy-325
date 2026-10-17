@@ -51,6 +51,8 @@ function HomePage() {
   const { data: members = [] } = useMembers();
   const pct = s?.progress_pct ?? 0;
   const canExpense = usePermission("expense.add");
+  const canCollect = usePermission("chanda.add");
+  const actionCount = 1 + Number(canCollect) + Number(canExpense);
   const canReceive = usePermission("handover.record");
   const cash = useCash();
 
@@ -130,13 +132,17 @@ function HomePage() {
         </div>
       </section>
 
-      <section className={`mt-5 grid gap-3 ${canExpense ? "grid-cols-3" : "grid-cols-2"}`}>
-        <QuickAction
-          to="/collect"
-          icon={<Plus className="h-7 w-7" />}
-          label={t("addChanda")}
-          tone="bg-primary text-primary-foreground"
-        />
+      <section
+        className={`mt-5 grid gap-3 ${["grid-cols-1", "grid-cols-2", "grid-cols-3"][actionCount - 1]}`}
+      >
+        {canCollect && (
+          <QuickAction
+            to="/collect"
+            icon={<Plus className="h-7 w-7" />}
+            label={t("addChanda")}
+            tone="bg-primary text-primary-foreground"
+          />
+        )}
         {canExpense && (
           <QuickAction
             to="/expenses"

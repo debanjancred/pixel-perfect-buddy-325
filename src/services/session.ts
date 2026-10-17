@@ -7,7 +7,7 @@ import { phoneSchema } from "@/lib/validation";
 const KEY = "pk_session_v1";
 
 const sessionSchema = z.union([
-  // Demo: acts as `member_id` of the sample club (the admin when unset).
+  // Demo: acts as `member_id` of the sample club (the sample collector when unset).
   z.object({ mode: z.literal("demo"), member_id: z.string().optional() }),
   z.object({ mode: z.literal("user"), phone: phoneSchema }),
 ]);

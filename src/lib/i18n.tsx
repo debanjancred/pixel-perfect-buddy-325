@@ -180,6 +180,12 @@ const dict = {
     "This isn't part of your role. Ask the club's admin.",
   ],
   actingAs: ["ডেমো: যাঁর হয়ে দেখছেন", "Demo: acting as"],
+  demoAs: ["ডেমো: {name} ({role})", "Demo: {name} ({role})"],
+  changeRole: ["বদলান", "Change"],
+  viewOnly: [
+    "আপনি এই ক্লাবের সদস্য নন — শুধু দেখতে পারবেন",
+    "You're not a member of this club — view only",
+  ],
   actingAsHint: [
     "অন্য দায়িত্বে অ্যাপটি কেমন দেখায়, পরখ করুন",
     "Try how the app looks for each role",
@@ -377,6 +383,12 @@ const PREF = "pk_prefs_v1"; // numerals + dark mode
 // SPEC Story 1.2: the language lives under `app_locale`, read and written only here.
 const LOCALE = "app_locale";
 const isLang = (v: unknown): v is Lang => v === "bn" || v === "en";
+
+/**
+ * Inline <head> script that applies dark mode before first paint, so dark-mode users
+ * don't see a light flash while the app hydrates. Reads the same key as the provider.
+ */
+export const themeBootScript = `try{var p=JSON.parse(localStorage.getItem(${JSON.stringify(PREF)})||"{}");if(p.dark)document.documentElement.classList.add("dark")}catch(e){}`;
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>("bn");

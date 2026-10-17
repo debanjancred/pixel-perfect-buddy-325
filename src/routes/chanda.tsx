@@ -2,7 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Search, MessageCircle, MapPin, ReceiptText } from "lucide-react";
 import { useI18n, type TKey } from "@/lib/i18n";
-import { useClub, useHouseholds, useMembers, useTransactions } from "@/hooks/use-data";
+import {
+  useClub,
+  useHouseholds,
+  useMembers,
+  usePermission,
+  useTransactions,
+} from "@/hooks/use-data";
 import { AppShell, Fab } from "@/components/pk/AppShell";
 import { StatusBadge, SyncBadge } from "@/components/pk/ui";
 import { reminderText, waLink } from "@/lib/share";
@@ -45,6 +51,7 @@ function ChandaPage() {
   const { data: members = [] } = useMembers();
   const { data: club } = useClub();
   const [filter, setFilter] = useState<Filter>("all");
+  const canCollect = usePermission("chanda.add");
   const [q, setQ] = useState("");
 
   const rows = useMemo(() => {
@@ -91,7 +98,7 @@ function ChandaPage() {
   const clubName = club ? pick(club.name_bn, club.name_en) : t("app");
 
   return (
-    <AppShell fab={<Fab to="/collect" label={t("addChanda")} />}>
+    <AppShell fab={canCollect && <Fab to="/collect" label={t("addChanda")} />}>
       <h1 className="text-2xl font-extrabold">{t("chandaRegister")}</h1>
       <div className="relative mt-3">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
@@ -199,7 +206,7 @@ function ChandaPage() {
                           <MessageCircle className="h-4 w-4" /> {t("remind")}
                         </a>
                       )}
-                      {status !== "paid" && (
+                      {status !== "paid" && canCollect && (
                         <Link
                           to="/collect"
                           search={{ household: h.id }}

@@ -15,7 +15,9 @@ import { toast } from "sonner";
 import { useI18n, type TKey } from "@/lib/i18n";
 import {
   session,
+  useAccess,
   useClub,
+  useCurrentMember,
   useInvalidateAll,
   useOnline,
   useSync,
@@ -44,6 +46,8 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
   const invalidate = useInvalidateAll();
   const { data: club, isSuccess: clubLoaded } = useClub();
   const { data: syncStatus } = useSyncStatus();
+  const me = useCurrentMember();
+  const membership = useAccess("chanda.add");
   const sync = useSync();
   const [authed, setAuthed] = useState(false);
   const [clubOpen, setClubOpen] = useState(false);
@@ -135,6 +139,24 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
           </button>
           <LangToggle />
         </div>
+        {current?.mode === "demo" && me && (
+          <Link
+            to="/settings"
+            hash="demo-actor"
+            className="flex min-h-12 items-center justify-center gap-2 bg-gold-soft px-4 text-xs font-semibold text-gold-ink"
+          >
+            {t("demoAs", { name: me.name, role: t(`role_${me.role}`) })}
+            <span className="underline">{t("changeRole")}</span>
+          </Link>
+        )}
+        {clubLoaded && club && !membership.isPending && !me && (
+          <div
+            role="status"
+            className="bg-info-soft px-4 py-1.5 text-center text-xs font-semibold text-info"
+          >
+            {t("viewOnly")}
+          </div>
+        )}
         <SyncBanner
           online={online}
           failed={syncStatus?.failed ?? 0}

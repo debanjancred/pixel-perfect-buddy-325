@@ -78,9 +78,9 @@ describe("api enforcement", () => {
     expect(await keyOf(a.event())).toBe("err_forbidden");
   });
 
-  it("an admin can do everything; the demo acts as admin by default", async () => {
+  it("an admin can do everything; the demo acts as কর্মী ০১ by default (SPEC 2.1)", async () => {
     await api.seedDemo();
-    expect((await api.getCurrentMember())?.role).toBe("admin");
+    expect(await api.getCurrentMember()).toMatchObject({ name: "কর্মী ০১", role: "collector" });
     const a = await actAs("admin");
     for (const run of [a.chanda, a.expense, a.voidOne, a.member, a.event])
       expect(await keyOf(run())).toBeNull();

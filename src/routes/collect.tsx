@@ -17,7 +17,7 @@ import {
 import type { Household, PaymentMethod } from "@/types/domain";
 import { AppShell } from "@/components/pk/AppShell";
 import { FieldError, Label, StatusBadge, TextField } from "@/components/pk/ui";
-import { householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
+import { byRecentActivity, householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
 import {
   ValidationError,
   amountSchema,
@@ -133,22 +133,18 @@ function CollectPage() {
       choose(f);
     }
   }, [preselect, households, chandasReady]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Collector defaults to the signed-in member (demo: the first collector).
+  // SPEC 2.1: collector defaults to the session member (demo: কর্মী ০১).
   useEffect(() => {
     if (!collector && me) setCollector(me.id);
   }, [me, collector]);
 
+  // SPEC 2.1: recent households on top.
   const matches = useMemo(
     () =>
-      households
+      byRecentActivity(households, chandas)
         .filter((h) => householdMatches(h, q))
-        .sort(
-          (a, b) =>
-            Number(ledgerOf(ledgers, a.id).status === "paid") -
-            Number(ledgerOf(ledgers, b.id).status === "paid"),
-        )
         .slice(0, 6),
-    [q, households, ledgers],
+    [q, households, chandas],
   );
 
   const finalAmount = other ? (otherVal ? Number(otherVal) : NaN) : (amount ?? NaN);

@@ -11,6 +11,7 @@ import {
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { api } from "@/services/api";
 import type { ChandaTransaction } from "@/types/domain";
+import { seedAsAdmin } from "./helpers";
 
 beforeEach(() => localStorage.clear());
 
@@ -20,7 +21,7 @@ function renderI18n() {
 }
 
 async function demoReceiptSources() {
-  await api.seedDemo();
+  await seedAsAdmin();
   const [club, households, members] = await Promise.all([
     api.getClub(),
     api.listHouseholds(),

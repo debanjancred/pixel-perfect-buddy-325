@@ -60,3 +60,18 @@ export function householdLedgers(chanda: ChandaTransaction[]) {
 const NONE: HouseholdLedger = { collected: 0, promised: 0, due: 0, status: "pending" };
 export const ledgerOf = (ledgers: Map<string, HouseholdLedger>, id: string) =>
   ledgers.get(id) ?? NONE;
+
+/**
+ * SPEC 2.1 "recent households on top": newest activity first — the later of when the
+ * household was added and its newest chanda entry (any status).
+ */
+export function byRecentActivity(households: Household[], chanda: ChandaTransaction[]) {
+  const last = new Map<string, string>();
+  for (const c of chanda)
+    if ((last.get(c.household_id) ?? "") < c.created_at) last.set(c.household_id, c.created_at);
+  const at = (h: Household) => {
+    const entry = last.get(h.id) ?? "";
+    return entry > h.created_at ? entry : h.created_at;
+  };
+  return [...households].sort((a, b) => at(b).localeCompare(at(a)));
+}

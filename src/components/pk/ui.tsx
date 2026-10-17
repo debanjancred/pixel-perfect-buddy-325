@@ -1,4 +1,5 @@
-import { useEffect, useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useRef, type InputHTMLAttributes, type ReactNode } from "react";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { createPortal } from "react-dom";
 import { X, CloudOff, CircleAlert } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -95,6 +96,8 @@ export function Modal({
 }) {
   const { t } = useI18n();
   const id = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
   useEffect(() => {
     if (!open) return;
     openModals.push(id);
@@ -116,10 +119,12 @@ export function Modal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 pb-8 animate-in slide-in-from-bottom-8 sm:rounded-3xl"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 pb-8 outline-none animate-in slide-in-from-bottom-8 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">

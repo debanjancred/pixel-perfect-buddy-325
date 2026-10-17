@@ -94,7 +94,8 @@ function requireClub(db: Store): Club {
 }
 /**
  * The member acting in the active club: the signed-in phone, or in a demo the chosen
- * member (default: the club's admin). Null when the user isn't a member of this club.
+ * member — by default the sample collector কর্মী ০১ (SPEC 2.1). Null when the user isn't
+ * a member of this club.
  */
 function currentMember(db: Store): ClubMember | null {
   const s = session.get();
@@ -102,7 +103,10 @@ function currentMember(db: Store): ClubMember | null {
   if (!s) return null;
   if (s.mode === "user") return members.find((m) => m.phone === s.phone) ?? null;
   return (
-    members.find((m) => m.id === s.member_id) ?? members.find((m) => m.role === "admin") ?? null
+    members.find((m) => m.id === s.member_id) ??
+    members.find((m) => m.role === "collector") ??
+    members[0] ??
+    null
   );
 }
 
