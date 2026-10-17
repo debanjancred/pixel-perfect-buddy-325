@@ -1,15 +1,27 @@
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { categoryMeta } from "@/features/expenses";
 import type { CategoryShare } from "./model";
+import { donutArcs } from "./donut";
+
+const SIZE = 224;
+const THICKNESS = 40;
 
 /**
- * Spending by category (SPEC SHOULD: donut). The legend below doubles as the table view
- * and carries every label, since some slice colours are under 3:1 on the card.
+ * Spending by category (SPEC SHOULD: donut), drawn as plain SVG. The table below is the
+ * accessible version and carries every label (some slice colours are under 3:1).
  */
 export function CategoryDonut({ shares, total }: { shares: CategoryShare[]; total: number }) {
   const { t, n, money } = useI18n();
   const data = shares.map((s) => ({ ...s, name: t(categoryMeta(s.category).t) }));
+  const arcs = donutArcs(
+    data.map((d) => d.total),
+    SIZE,
+    THICKNESS,
+  );
+  // Hover (mouse) or tap (touch) a slice: the centre shows its name and amount.
+  const [active, setActive] = useState<number | null>(null);
+  const focus = active !== null ? data[active] : undefined;
   return (
     <section className="rounded-3xl border bg-card p-4 shadow-card" aria-labelledby="acc-cat">
       <h2 id="acc-cat" className="font-bold">
@@ -19,42 +31,37 @@ export function CategoryDonut({ shares, total }: { shares: CategoryShare[]; tota
         <p className="mt-2 text-sm text-muted-foreground">{t("noExpenses")}</p>
       ) : (
         <>
-          <div className="relative mx-auto mt-2 h-56 max-w-64" aria-hidden>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  dataKey="total"
-                  nameKey="name"
-                  innerRadius="62%"
-                  outerRadius="92%"
-                  startAngle={90}
-                  endAngle={-270}
-                  stroke="var(--card)"
-                  strokeWidth={2}
-                  isAnimationActive={false}
-                  // Decorative for keyboard/screen-reader users: the table below carries the data.
-                  rootTabIndex={-1}
-                >
-                  {data.map((d) => (
-                    <Cell key={d.category} fill={d.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(v: number, name: string) => [money(v), name]}
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    color: "var(--popover-foreground)",
-                  }}
-                  itemStyle={{ color: "var(--popover-foreground)" }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs text-muted-foreground">{t("spent")}</span>
-              <span className="num text-lg font-extrabold">{money(total)}</span>
+          <div className="relative mx-auto mt-2 aspect-square w-56" aria-hidden>
+            <svg
+              viewBox={`0 0 ${SIZE} ${SIZE}`}
+              className="h-full w-full"
+              onMouseLeave={() => setActive(null)}
+            >
+              {arcs.map((a, i) =>
+                a.d ? (
+                  <path
+                    key={data[i]!.category}
+                    d={a.d}
+                    fill={data[i]!.color}
+                    fillRule="evenodd"
+                    opacity={active === null || active === i ? 1 : 0.35}
+                    className="cursor-pointer transition-opacity"
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => setActive(active === i ? null : i)}
+                  />
+                ) : null,
+              )}
+            </svg>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-12 text-center">
+              <span className="text-xs text-muted-foreground">
+                {focus ? focus.name : t("spent")}
+              </span>
+              <span className="num text-lg font-extrabold">
+                {money(focus ? focus.total : total)}
+              </span>
+              {focus && (
+                <span className="num text-xs text-muted-foreground">{n(String(focus.pct))}%</span>
+              )}
             </div>
           </div>
           <table className="mt-3 w-full text-sm">

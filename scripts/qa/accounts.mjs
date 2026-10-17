@@ -53,16 +53,23 @@ const pcts = rows
   .map((r) => r.match(/([০-৯]+)%/)?.[1])
   .map((d) => Number(d.replace(/[০-৯]/g, (x) => "০১২৩৪৫৬৭৮৯".indexOf(x))));
 ok(pcts.reduce((a, b) => a + b, 0) === 100, `percentages add to 100 (${pcts})`);
-ok((await page.locator(".recharts-pie-sector").count()) === 4, "donut has 4 slices");
-// Hover a slice → tooltip with amount.
-await page.locator(".recharts-surface").first().scrollIntoViewIfNeeded();
-const box = await page.locator(".recharts-surface").first().boundingBox();
-// A point on the ring just clockwise of 12 o'clock — inside the first (largest) slice.
-await page.mouse.move(box.x + box.width / 2 + 20, box.y + box.height / 2 - 82, { steps: 5 });
-await page.screenshot({ path: `${OUT}/m6-hover.png` });
+const slices = page.locator('[aria-labelledby="acc-cat"] svg path');
+ok((await slices.count()) === 4, "donut has 4 slices");
+// Hover a slice → the centre shows that category and its amount.
+await slices.first().scrollIntoViewIfNeeded();
+const firstName = (await page.locator("table tbody tr th").first().innerText()).trim();
+// A point on the ring just clockwise of 12 o'clock (the first slice starts there).
+const svgBox = await page.locator('[aria-labelledby="acc-cat"] svg').boundingBox();
+const k = svgBox.width / 224;
+await page.mouse.move(
+  svgBox.x + svgBox.width / 2 + 92 * k * Math.sin(0.3),
+  svgBox.y + svgBox.height / 2 - 92 * k * Math.cos(0.3),
+  { steps: 4 },
+);
+const centre = page.locator('[aria-labelledby="acc-cat"] .pointer-events-none');
 ok(
-  await page.locator(".recharts-tooltip-wrapper").getByText(/₹/).isVisible(),
-  "slice hover shows a tooltip",
+  (await centre.innerText()).includes(firstName),
+  `slice hover shows its name and amount in the centre (${firstName})`,
 );
 ok(await page.getByRole("progressbar", { name: "লক্ষ্য" }).isVisible(), "target progress bar");
 ok(
@@ -128,7 +135,10 @@ await page.evaluate(() => {
 });
 await go("/club/sample-puja-committee-2026/accounts");
 await page.getByRole("heading", { name: "Sample Puja Committee 2026" }).waitFor();
-const slice = await page.locator(".recharts-pie-sector path").first().getAttribute("fill");
+const slice = await page
+  .locator('[aria-labelledby="acc-cat"] svg path')
+  .first()
+  .getAttribute("fill");
 const chart1 = await page.evaluate(() =>
   getComputedStyle(document.documentElement).getPropertyValue("--chart-1").trim(),
 );

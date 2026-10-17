@@ -79,12 +79,7 @@ for (const lang of ["bn", "en"])
           .filter((e) => {
             const r = e.getBoundingClientRect();
             const s = getComputedStyle(e);
-            return (
-              r.width > 0 &&
-              s.visibility !== "hidden" &&
-              (r.height < 48 || r.width < 44) &&
-              !e.closest(".recharts-wrapper")
-            );
+            return r.width > 0 && s.visibility !== "hidden" && (r.height < 48 || r.width < 44);
           })
           .map(
             (e) =>

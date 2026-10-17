@@ -110,3 +110,26 @@ describe("accounts routes", () => {
     expect(router.matchRoutes("/audit").at(-1)?.routeId).toBe("/audit");
   });
 });
+
+describe("donutArcs (SVG category donut)", () => {
+  it("draws one segment per value, clockwise from 12 o'clock, with gaps", async () => {
+    const { donutArcs } = await import("@/features/accounts/donut");
+    const arcs = donutArcs([3, 1], 200, 40);
+    expect(arcs).toHaveLength(2);
+    expect(arcs[0]!.d.startsWith("M 100.000 0.000")).toBe(false); // gap pushes the start off 12 o'clock
+    expect(arcs[0]!.mid).toBeGreaterThan(0);
+    expect(arcs[0]!.mid).toBeLessThan(arcs[1]!.mid); // clockwise order
+    // 75% segment uses the large-arc flag, 25% doesn't.
+    expect(arcs[0]!.d).toContain(" 0 1 1 ");
+    expect(arcs[1]!.d).toContain(" 0 0 1 ");
+  });
+
+  it("draws a single category as a full ring and skips zero values", async () => {
+    const { donutArcs } = await import("@/features/accounts/donut");
+    const [only, zero] = donutArcs([5, 0], 200, 40);
+    expect(only!.d.match(/A /g)).toHaveLength(4); // outer + inner circles, two halves each
+    expect(zero!.d).toBe("");
+    expect(donutArcs([], 200, 40)).toEqual([]);
+    expect(donutArcs([0, 0], 200, 40)).toEqual([]);
+  });
+});

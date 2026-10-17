@@ -125,6 +125,11 @@ All notable changes to Pujo Khata. Format follows
   preferences key.
 
 ### Fixed
+- Typecheck failed in CI (dependencies from `bun.lock`) on every branch since the SPEC
+  migration: zero-argument club mutations now infer `void` variables.
+- Public accounts page loads about 90 KB (gzipped) less JavaScript: the category donut is
+  plain SVG instead of Recharts (same gaps, hover shows the slice in the centre, table
+  kept as the accessible version). Total app JS 286 → 194 KB gzipped.
 - QA sweep:
   - Dark mode is applied by an inline head script before first paint (no light flash on
     every load for dark-mode users).
