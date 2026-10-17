@@ -4,11 +4,12 @@ import { Sparkles, Smartphone, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { session, useSeedDemo } from "@/hooks/use-data";
 import { api, DEMO_OTP } from "@/services/api";
+import { isCloud, otpLength } from "@/services/cloud/config";
 import {
   ValidationError,
   check,
   normalizePhone,
-  otpSchema,
+  otpSchemaFor,
   phoneSchema,
   type ErrKey,
 } from "@/lib/validation";
@@ -83,7 +84,7 @@ function Onboarding() {
   };
   const verify = (e: FormEvent) => {
     e.preventDefault();
-    const err = check(otpSchema, otp);
+    const err = check(otpSchemaFor(otpLength()), otp);
     if (err) return setError(err);
     run(async () => {
       await api.verifyOtp(phone, otp);
@@ -189,7 +190,7 @@ function Onboarding() {
                     className="field num text-center text-2xl tracking-[0.6em]"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={4}
+                    maxLength={otpLength()}
                     autoFocus
                     value={otp}
                     aria-invalid={!!error}
@@ -201,16 +202,19 @@ function Onboarding() {
                   />
                   <FieldError id="otp-error" error={error} />
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-gold w-full"
-                  onClick={() => {
-                    setOtp(DEMO_OTP);
-                    setError(null);
-                  }}
-                >
-                  <Sparkles className="h-5 w-5" /> {t("autofill")}
-                </button>
+                {/* SPEC 1.1: the auto-fill helper exists only in the device-only mock. */}
+                {!isCloud() && (
+                  <button
+                    type="button"
+                    className="btn btn-gold w-full"
+                    onClick={() => {
+                      setOtp(DEMO_OTP);
+                      setError(null);
+                    }}
+                  >
+                    <Sparkles className="h-5 w-5" /> {t("autofill")}
+                  </button>
+                )}
                 <button type="submit" className="btn btn-primary w-full text-lg" disabled={busy}>
                   {t("verify")}
                 </button>

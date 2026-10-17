@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Architecture rules
-- All data access goes through `src/services/api.ts` (async, snake_case, UUIDs) backed by localStorage — why: it will be swapped for a Laravel REST API without touching UI.
+- All data access goes through `src/services/api.ts` (async, snake_case, UUIDs) backed by the device — why: the UI never knows whether data is local or synced; optional Supabase cloud mode plugs in behind it (`src/services/cloud/`, `docs/BACKEND.md`).
 - Data queries run client-side via react-query hooks in `src/hooks/use-data.ts`, not route loaders — why: data lives in the browser (offline-first) and is unavailable during SSR.
 - All UI copy goes through `src/lib/i18n.tsx` (`t`, `n`, `money`, `pick`) — why: Bengali/English and Bengali numerals switch globally.
 

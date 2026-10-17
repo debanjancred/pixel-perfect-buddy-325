@@ -3,7 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { LogOut, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
-import { session, useClub, useResetDemo } from "@/hooks/use-data";
+import { useClub, useResetDemo } from "@/hooks/use-data";
+import { api } from "@/services/api";
 import { ConfirmDialog } from "@/components/pk/ConfirmDialog";
 import { DEMO_SLUG } from "@/mocks/mockData";
 import { APP_VERSION } from "@/lib/version";
@@ -56,8 +57,8 @@ export function AccountSection() {
           title={t("logoutConfirm")}
           confirmLabel={t("logout")}
           onCancel={() => setAsk(null)}
-          onConfirm={() => {
-            session.clear();
+          onConfirm={async () => {
+            await api.signOut();
             navigate({ to: "/" });
           }}
         />

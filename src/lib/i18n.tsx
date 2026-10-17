@@ -325,7 +325,16 @@ const dict = {
     "সঠিক ১০ সংখ্যার মোবাইল নম্বর দিন (৬–৯ দিয়ে শুরু)",
     "Enter a valid 10-digit mobile number (starts with 6–9)",
   ],
-  err_otp: ["৪ সংখ্যার OTP দিন", "Enter the 4-digit OTP"],
+  err_otp: ["OTP-র সবকটি সংখ্যা দিন", "Enter the full OTP"],
+  err_otpSend: [
+    "OTP পাঠানো যায়নি, একটু পরে আবার চেষ্টা করুন",
+    "Couldn't send the OTP, try again shortly",
+  ],
+  err_syncFailed: ["সার্ভারে পাঠানো যায়নি", "Couldn't save to the server"],
+  err_immutable: [
+    "এই এন্ট্রি বদলানো যায় না, শুধু বাতিল করা যায়",
+    "Entries can't be edited, only voided",
+  ],
   err_otpWrong: ["OTP মেলেনি, আবার চেষ্টা করুন", "Incorrect OTP, try again"],
   err_otpExpired: ["অনেকবার ভুল হয়েছে — নতুন OTP পাঠান", "Too many attempts — request a new OTP"],
   err_clubNameShort: ["নাম অন্তত ৩ অক্ষরের হতে হবে", "Name must be at least 3 characters"],

@@ -95,6 +95,20 @@ All notable changes to Pujo Khata. Format follows
   real Chrome at 360px plus an axe accessibility audit of every screen in both
   languages and themes; `playwright-core` and `axe-core` added as dev dependencies.
 
+- Supabase backend (M11, [ADR 0001](docs/adr/0001-backend-supabase.md),
+  [setup](docs/BACKEND.md)) — optional cloud mode, off until two env vars are set:
+  - `supabase/migrations/`: schema mirroring the domain types, row-level security matching
+    `src/lib/permissions.ts`, guard triggers (void-only edits, last admin, handover limit,
+    authoriser, no future expenses), `create_club`, `register_event`, and
+    `public_accounts` (totals-only public link), plus a private voucher bucket.
+  - `src/services/cloud/`: Supabase client, phone OTP (6 digits), a sync adapter that
+    sends records idempotently in dependency order (and detects updates RLS refused),
+    incremental pull + merge where unsent local changes win, voucher upload/download.
+  - An outbox queues club, member, household and event changes; the sample club never
+    leaves the device.
+  - Tests: SQL suite and an end-to-end suite (supabase-js → PostgREST → PostgreSQL) on
+    local PostgreSQL, plus unit tests for the adapter, merge and permission parity.
+
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and
   sync immediately when online.

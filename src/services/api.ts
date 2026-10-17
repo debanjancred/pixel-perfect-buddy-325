@@ -4,7 +4,18 @@
 import { cashByCollector, computeSummary } from "@/lib/accounts";
 import { can, type Permission } from "@/lib/permissions";
 import { session } from "./session";
-import { getSyncAdapter, type SyncRecord } from "./sync";
+import { getSyncAdapter, SYNC_ORDER, type SyncRecord, type SyncResult } from "./sync";
+import { isCloud } from "./cloud/config";
+import { getCloudClient } from "./cloud/client";
+import { cloudRequestOtp, cloudSignOut, cloudVerifyOtp } from "./cloud/auth";
+import { mergeSnapshot, snapshotCursor, type OutboxOp, type Snapshot } from "./cloud/merge";
+import { isVoucherPath } from "./cloud/adapter";
+import {
+  downloadVoucher,
+  fetchClubSnapshot,
+  fetchMyClubs,
+  fetchPublicAccounts,
+} from "./cloud/pull";
 import { buildDemoData, DEMO_SLUG } from "@/mocks/mockData";
 import {
   VOUCHER_MAX_BYTES,
@@ -18,6 +29,7 @@ import {
   householdSchema,
   memberSchema,
   otpSchema,
+  otpSchemaFor,
   parseOrThrow,
   phoneSchema,
   sameName,
@@ -42,7 +54,7 @@ import type {
   UserRole,
 } from "@/types/domain";
 
-interface Store {
+export interface Store {
   version: 2;
   active_club_id: string | null;
   clubs: Club[];
@@ -52,6 +64,10 @@ interface Store {
   expenses: ExpenseRecord[];
   handovers: CashHandover[];
   events: ClubEvent[];
+  /** Changes to send for entities without sync_status (cloud mode; cleared locally). */
+  outbox?: OutboxOp[];
+  /** Per club: latest server updated_at already merged (cloud mode). */
+  pull_cursors?: Record<string, string>;
 }
 
 const KEY = "pk_db_v2";
@@ -119,6 +135,19 @@ function authorize(db: Store, p: Permission): ClubMember {
 
 const mine = <T extends { club_id: string }>(db: Store, list: T[]) =>
   list.filter((x) => x.club_id === db.active_club_id);
+/** Queues a change for the next sync. The sample club never leaves the device. */
+function enqueue(db: Store, clubId: string, op: OutboxOp) {
+  if (db.clubs.find((c) => c.id === clubId)?.slug === DEMO_SLUG) return;
+  db.outbox ??= [];
+  if (op.kind !== "event_delta" && db.outbox.some((o) => o.kind === op.kind && o.id === op.id)) {
+    db.outbox = db.outbox.map((o) =>
+      o.kind === op.kind && o.id === op.id ? { ...o, failed: false } : o,
+    );
+    return;
+  }
+  db.outbox.push(op);
+}
+
 const newestFirst = <T extends { created_at: string }>(list: T[]) =>
   [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
 
@@ -280,12 +309,75 @@ async function seedDemo(): Promise<void> {
   if (!session.get()) session.set({ mode: "demo" });
 }
 
+// --- Sync queue helpers ---------------------------------------------------------------
+
+function outboxRecord(db: Store, op: OutboxOp): SyncRecord | null {
+  switch (op.kind) {
+    case "club": {
+      const record = db.clubs.find((c) => c.id === op.id);
+      const admin = db.members.find((m) => m.club_id === op.id && m.role === "admin");
+      return record && admin ? { kind: "club", record, admin } : null;
+    }
+    case "member": {
+      const record = db.members.find((m) => m.id === op.id);
+      return record ? { kind: "member", record } : null;
+    }
+    case "household": {
+      const record = db.households.find((h) => h.id === op.id);
+      return record ? { kind: "household", record } : null;
+    }
+    case "event": {
+      const record = db.events.find((e) => e.id === op.id);
+      return record ? { kind: "event", record } : null;
+    }
+    case "event_delta":
+      return op.event_id && op.delta
+        ? { kind: "event_delta", record: { id: op.id, event_id: op.event_id, delta: op.delta } }
+        : null;
+  }
+}
+
+/** Outbox items plus unsent ledger rows, in dependency order (clubs before members …). */
+function syncQueue(db: Store): SyncRecord[] {
+  const unsent = <T extends { sync_status: string }>(list: T[]) =>
+    list.filter((r) => r.sync_status !== "synced");
+  const items: SyncRecord[] = [
+    ...(db.outbox ?? []).map((op) => outboxRecord(db, op)).filter((x): x is SyncRecord => !!x),
+    ...unsent(db.chanda).map((record) => ({ kind: "chanda" as const, record })),
+    ...unsent(db.expenses).map((record) => ({ kind: "expense" as const, record })),
+    ...unsent(db.handovers).map((record) => ({ kind: "handover" as const, record })),
+  ];
+  return items.sort((a, b) => SYNC_ORDER.indexOf(a.kind) - SYNC_ORDER.indexOf(b.kind));
+}
+
+function clubOf(db: Store, item: SyncRecord): string | undefined {
+  if (item.kind === "club") return item.record.id;
+  if (item.kind === "event_delta")
+    return db.events.find((e) => e.id === item.record.event_id)?.club_id;
+  return item.record.club_id;
+}
+
+function outboxClub(db: Store, op: OutboxOp) {
+  const item = outboxRecord(db, op);
+  return item ? clubOf(db, item) : undefined;
+}
+
+/** A club's public accounts from the server — for shared links opened on other devices. */
+async function publicAccounts(slug: string): Promise<ClubAccounts | null> {
+  const data = await fetchPublicAccounts(getCloudClient(), slug).catch(() => null);
+  if (!data) return null;
+  const club: Club = { id: "", created_at: "", ...data.club };
+  return { club, summary: data.summary, expenses: [], category_totals: data.expenses_by_category };
+}
+
 /** Everything the public accounts page shows for one club. */
 export interface ClubAccounts {
   club: Club;
   summary: AccountsSummary;
   /** All of the club's expenses, voided ones included (the page shows per-category totals). */
   expenses: ExpenseRecord[];
+  /** Per-category totals when only aggregates are available (public link from the server). */
+  category_totals?: { category: ExpenseRecord["category"]; total: number }[];
 }
 
 export const api = {
@@ -294,11 +386,25 @@ export const api = {
     await delay();
     const err = check(phoneSchema, phone);
     if (err) throw new ValidationError("phone", err);
+    if (isCloud()) {
+      await cloudRequestOtp(phone);
+      return { resend_after: OTP_RESEND_SECONDS };
+    }
     otpAttempts.set(phone, 0);
     return { resend_after: OTP_RESEND_SECONDS };
   },
   async verifyOtp(phone: string, otp: string) {
     await delay();
+    if (isCloud()) {
+      const err = check(otpSchemaFor(6), otp);
+      if (err) throw new ValidationError("otp", err);
+      await cloudVerifyOtp(phone, otp);
+      // Bring down the user's clubs so the club picker can show them.
+      session.set({ mode: "user", phone });
+      await api.pull().catch(() => {});
+      session.clear(); // the session starts once a club is chosen (index.tsx)
+      return { phone };
+    }
     const used = otpAttempts.get(phone);
     if (used === undefined || used >= OTP_MAX_ATTEMPTS)
       throw new ValidationError("otp", "err_otpExpired");
@@ -387,6 +493,7 @@ export const api = {
       collector_code: nextCollectorCode(db, "admin"),
       created_at: at,
     });
+    enqueue(db, club.id, { kind: "club", id: club.id });
     write(db);
     // The creator is signed in as the new club's admin.
     session.set({ mode: "user", phone: input.creator_phone });
@@ -421,6 +528,7 @@ export const api = {
       created_at: now(),
     };
     db.members.push(m);
+    enqueue(db, club.id, { kind: "member", id: m.id });
     write(db);
     return m;
   },
@@ -437,6 +545,7 @@ export const api = {
     if (m.role === "admin" && role !== "admin" && admins.length === 1)
       throw new ValidationError("role", "err_lastAdmin");
     m.role = role;
+    enqueue(db, m.club_id, { kind: "member", id: m.id });
     write(db);
     return m;
   },
@@ -469,6 +578,7 @@ export const api = {
       created_at: now(),
     };
     db.households.push(h);
+    enqueue(db, h.club_id, { kind: "household", id: h.id });
     write(db);
     return h;
   },
@@ -521,10 +631,16 @@ export const api = {
   },
   async getVoucherImage(id: string): Promise<Blob | null> {
     try {
-      return ((await voucherTx("readonly", (s) => s.get(id))) as Blob | undefined) ?? null;
+      const local = (await voucherTx("readonly", (s) => s.get(id))) as Blob | undefined;
+      if (local) return local;
     } catch {
-      return null;
+      /* no IndexedDB: try the server below */
     }
+    // Recorded on another device: fetch from cloud storage once and keep a copy here.
+    if (!isCloud() || !isVoucherPath(id) || !isOnline()) return null;
+    const blob = await downloadVoucher(getCloudClient(), id);
+    if (blob) await voucherTx("readwrite", (s) => s.put(blob, id)).catch(() => {});
+    return blob;
   },
   /** Removes an image no record points at (e.g. the expense save failed). Not in SPEC §4. */
   async deleteVoucherImage(id: string): Promise<void> {
@@ -543,6 +659,7 @@ export const api = {
     const ev = mine(db, db.events).find((e) => e.id === id);
     if (!ev) throw new ValidationError("event_id", "err_notFound");
     ev.registrations_count += 1;
+    enqueue(db, ev.club_id, { kind: "event_delta", id: uuid(), event_id: ev.id, delta: 1 });
     write(db);
     return ev;
   },
@@ -552,6 +669,8 @@ export const api = {
     const db = read();
     const ev = mine(db, db.events).find((e) => e.id === id);
     if (!ev) throw new ValidationError("event_id", "err_notFound");
+    if (ev.registrations_count > 0)
+      enqueue(db, ev.club_id, { kind: "event_delta", id: uuid(), event_id: ev.id, delta: -1 });
     ev.registrations_count = Math.max(0, ev.registrations_count - 1);
     write(db);
     return ev;
@@ -572,6 +691,7 @@ export const api = {
       created_at: now(),
     };
     db.events.push(ev);
+    enqueue(db, ev.club_id, { kind: "event", id: ev.id });
     write(db);
     return ev;
   },
@@ -640,7 +760,7 @@ export const api = {
     await delay();
     const db = read();
     const club = db.clubs.find((c) => c.slug === slug);
-    if (!club) return null;
+    if (!club) return isCloud() && isOnline() ? publicAccounts(slug) : null;
     const of = <T extends { club_id: string }>(list: T[]) =>
       list.filter((x) => x.club_id === club.id);
     const expenses = of(db.expenses);
@@ -652,34 +772,40 @@ export const api = {
   },
 
   /**
-   * Story 5.1: when online, push every pending or failed record through the sync adapter
-   * and record the outcome (synced / failed). Offline it does nothing: saving never waits.
+   * Story 5.1: when online, send everything not yet on the server through the sync adapter
+   * (ledger rows that are pending/failed, plus the outbox) in dependency order, and record
+   * each outcome. The sample club is settled locally and never sent. Offline: no-op.
    */
   async sync(): Promise<{ synced: number; failed: number }> {
     await delay();
     if (!isOnline()) return { synced: 0, failed: 0 };
     const db = read();
-    const queue: SyncRecord[] = [
-      ...db.chanda.map((record) => ({ kind: "chanda" as const, record })),
-      ...db.expenses.map((record) => ({ kind: "expense" as const, record })),
-      ...db.handovers.map((record) => ({ kind: "handover" as const, record })),
-    ].filter((r) => r.record.sync_status !== "synced");
+    const queue = syncQueue(db);
     if (!queue.length) return { synced: 0, failed: 0 };
-    let results: { id: string; ok: boolean }[];
-    try {
-      results = await getSyncAdapter().push(queue);
-    } catch {
-      results = queue.map((r) => ({ id: r.record.id, ok: false }));
+    const demo = db.clubs.find((c) => c.slug === DEMO_SLUG)?.id;
+    const isLocal = (item: SyncRecord) => clubOf(db, item) === demo;
+    const local = queue.filter(isLocal);
+    const remote = queue.filter((i) => !isLocal(i));
+    let results: SyncResult[] = local.map((i) => ({ id: i.record.id, ok: true }));
+    if (remote.length) {
+      try {
+        results = results.concat(await getSyncAdapter().push(remote));
+      } catch {
+        results = results.concat(remote.map((i) => ({ id: i.record.id, ok: false })));
+      }
     }
     const ok = new Map(results.map((r) => [r.id, r.ok]));
     let synced = 0;
     let failed = 0;
-    for (const { record } of queue) {
-      const success = ok.get(record.id) === true;
-      record.sync_status = success ? "synced" : "failed";
+    for (const item of queue) {
+      const success = ok.get(item.record.id) === true;
       if (success) synced++;
       else failed++;
+      if ("sync_status" in item.record) item.record.sync_status = success ? "synced" : "failed";
     }
+    db.outbox = (db.outbox ?? [])
+      .filter((o) => ok.get(o.id) !== true)
+      .map((o) => (ok.has(o.id) ? { ...o, failed: true } : o));
     write(db);
     return { synced, failed };
   },
@@ -688,9 +814,43 @@ export const api = {
     await delay();
     const db = read();
     const rows = [...mine(db, db.chanda), ...mine(db, db.expenses), ...mine(db, db.handovers)];
+    const ops = (db.outbox ?? []).filter((o) => outboxClub(db, o) === db.active_club_id);
     return {
-      pending: rows.filter((r) => r.sync_status === "pending").length,
-      failed: rows.filter((r) => r.sync_status === "failed").length,
+      pending:
+        rows.filter((r) => r.sync_status === "pending").length +
+        ops.filter((o) => !o.failed).length,
+      failed:
+        rows.filter((r) => r.sync_status === "failed").length + ops.filter((o) => o.failed).length,
     };
+  },
+  /**
+   * Cloud mode: bring down other devices' changes — the user's clubs, then everything in
+   * the active club since the last pull — and merge them (see cloud/merge.ts).
+   */
+  async pull(): Promise<{ pulled: number }> {
+    if (!isCloud() || !isOnline() || session.get()?.mode !== "user") return { pulled: 0 };
+    const client = getCloudClient();
+    const db = read();
+    const mineSnap = await fetchMyClubs(client);
+    const active = db.active_club_id;
+    const isDemo = db.clubs.find((c) => c.id === active)?.slug === DEMO_SLUG;
+    const clubSnap: Snapshot | null =
+      active && !isDemo ? await fetchClubSnapshot(client, active, db.pull_cursors?.[active]) : null;
+    const fresh = read(); // the store may have changed while we were fetching
+    mergeSnapshot(fresh, mineSnap);
+    if (clubSnap && active) {
+      mergeSnapshot(fresh, clubSnap);
+      const cursor = snapshotCursor(clubSnap, fresh.pull_cursors?.[active]);
+      if (cursor) fresh.pull_cursors = { ...fresh.pull_cursors, [active]: cursor };
+    }
+    write(fresh);
+    const count = (snap: Snapshot | null) =>
+      snap ? Object.values(snap).reduce((n, list) => n + list.length, 0) : 0;
+    return { pulled: count(mineSnap) + count(clubSnap) };
+  },
+  /** Logs out on this device (and of Supabase Auth in cloud mode). Data stays on the phone. */
+  async signOut() {
+    session.clear();
+    if (isCloud()) await cloudSignOut().catch(() => {});
   },
 };

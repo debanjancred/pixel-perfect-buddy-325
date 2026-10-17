@@ -40,7 +40,7 @@ Keep formatting-only changes in their own `style:` commit.
 ## Versioning and releases
 
 [Semantic Versioning](https://semver.org/). The product stays below 1.0
-until the Laravel API replaces localStorage; 1.0.0 is the first production
+until the Supabase backend is live in production; 1.0.0 is the first production
 release. Each roadmap phase is a minor release (see the roadmap).
 
 To release:

@@ -17,8 +17,15 @@ export interface CategoryShare {
  * largest-remainder method so the legend never sums to 99% or 101%.
  */
 export function categoryShares(expenses: ExpenseRecord[]): CategoryShare[] {
-  const { total, byCategory } = expenseTotals(expenses);
-  const used = byCategory.filter((c) => c.total > 0);
+  return sharesFromTotals(expenseTotals(expenses).byCategory);
+}
+
+/** Same as categoryShares, from per-category totals (e.g. the server's public summary). */
+export function sharesFromTotals(
+  totals: { category: ExpenseCategory; total: number }[],
+): CategoryShare[] {
+  const used = totals.filter((c) => c.total > 0);
+  const total = used.reduce((s, c) => s + c.total, 0);
   if (!total) return [];
   const exact = used.map((c) => (c.total / total) * 100);
   const pct = exact.map(Math.floor);

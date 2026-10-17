@@ -41,13 +41,36 @@ describe("web app manifest (SPEC 5.2)", () => {
 });
 
 describe("sync adapter (SPEC 5.1)", () => {
+  /** A real (non-sample) club with three pending chanda entries — the sample club never syncs. */
   async function pendingDemo() {
-    await api.seedDemo();
-    // Fixtures arrive synced; make a few records pending, as fresh local saves would be.
-    const db = JSON.parse(localStorage.getItem("pk_db_v2")!);
-    db.chanda.slice(0, 3).forEach((c: { sync_status: string }) => (c.sync_status = "pending"));
-    localStorage.setItem("pk_db_v2", JSON.stringify(db));
-    return db.chanda.slice(0, 3).map((c: { id: string }) => c.id) as string[];
+    await api.createClub({
+      name: "সিঙ্ক ক্লাব",
+      para: "লেন ১",
+      zone: "",
+      puja_year: 2026,
+      target_amount: 100000,
+      creator_name: "সম্পাদক ০১",
+      creator_phone: "9000000101",
+    });
+    const admin = (await api.listMembers())[0]!;
+    const hh = await api.createHousehold({
+      resident_name: "আবাসিক ০১",
+      house_flat_no: "1",
+      lane_block: "লেন ১",
+    });
+    const ids: string[] = [];
+    for (const amount of [101, 201, 301]) {
+      const c = await api.addTransaction({
+        id: crypto.randomUUID(),
+        household_id: hh.id,
+        amount,
+        payment_method: "cash",
+        status: "collected",
+        collector_id: admin.id,
+      });
+      ids.push(c.id);
+    }
+    return ids;
   }
 
   it("does nothing offline — saving never waits for the network", async () => {

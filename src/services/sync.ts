@@ -2,12 +2,47 @@
 // the active adapter. MVP: there is no backend, so everything is accepted. The Laravel
 // adapter will POST each record (idempotent by its client UUID) and report failures,
 // which the UI then offers to retry.
-import type { CashHandover, ChandaTransaction, ExpenseRecord } from "@/types/domain";
+import type {
+  CashHandover,
+  ChandaTransaction,
+  Club,
+  ClubEvent,
+  ClubMember,
+  ExpenseRecord,
+  Household,
+} from "@/types/domain";
 
+/** A queued change to an event's registration tally (+1 register / −1 undo). */
+export interface EventDelta {
+  id: string; // the change's own id
+  event_id: string;
+  delta: 1 | -1;
+}
+
+/**
+ * Everything the device may need to send. Ledger rows carry sync_status; the others come
+ * from the outbox (SPEC types have no sync_status for them). Listed in dependency order.
+ */
 export type SyncRecord =
+  | { kind: "club"; record: Club; admin: ClubMember }
+  | { kind: "member"; record: ClubMember }
+  | { kind: "household"; record: Household }
+  | { kind: "event"; record: ClubEvent }
   | { kind: "chanda"; record: ChandaTransaction }
   | { kind: "expense"; record: ExpenseRecord }
-  | { kind: "handover"; record: CashHandover };
+  | { kind: "handover"; record: CashHandover }
+  | { kind: "event_delta"; record: EventDelta };
+
+export const SYNC_ORDER: SyncRecord["kind"][] = [
+  "club",
+  "member",
+  "household",
+  "event",
+  "chanda",
+  "expense",
+  "handover",
+  "event_delta",
+];
 
 export interface SyncResult {
   id: string;

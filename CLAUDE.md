@@ -11,6 +11,8 @@ npm run lint       # eslint .
 npm run format     # prettier --write .
 npm run build      # production build
 npm run typecheck  # tsc --noEmit
+npm run qa         # browser suites + a11y audit (needs `npm run dev -- --port 5199`)
+supabase/tests/run.sh  # SQL tests on local PostgreSQL (Postgres.app)
 ```
 
 ## Stack
@@ -23,7 +25,10 @@ defined in `src/styles.css`.
 ## Conventions (do not bypass)
 
 - All data access goes through `src/services/api.ts` — async, snake_case, UUIDs,
-  backed by localStorage today, a Laravel REST API later.
+  backed by the device (localStorage + IndexedDB). Optional cloud mode syncs it with
+  Supabase through `src/services/cloud/` (docs/BACKEND.md, ADR 0001); schema, RLS and
+  server functions live in `supabase/migrations/` and must stay in step with
+  `src/types/domain.ts`, `src/lib/validation.ts` and `src/lib/permissions.ts`.
 - Data reads happen in client-side react-query hooks in `src/hooks/use-data.ts`,
   not in route loaders.
 - Every user-visible string goes through `src/lib/i18n.tsx` (`t` with `{name}` placeholders,
@@ -57,6 +62,6 @@ Full process in `CONTRIBUTING.md`; plan and status in `docs/ROADMAP.md`.
   `--no-ff` once CI is green.
 - Pick up Lovable edits by merging `main` into the branch. Never rewrite
   already-published history (no force push, rebase or amend of pushed commits).
-- Conventional Commits; SemVer in `package.json` (0.x until the Laravel API);
+- Conventional Commits; SemVer in `package.json` (0.x until the Supabase backend is live in production);
   tag releases `vX.Y.Z` and keep `CHANGELOG.md` current.
 - Pushing `main` updates the Lovable editor but does not publish the live site.

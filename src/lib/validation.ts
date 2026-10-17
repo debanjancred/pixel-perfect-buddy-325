@@ -22,7 +22,10 @@ export function normalizePhone(raw: string) {
 }
 
 export const phoneSchema = z.string().regex(/^[6-9]\d{9}$/, m("err_phone"));
-export const otpSchema = z.string().regex(/^\d{4}$/, m("err_otp"));
+/** OTP of `length` digits: 4 for the device-only mock, 6 for Supabase Auth (cloud mode). */
+export const otpSchemaFor = (length: number) =>
+  z.string().regex(new RegExp(`^\\d{${length}}$`), m("err_otp"));
+export const otpSchema = otpSchemaFor(4);
 
 const personName = z
   .string()

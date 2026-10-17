@@ -10,6 +10,7 @@ import {
   CategoryDonut,
   CollectionSplit,
   categoryShares,
+  sharesFromTotals,
 } from "@/features/accounts";
 
 // SPEC Story 4.1: read-only accounts, reachable without signing in on this device.
@@ -35,7 +36,14 @@ function AccountsPage() {
   const { t, pick } = useI18n();
   const { slug } = Route.useParams();
   const { data, isPending, isError, refetch } = useClubAccounts(slug);
-  const shares = useMemo(() => categoryShares(data?.expenses ?? []), [data]);
+  // Server summaries (shared link on another device) carry totals instead of expenses.
+  const shares = useMemo(
+    () =>
+      data?.category_totals
+        ? sharesFromTotals(data.category_totals)
+        : categoryShares(data?.expenses ?? []),
+    [data],
+  );
   // Only signed-in users get a way back into the app; visitors just read.
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => setSignedIn(!!session.get()), []);

@@ -36,3 +36,7 @@ package-lock.json
 
 # Browser QA output
 .qa-out
+
+# Local environment
+.env
+.env.local

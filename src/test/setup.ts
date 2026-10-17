@@ -1,23 +1,26 @@
 import "@testing-library/jest-dom/vitest";
 
-Object.defineProperty(window, "scrollTo", {
-  writable: true,
-  value: () => {},
-});
+// Browser-only shims; some suites (e.g. the PostgREST integration test) run in plain Node.
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "scrollTo", {
+    writable: true,
+    value: () => {},
+  });
 
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => {},
-  }),
-});
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => {},
+    }),
+  });
+}
 
 // Newer Node versions ship a global localStorage that shadows jsdom's and is unusable
 // without --localstorage-file, so give every test a working in-memory Storage.

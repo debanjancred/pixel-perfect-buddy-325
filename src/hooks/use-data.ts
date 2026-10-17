@@ -251,18 +251,26 @@ export function useUpdateMemberRole() {
 
 /** Marks pending records synced; refetches only when something changed. */
 export function useSync() {
+  const qc = useQueryClient();
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: api.sync,
-    onSuccess: ({ synced, failed }) =>
-      synced + failed > 0
-        ? invalidate(
-            queryKeys.transactions,
-            queryKeys.expenses,
-            queryKeys.handovers,
-            queryKeys.summary,
-          )
-        : undefined,
+    // Send this device's changes, then bring down other devices' (cloud mode only).
+    mutationFn: async () => {
+      const pushed = await api.sync();
+      const { pulled } = await api.pull().catch(() => ({ pulled: 0 }));
+      return { ...pushed, pulled };
+    },
+    onSuccess: ({ synced, failed, pulled }) => {
+      // Pulled changes can touch any collection.
+      if (pulled > 0) return qc.invalidateQueries();
+      if (synced + failed === 0) return undefined;
+      return invalidate(
+        queryKeys.transactions,
+        queryKeys.expenses,
+        queryKeys.handovers,
+        queryKeys.summary,
+      );
+    },
   });
 }
 
