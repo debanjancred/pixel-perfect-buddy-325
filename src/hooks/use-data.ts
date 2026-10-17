@@ -267,9 +267,18 @@ export function useSync() {
 }
 
 // Club-level changes swap every collection, so they invalidate everything.
-function useClubMutation<A, R>(fn: (arg: A) => Promise<R>) {
+// Zero-argument api functions get `void` variables, so `mutateAsync()` type-checks.
+type VariablesOf<F> = F extends () => unknown
+  ? void
+  : F extends (arg: infer A) => unknown
+    ? A
+    : never;
+function useClubMutation<F extends (arg: never) => Promise<unknown>>(fn: F) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries() });
+  return useMutation<Awaited<ReturnType<F>>, Error, VariablesOf<F>>({
+    mutationFn: fn as unknown as (v: VariablesOf<F>) => Promise<Awaited<ReturnType<F>>>,
+    onSuccess: () => qc.invalidateQueries(),
+  });
 }
 export const useSeedDemo = () => useClubMutation(api.seedDemo);
 export const useResetDemo = () => useClubMutation(api.resetDemo);
