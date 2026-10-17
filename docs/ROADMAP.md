@@ -7,10 +7,10 @@ We work one module at a time. Each phase ships as a minor release.
 |---|---|---|---|
 | v0.1.0 | Lovable prototype | All screens on localStorage | Released |
 | v0.2.0 | Stabilise + core collection | M0, M1, M2, M3 | Released |
-| v0.3.0 | Money modules | M3b Receipt, M4 Expenses | Ready to release |
-| v0.4.0 | Community & admin | M5 Events, M6 Public audit, M7 Admin | Planned |
-| v0.5.0 | Cross-cutting | M8 Roles & permissions, M9 Offline & PWA | Planned |
-| v0.9.0 | Release candidate | M10 QA pass | Planned |
+| v0.3.0 | Money modules | M3b Receipt, M4 Expenses | Folded into v0.9.0 |
+| v0.4.0 | Community & admin | M5 Events, M6 Public audit, M7 Admin | Folded into v0.9.0 |
+| v0.5.0 | Cross-cutting | M8 Roles & permissions, M9 Offline & PWA | Folded into v0.9.0 |
+| v0.9.0 | Release candidate | M3b–M10, QA sweep, M11 backend (cloud mode off by default) | Release commit ready; merge + tag pending |
 | v1.0.0 | Production | M11 Supabase backend, real OTP, sync | Built; needs a Supabase project (docs/BACKEND.md) |
 
 ## Modules

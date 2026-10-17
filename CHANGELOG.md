@@ -6,7 +6,14 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-17
+
+Release candidate. Covers the planned v0.3–v0.5 phases in one release: receipts, expenses,
+events, public accounts, settings, roles & permissions with void and cash handover, offline
+& PWA, a full QA pass, and the optional Supabase backend (off until configured).
+
 ### Added
+- Real-device checklist for what automated tests can't cover (`docs/QA-CHECKLIST.md`).
 - SPEC.md v1.3.0 domain model in `src/types/domain.ts`; service layer implements the spec
   surface (clubs, members, households, chanda, expenses, events, summary, sync) with
   validation, idempotent creates (client id) and void-instead-of-delete.
@@ -194,6 +201,7 @@ All notable changes to Pujo Khata. Format follows
   receipts, expenses, events, public audit and club admin, backed by
   localStorage with Bengali/English UI.
 
-[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.2.0...v0.9.0
 [0.2.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/releases/tag/v0.1.0
