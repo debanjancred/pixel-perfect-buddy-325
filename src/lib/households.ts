@@ -75,3 +75,18 @@ export function byRecentActivity(households: Household[], chanda: ChandaTransact
   };
   return [...households].sort((a, b) => at(b).localeCompare(at(a)));
 }
+
+export interface LaneOption {
+  lane: string;
+  count: number;
+}
+
+/** Lanes/blocks in use, in natural order (লেন ২ before লেন ১০), with household counts. */
+export function laneOptions(households: Household[]): LaneOption[] {
+  const counts = new Map<string, number>();
+  for (const h of households) counts.set(h.lane_block, (counts.get(h.lane_block) ?? 0) + 1);
+  const collator = new Intl.Collator(["bn", "en"], { numeric: true });
+  return [...counts]
+    .map(([lane, count]) => ({ lane, count }))
+    .sort((a, b) => collator.compare(asciiDigits(a.lane), asciiDigits(b.lane)));
+}

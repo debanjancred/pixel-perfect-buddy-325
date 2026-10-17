@@ -59,6 +59,7 @@ const dict = {
   residentName: ["বাসিন্দার নাম", "Resident name"],
   houseNo: ["বাড়ি নং", "House no."],
   lane: ["লেন / ব্লক", "Lane / Block"],
+  allLanes: ["সব লেন / ব্লক", "All lanes / blocks"],
   phone: ["মোবাইল নম্বর", "Mobile number"],
   amount: ["টাকার পরিমাণ", "Amount"],
   other: ["অন্য", "Other"],

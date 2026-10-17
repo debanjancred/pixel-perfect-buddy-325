@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
 import { useMemo, useState } from "react";
 import { Search, MessageCircle, MapPin, ReceiptText } from "lucide-react";
 import { useI18n, type TKey } from "@/lib/i18n";
@@ -12,10 +13,17 @@ import {
 import { AppShell, Fab } from "@/components/pk/AppShell";
 import { StatusBadge, SyncBadge } from "@/components/pk/ui";
 import { reminderText, waLink } from "@/lib/share";
-import { householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
+import { householdLedgers, householdMatches, laneOptions, ledgerOf } from "@/lib/households";
 import { isVoid } from "@/lib/accounts";
 
+// Status and lane filters live in the URL: refresh and the back button keep them.
+const searchSchema = z.object({
+  status: z.enum(["pending", "promised", "today"]).optional().catch(undefined),
+  lane: z.string().max(60).optional().catch(undefined),
+});
+
 export const Route = createFileRoute("/chanda")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "Chanda Register — Pujo Khata" },
@@ -50,29 +58,40 @@ function ChandaPage() {
   const { data: chandas = [] } = useTransactions();
   const { data: members = [] } = useMembers();
   const { data: club } = useClub();
-  const [filter, setFilter] = useState<Filter>("all");
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const filter: Filter = search.status ?? "all";
+  const lanes = useMemo(() => laneOptions(households), [households]);
+  // A lane that no longer exists (e.g. after switching club) falls back to all lanes.
+  const lane = search.lane && lanes.some((l) => l.lane === search.lane) ? search.lane : undefined;
+  const setFilter = (f: Filter) =>
+    navigate({ search: (s) => ({ ...s, status: f === "all" ? undefined : f }), replace: true });
+  const setLane = (l: string) =>
+    navigate({ search: (s) => ({ ...s, lane: l || undefined }), replace: true });
   const canCollect = usePermission("chanda.add");
   const [q, setQ] = useState("");
 
   const rows = useMemo(() => {
     const today = new Date().toDateString();
     const ledgers = householdLedgers(chandas);
-    return households.map((h) => {
-      const l = ledgerOf(ledgers, h.id);
-      return {
-        h,
-        ...l,
-        collector: l.last ? members.find((m) => m.id === l.last!.collector_id) : undefined,
-        today: chandas.some(
-          (c) =>
-            c.household_id === h.id &&
-            c.status === "collected" &&
-            !isVoid(c) &&
-            new Date(c.created_at).toDateString() === today,
-        ),
-      };
-    });
-  }, [households, chandas, members]);
+    return households
+      .filter((h) => !lane || h.lane_block === lane)
+      .map((h) => {
+        const l = ledgerOf(ledgers, h.id);
+        return {
+          h,
+          ...l,
+          collector: l.last ? members.find((m) => m.id === l.last!.collector_id) : undefined,
+          today: chandas.some(
+            (c) =>
+              c.household_id === h.id &&
+              c.status === "collected" &&
+              !isVoid(c) &&
+              new Date(c.created_at).toDateString() === today,
+          ),
+        };
+      });
+  }, [households, chandas, members, lane]);
 
   const counts = useMemo(
     () => ({
@@ -111,6 +130,28 @@ function ChandaPage() {
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
+      {lanes.length > 1 && (
+        <div className="mt-3">
+          <label htmlFor="register-lane" className="sr-only">
+            {t("lane")}
+          </label>
+          <select
+            id="register-lane"
+            className="field"
+            value={lane ?? ""}
+            onChange={(e) => setLane(e.target.value)}
+          >
+            <option value="">
+              {t("allLanes")} ({n(String(households.length))})
+            </option>
+            {lanes.map((l) => (
+              <option key={l.lane} value={l.lane}>
+                {l.lane} ({n(String(l.count))})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
         {FILTERS.map((f) => (
           <button

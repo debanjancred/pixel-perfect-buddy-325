@@ -64,3 +64,15 @@ describe("Modal focus management", () => {
     expect(opener).toHaveFocus();
   });
 });
+
+describe("laneOptions (SPEC SHOULD: lane/block filter)", () => {
+  it("lists lanes once with counts, in natural order even with Bengali digits", async () => {
+    const { laneOptions } = await import("@/lib/households");
+    const h = (lane_block: string) => ({ lane_block }) as Household;
+    expect(laneOptions([h("লেন ১০"), h("লেন ২"), h("ব্লক এ"), h("লেন ২")])).toEqual([
+      { lane: "ব্লক এ", count: 1 }, // ব sorts before ল
+      { lane: "লেন ২", count: 2 }, // numeric: ২ before ১০
+      { lane: "লেন ১০", count: 1 },
+    ]);
+  });
+});

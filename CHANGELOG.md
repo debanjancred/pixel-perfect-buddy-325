@@ -88,6 +88,9 @@ All notable changes to Pujo Khata. Format follows
   - Manifest: SPEC name and colours, and a proper maskable icon
     (`icon-maskable-512.png`, art inside the safe zone).
 
+- Register lane / block filter (SPEC SHOULD): pick a lane to see only its households;
+  status counts follow the lane, and both filters stay in the URL.
+
 ### Changed
 - All screens read and write through the new hooks; records save locally as pending and
   sync immediately when online.
