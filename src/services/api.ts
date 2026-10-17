@@ -1,36 +1,450 @@
-// Service repository. Every method is async with a 200ms delay so it can be swapped
-// for a Laravel REST client later without touching UI code.
-import { seedDB } from "./seed";
-import type { Chanda, Club, DB, Expense, ExpenseCategory, Household, Member, PaymentMode, Role, Summary, SyncStatus } from "./types";
+// Service repository — the only module that touches localStorage or IndexedDB.
+// Every method is async with a short delay so it can be swapped for the Laravel REST
+// client later without touching UI code. Inputs are validated here as well as in forms.
+import { cashByCollector, computeSummary } from "@/lib/accounts";
+import { can, type Permission } from "@/lib/permissions";
+import { session } from "./session";
+import { getSyncAdapter, SYNC_ORDER, type SyncRecord, type SyncResult } from "./sync";
+import { isCloud } from "./cloud/config";
+import { getCloudClient } from "./cloud/client";
+import { cloudRequestOtp, cloudSignOut, cloudVerifyOtp } from "./cloud/auth";
+import { mergeSnapshot, snapshotCursor, type OutboxOp, type Snapshot } from "./cloud/merge";
+import { isVoucherPath } from "./cloud/adapter";
+import {
+  downloadVoucher,
+  fetchClubSnapshot,
+  fetchMyClubs,
+  fetchPublicAccounts,
+} from "./cloud/pull";
+import { buildDemoData, DEMO_SLUG } from "@/mocks/mockData";
+import {
+  VOUCHER_MAX_BYTES,
+  ValidationError,
+  chandaSchema,
+  check,
+  clubSchema,
+  eventSchema,
+  expenseSchema,
+  handoverSchema,
+  householdSchema,
+  memberSchema,
+  otpSchema,
+  otpSchemaFor,
+  parseOrThrow,
+  phoneSchema,
+  sameName,
+  voidReasonSchema,
+  type ChandaInput,
+  type ClubInput,
+  type EventInput,
+  type ExpenseInput,
+  type HandoverInput,
+  type HouseholdInput,
+  type MemberInput,
+} from "@/lib/validation";
+import type {
+  AccountsSummary,
+  CashHandover,
+  ChandaTransaction,
+  Club,
+  ClubEvent,
+  ClubMember,
+  ExpenseRecord,
+  Household,
+  UserRole,
+} from "@/types/domain";
 
-const KEY = "pk_db_v1";
-const delay = (ms = 200) => new Promise<void>((r) => setTimeout(r, ms));
+export interface Store {
+  version: 2;
+  active_club_id: string | null;
+  clubs: Club[];
+  members: ClubMember[];
+  households: Household[];
+  chanda: ChandaTransaction[];
+  expenses: ExpenseRecord[];
+  handovers: CashHandover[];
+  events: ClubEvent[];
+  /** Changes to send for entities without sync_status (cloud mode; cleared locally). */
+  outbox?: OutboxOp[];
+  /** Per club: latest server updated_at already merged (cloud mode). */
+  pull_cursors?: Record<string, string>;
+}
+
+const KEY = "pk_db_v2";
+const delay = (ms = 150) => new Promise<void>((r) => setTimeout(r, ms));
 const uuid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 const isOnline = () => typeof navigator === "undefined" || navigator.onLine;
-const syncState = (): SyncStatus => (isOnline() ? "synced" : "pending");
 
-function write(db: DB) {
+const empty = (): Store => ({
+  version: 2,
+  active_club_id: null,
+  clubs: [],
+  members: [],
+  households: [],
+  chanda: [],
+  expenses: [],
+  handovers: [],
+  events: [],
+});
+
+function read(): Store {
+  try {
+    const raw = localStorage.getItem(KEY);
+    const db = raw ? (JSON.parse(raw) as Store) : null;
+    if (db?.version === 2) return db;
+  } catch {
+    /* fall through to an empty store */
+  }
+  return empty();
+}
+function write(db: Store) {
   localStorage.setItem(KEY, JSON.stringify(db));
 }
-function read(): DB {
-  const raw = localStorage.getItem(KEY);
-  if (raw) {
-    try {
-      return JSON.parse(raw) as DB;
-    } catch {
-      /* fall through to reseed */
-    }
-  }
-  const db = seedDB();
-  write(db);
-  return db;
+
+const activeClub = (db: Store) => db.clubs.find((c) => c.id === db.active_club_id) ?? null;
+function requireClub(db: Store): Club {
+  const club = activeClub(db);
+  if (!club) throw new ValidationError("club_id", "err_noClub");
+  return club;
 }
-const mine = <T extends { club_id: string }>(db: DB, list: T[]) => list.filter((x) => x.club_id === db.active_club_id);
-const activeClub = (db: DB): Club => (db.clubs.find((c) => c.id === db.active_club_id) ?? db.clubs[0])!;
+/**
+ * The member acting in the active club: the signed-in phone, or in a demo the chosen
+ * member — by default the sample collector কর্মী ০১ (SPEC 2.1). Null when the user isn't
+ * a member of this club.
+ */
+function currentMember(db: Store): ClubMember | null {
+  const s = session.get();
+  const members = mine(db, db.members);
+  if (!s) return null;
+  if (s.mode === "user") return members.find((m) => m.phone === s.phone) ?? null;
+  return (
+    members.find((m) => m.id === s.member_id) ??
+    members.find((m) => m.role === "collector") ??
+    members[0] ??
+    null
+  );
+}
+
+/** Refuses the call unless the acting member has `p` (SPEC 6.2: enforced in api.ts too). */
+function authorize(db: Store, p: Permission): ClubMember {
+  const me = currentMember(db);
+  if (!can(me, p)) throw new ValidationError("permission", "err_forbidden");
+  return me!;
+}
+
+const mine = <T extends { club_id: string }>(db: Store, list: T[]) =>
+  list.filter((x) => x.club_id === db.active_club_id);
+/** Queues a change for the next sync. The sample club never leaves the device. */
+function enqueue(db: Store, clubId: string, op: OutboxOp) {
+  if (db.clubs.find((c) => c.id === clubId)?.slug === DEMO_SLUG) return;
+  db.outbox ??= [];
+  if (op.kind !== "event_delta" && db.outbox.some((o) => o.kind === op.kind && o.id === op.id)) {
+    db.outbox = db.outbox.map((o) =>
+      o.kind === op.kind && o.id === op.id ? { ...o, failed: false } : o,
+    );
+    return;
+  }
+  db.outbox.push(op);
+}
+
+const newestFirst = <T extends { created_at: string }>(list: T[]) =>
+  [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+// --- OTP (mock until the Laravel auth endpoint exists: every number gets the demo code) ---
+export const DEMO_OTP = "1234";
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_SECONDS = 30;
+const otpAttempts = new Map<string, number>();
+
+// --- Voucher images live in IndexedDB; localStorage's ~5 MB quota can't hold photos ---
+const IDB_NAME = "pujo_khata";
+const IDB_STORE = "vouchers";
+
+function openVoucherDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new ValidationError("voucher", "err_voucher"));
+      return;
+    }
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function voucherTx<T>(
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  const db = await openVoucherDB();
+  return new Promise((resolve, reject) => {
+    const req = run(db.transaction(IDB_STORE, mode).objectStore(IDB_STORE));
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// --- Receipt numbers: "PK-{puja_year}-{collector_code}-{seq:4}", per collector and year ---
+function nextReceiptNo(db: Store, club: Club, code: string) {
+  const prefix = `PK-${club.puja_year}-${code}-`;
+  const used = mine(db, db.chanda)
+    .filter((c) => c.receipt_no.startsWith(prefix))
+    .map((c) => Number(c.receipt_no.slice(prefix.length)) || 0);
+  return prefix + String(Math.max(0, ...used) + 1).padStart(4, "0");
+}
+
+const ROLE_PREFIX: Record<UserRole, string> = { admin: "A", treasurer: "T", collector: "C" };
+function nextCollectorCode(db: Store, role: UserRole) {
+  const p = ROLE_PREFIX[role];
+  const used = mine(db, db.members)
+    .filter((m) => m.collector_code.startsWith(p))
+    .map((m) => Number(m.collector_code.slice(1)) || 0);
+  return p + String(Math.max(0, ...used) + 1).padStart(2, "0");
+}
+
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+function voidRecord<T extends { id: string; voided_at?: string; status?: string }>(
+  list: T[],
+  id: string,
+  reason: string,
+  field: string,
+) {
+  const void_reason = parseOrThrow(voidReasonSchema, reason);
+  const rec = list.find((x) => x.id === id);
+  if (!rec) throw new ValidationError(field, "err_notFound");
+  if (rec.voided_at) throw new ValidationError(field, "err_alreadyVoid");
+  const at = now();
+  Object.assign(rec, { voided_at: at, void_reason, updated_at: at, sync_status: "pending" });
+  return rec;
+}
+
+// Plain functions (no `this`) so methods can be passed around unbound.
+async function getClub(): Promise<Club | null> {
+  await delay();
+  return activeClub(read());
+}
+
+async function createChanda(raw: ChandaInput): Promise<ChandaTransaction> {
+  await delay();
+  const input = parseOrThrow(chandaSchema, raw);
+  const db = read();
+  // The client-generated id is the idempotency key: a double tap returns the first entry.
+  const existing = db.chanda.find((c) => c.id === input.id);
+  if (existing) return existing;
+  const club = requireClub(db);
+  authorize(db, "chanda.add");
+  if (!mine(db, db.households).some((h) => h.id === input.household_id))
+    throw new ValidationError("household_id", "err_household");
+  const collector = mine(db, db.members).find((m) => m.id === input.collector_id);
+  if (!collector) throw new ValidationError("collector_id", "err_collector");
+  const at = now();
+  const tx: ChandaTransaction = {
+    ...input,
+    receipt_no: nextReceiptNo(db, club, collector.collector_code),
+    club_id: club.id,
+    created_at: at,
+    updated_at: at,
+    // Local-first: everything starts pending; sync() marks it synced (Story 5.1).
+    sync_status: "pending",
+  };
+  db.chanda.push(tx);
+  write(db);
+  return tx;
+}
+
+async function createExpense(raw: ExpenseInput): Promise<ExpenseRecord> {
+  await delay();
+  const input = parseOrThrow(expenseSchema, raw);
+  const db = read();
+  const existing = db.expenses.find((e) => e.id === input.id);
+  if (existing) return existing;
+  const club = requireClub(db);
+  authorize(db, "expense.add");
+  const by = mine(db, db.members).find((m) => m.id === input.authorized_by_id);
+  if (!by || by.role === "collector")
+    throw new ValidationError("authorized_by_id", "err_authorizer");
+  const at = now();
+  const { voucher_image_id, ...rest } = input;
+  const exp: ExpenseRecord = {
+    ...rest,
+    ...(voucher_image_id ? { voucher_image_id } : {}),
+    club_id: club.id,
+    created_at: at,
+    updated_at: at,
+    sync_status: "pending",
+  };
+  db.expenses.push(exp);
+  write(db);
+  return exp;
+}
+
+async function seedDemo(): Promise<void> {
+  await delay();
+  const db = read();
+  // Idempotent: a second tap just reopens the existing sample club.
+  const demo = db.clubs.find((c) => c.slug === DEMO_SLUG);
+  if (demo) {
+    db.active_club_id = demo.id;
+  } else {
+    const d = buildDemoData();
+    db.clubs.push(d.club);
+    db.members.push(...d.members);
+    db.households.push(...d.households);
+    db.chanda.push(...d.chanda);
+    db.expenses.push(...d.expenses);
+    db.events.push(...d.events);
+    db.active_club_id = d.club.id;
+  }
+  write(db);
+  // Opening the sample club signs a visitor into the demo; a signed-in user stays themselves.
+  if (!session.get()) session.set({ mode: "demo" });
+}
+
+// --- Sync queue helpers ---------------------------------------------------------------
+
+function outboxRecord(db: Store, op: OutboxOp): SyncRecord | null {
+  switch (op.kind) {
+    case "club": {
+      const record = db.clubs.find((c) => c.id === op.id);
+      const admin = db.members.find((m) => m.club_id === op.id && m.role === "admin");
+      return record && admin ? { kind: "club", record, admin } : null;
+    }
+    case "member": {
+      const record = db.members.find((m) => m.id === op.id);
+      return record ? { kind: "member", record } : null;
+    }
+    case "household": {
+      const record = db.households.find((h) => h.id === op.id);
+      return record ? { kind: "household", record } : null;
+    }
+    case "event": {
+      const record = db.events.find((e) => e.id === op.id);
+      return record ? { kind: "event", record } : null;
+    }
+    case "event_delta":
+      return op.event_id && op.delta
+        ? { kind: "event_delta", record: { id: op.id, event_id: op.event_id, delta: op.delta } }
+        : null;
+  }
+}
+
+/** Outbox items plus unsent ledger rows, in dependency order (clubs before members …). */
+function syncQueue(db: Store): SyncRecord[] {
+  const unsent = <T extends { sync_status: string }>(list: T[]) =>
+    list.filter((r) => r.sync_status !== "synced");
+  const items: SyncRecord[] = [
+    ...(db.outbox ?? []).map((op) => outboxRecord(db, op)).filter((x): x is SyncRecord => !!x),
+    ...unsent(db.chanda).map((record) => ({ kind: "chanda" as const, record })),
+    ...unsent(db.expenses).map((record) => ({ kind: "expense" as const, record })),
+    ...unsent(db.handovers).map((record) => ({ kind: "handover" as const, record })),
+  ];
+  return items.sort((a, b) => SYNC_ORDER.indexOf(a.kind) - SYNC_ORDER.indexOf(b.kind));
+}
+
+function clubOf(db: Store, item: SyncRecord): string | undefined {
+  if (item.kind === "club") return item.record.id;
+  if (item.kind === "event_delta")
+    return db.events.find((e) => e.id === item.record.event_id)?.club_id;
+  return item.record.club_id;
+}
+
+function outboxClub(db: Store, op: OutboxOp) {
+  const item = outboxRecord(db, op);
+  return item ? clubOf(db, item) : undefined;
+}
+
+/** A club's public accounts from the server — for shared links opened on other devices. */
+async function publicAccounts(slug: string): Promise<ClubAccounts | null> {
+  const data = await fetchPublicAccounts(getCloudClient(), slug).catch(() => null);
+  if (!data) return null;
+  const club: Club = { id: "", created_at: "", ...data.club };
+  return { club, summary: data.summary, expenses: [], category_totals: data.expenses_by_category };
+}
+
+/** Everything the public accounts page shows for one club. */
+export interface ClubAccounts {
+  club: Club;
+  summary: AccountsSummary;
+  /** All of the club's expenses, voided ones included (the page shows per-category totals). */
+  expenses: ExpenseRecord[];
+  /** Per-category totals when only aggregates are available (public link from the server). */
+  category_totals?: { category: ExpenseRecord["category"]; total: number }[];
+}
 
 export const api = {
-  async getClubs() {
+  // --- Auth (mock) ---
+  async requestOtp(phone: string) {
+    await delay();
+    const err = check(phoneSchema, phone);
+    if (err) throw new ValidationError("phone", err);
+    if (isCloud()) {
+      await cloudRequestOtp(phone);
+      return { resend_after: OTP_RESEND_SECONDS };
+    }
+    otpAttempts.set(phone, 0);
+    return { resend_after: OTP_RESEND_SECONDS };
+  },
+  async verifyOtp(phone: string, otp: string) {
+    await delay();
+    if (isCloud()) {
+      const err = check(otpSchemaFor(6), otp);
+      if (err) throw new ValidationError("otp", err);
+      await cloudVerifyOtp(phone, otp);
+      // Bring down the user's clubs so the club picker can show them.
+      session.set({ mode: "user", phone });
+      await api.pull().catch(() => {});
+      session.clear(); // the session starts once a club is chosen (index.tsx)
+      return { phone };
+    }
+    const used = otpAttempts.get(phone);
+    if (used === undefined || used >= OTP_MAX_ATTEMPTS)
+      throw new ValidationError("otp", "err_otpExpired");
+    const err = check(otpSchema, otp);
+    if (err) throw new ValidationError("otp", err);
+    if (otp !== DEMO_OTP) {
+      otpAttempts.set(phone, used + 1);
+      throw new ValidationError(
+        "otp",
+        used + 1 >= OTP_MAX_ATTEMPTS ? "err_otpExpired" : "err_otpWrong",
+      );
+    }
+    otpAttempts.delete(phone);
+    return { phone };
+  },
+
+  // --- Clubs ---
+  getClub,
+  seedDemo,
+  /** Drop the sample club's records and reseed it from fixtures. Other clubs are untouched. */
+  async resetDemo() {
+    const db = read();
+    const demo = db.clubs.find((c) => c.slug === DEMO_SLUG);
+    if (demo) {
+      const keep = <T extends { club_id: string }>(l: T[]) =>
+        l.filter((x) => x.club_id !== demo.id);
+      write({
+        ...db,
+        clubs: db.clubs.filter((c) => c.id !== demo.id),
+        members: keep(db.members),
+        households: keep(db.households),
+        chanda: keep(db.chanda),
+        expenses: keep(db.expenses),
+        handovers: keep(db.handovers),
+        events: keep(db.events),
+      });
+    }
+    await seedDemo();
+  },
+  async listClubs() {
     await delay();
     const db = read();
     return { clubs: db.clubs, active_club_id: db.active_club_id };
@@ -38,129 +452,405 @@ export const api = {
   async setActiveClub(id: string) {
     await delay();
     const db = read();
+    if (!db.clubs.some((c) => c.id === id)) throw new ValidationError("club_id", "err_noClub");
     db.active_club_id = id;
     write(db);
   },
-  async createClub(input: { name: string; para: string; zone: string; puja_year: number; target_amount: number }) {
+  async createClub(raw: ClubInput) {
     await delay();
+    const input = parseOrThrow(clubSchema, raw);
     const db = read();
-    const club: Club = { ...input, name_en: input.name, id: uuid(), receipt_seq: 0, created_at: now() };
+    const taken = db.clubs.some(
+      (c) =>
+        c.puja_year === input.puja_year &&
+        (sameName(c.name_bn, input.name) || sameName(c.name_en, input.name)),
+    );
+    if (taken) throw new ValidationError("name", "err_clubExists");
+    const base = slugify(`${input.name} ${input.puja_year}`) || `club-${input.puja_year}`;
+    let slug = base;
+    for (let i = 2; db.clubs.some((c) => c.slug === slug); i++) slug = `${base}-${i}`;
+    // A user-entered name is stored once, as typed, in both language slots.
+    const at = now();
+    const club: Club = {
+      id: uuid(),
+      slug,
+      name_bn: input.name,
+      name_en: input.name,
+      area_label: [input.para, input.zone].filter(Boolean).join(" · "),
+      target_amount: input.target_amount,
+      puja_year: input.puja_year,
+      created_at: at,
+    };
     db.clubs.push(club);
-    db.lanes[club.id] = [{ bn: input.para || "মেন রোড", en: input.para || "Main Road" }];
     db.active_club_id = club.id;
+    // Same write as the club: a club can never exist without someone able to run it.
+    db.members.push({
+      id: uuid(),
+      club_id: club.id,
+      name: input.creator_name,
+      role: "admin",
+      phone: input.creator_phone,
+      collector_code: nextCollectorCode(db, "admin"),
+      created_at: at,
+    });
+    enqueue(db, club.id, { kind: "club", id: club.id });
     write(db);
+    // The creator is signed in as the new club's admin.
+    session.set({ mode: "user", phone: input.creator_phone });
     return club;
   },
-  async getSummary(): Promise<Summary> {
+
+  // --- Members ---
+  /** The member the app acts as in the active club, or null (not a member: read-only). */
+  async getCurrentMember(): Promise<ClubMember | null> {
     await delay();
-    const db = read();
-    const club = activeClub(db);
-    const collected = mine(db, db.chandas).reduce((s, c) => s + c.amount, 0);
-    const spent = mine(db, db.expenses).reduce((s, e) => s + e.amount, 0);
-    const pending_sync = [...mine(db, db.chandas), ...mine(db, db.expenses), ...mine(db, db.households)].filter((x) => x.sync_status === "pending").length;
-    return { club, collected, spent, balance: collected - spent, target: club.target_amount, pending_sync };
+    return currentMember(read());
   },
-  async listLanes() {
-    await delay(50);
-    const db = read();
-    return db.lanes[db.active_club_id] ?? [];
-  },
-  async listHouseholds() {
-    await delay();
-    const db = read();
-    return mine(db, db.households);
-  },
-  async listChandas() {
-    await delay();
-    const db = read();
-    return mine(db, db.chandas).sort((a, b) => b.created_at.localeCompare(a.created_at));
-  },
-  async listExpenses() {
-    await delay();
-    const db = read();
-    return mine(db, db.expenses).sort((a, b) => b.created_at.localeCompare(a.created_at));
-  },
-  async listEvents() {
-    await delay();
-    const db = read();
-    return mine(db, db.events);
-  },
-  async listMembers() {
+  async listMembers(): Promise<ClubMember[]> {
     await delay();
     const db = read();
     return mine(db, db.members);
   },
-  async createHousehold(input: Pick<Household, "resident_name" | "house_no" | "lane_bn" | "lane_en" | "phone" | "pledged_amount">) {
+  async createMember(raw: MemberInput): Promise<ClubMember> {
     await delay();
+    const input = parseOrThrow(memberSchema, raw);
     const db = read();
-    const h: Household = { ...input, resident_name_en: input.resident_name, id: uuid(), club_id: db.active_club_id, status: "pending", created_at: now(), sync_status: syncState() };
-    db.households.push(h);
-    write(db);
-    return h;
-  },
-  async createChanda(input: { household_id: string | null; payer_name: string; amount: number; payment_mode: PaymentMode; collector_id: string }) {
-    await delay();
-    const db = read();
-    const club = activeClub(db);
-    club.receipt_seq += 1;
-    const hh = db.households.find((h) => h.id === input.household_id);
-    const c: Chanda = {
-      ...input, payer_name_en: hh?.resident_name_en ?? input.payer_name, id: uuid(), club_id: club.id,
-      receipt_no: `PK-${club.puja_year}-${String(club.receipt_seq).padStart(4, "0")}`, created_at: now(), sync_status: syncState(),
+    const club = requireClub(db);
+    authorize(db, "member.manage");
+    // The phone identifies the signed-in member, so it must be unique within a club.
+    if (mine(db, db.members).some((x) => x.phone === input.phone))
+      throw new ValidationError("phone", "err_memberExists");
+    const m: ClubMember = {
+      ...input,
+      id: uuid(),
+      club_id: club.id,
+      collector_code: nextCollectorCode(db, input.role),
+      created_at: now(),
     };
-    if (hh) hh.status = "paid";
-    db.chandas.push(c);
-    write(db);
-    return c;
-  },
-  async createExpense(input: { category: ExpenseCategory; item_name: string; amount: number; approved_by_id: string; receipt_image: string | null }) {
-    await delay();
-    const db = read();
-    const e: Expense = { ...input, item_name_en: input.item_name, id: uuid(), club_id: db.active_club_id, created_at: now(), sync_status: syncState() };
-    db.expenses.push(e);
-    write(db);
-    return e;
-  },
-  async registerEvent(id: string, slotIndex?: number) {
-    await delay();
-    const db = read();
-    const ev = db.events.find((e) => e.id === id);
-    if (ev) {
-      if (slotIndex !== undefined) {
-        const s = ev.slots[slotIndex];
-        if (s && s.filled < s.capacity) s.filled += 1;
-      } else if (ev.registrations < ev.capacity) ev.registrations += 1;
-    }
-    write(db);
-  },
-  async createMember(input: { name: string; phone: string; role: Role }) {
-    await delay();
-    const db = read();
-    const m: Member = { ...input, name_en: input.name, id: uuid(), club_id: db.active_club_id };
     db.members.push(m);
+    enqueue(db, club.id, { kind: "member", id: m.id });
     write(db);
     return m;
   },
-  async updateMemberRole(id: string, role: Role) {
+  /** The collector code is kept so existing receipt numbers stay attributable. */
+  async updateMemberRole(id: string, role: UserRole) {
     await delay();
     const db = read();
-    const m = db.members.find((x) => x.id === id);
-    if (m) m.role = role;
+    authorize(db, "member.manage");
+    const members = mine(db, db.members);
+    const m = members.find((x) => x.id === id);
+    if (!m) throw new ValidationError("member_id", "err_notFound");
+    // A club must always keep someone who can manage members.
+    const admins = members.filter((x) => x.role === "admin");
+    if (m.role === "admin" && role !== "admin" && admins.length === 1)
+      throw new ValidationError("role", "err_lastAdmin");
+    m.role = role;
+    enqueue(db, m.club_id, { kind: "member", id: m.id });
     write(db);
+    return m;
   },
-  /** Flush offline queue — later this will POST queued rows to the server. */
-  async syncPending() {
+
+  // --- Households ---
+  async listHouseholds(): Promise<Household[]> {
     await delay();
     const db = read();
-    let n = 0;
-    for (const list of [db.chandas, db.expenses, db.households] as { sync_status: SyncStatus }[][]) {
-      for (const x of list) if (x.sync_status === "pending") { x.sync_status = "synced"; n++; }
+    return mine(db, db.households);
+  },
+  async createHousehold(raw: HouseholdInput): Promise<Household> {
+    await delay();
+    const input = parseOrThrow(householdSchema, raw);
+    const db = read();
+    const club = requireClub(db);
+    authorize(db, "chanda.add");
+    const taken = mine(db, db.households).some(
+      (h) =>
+        sameName(h.lane_block, input.lane_block) &&
+        sameName(h.house_flat_no, input.house_flat_no) &&
+        sameName(h.resident_name, input.resident_name),
+    );
+    if (taken) throw new ValidationError("resident_name", "err_householdExists");
+    const { phone_number, ...rest } = input;
+    const h: Household = {
+      ...rest,
+      ...(phone_number ? { phone_number } : {}),
+      id: uuid(),
+      club_id: club.id,
+      created_at: now(),
+    };
+    db.households.push(h);
+    enqueue(db, h.club_id, { kind: "household", id: h.id });
+    write(db);
+    return h;
+  },
+
+  // --- Chanda ---
+  async listChanda(): Promise<ChandaTransaction[]> {
+    await delay();
+    const db = read();
+    return newestFirst(mine(db, db.chanda));
+  },
+  createChanda,
+  /** Name used by the UI integration brief; same as createChanda. */
+  addTransaction: createChanda,
+  async voidChanda(id: string, reason: string): Promise<ChandaTransaction> {
+    await delay();
+    const db = read();
+    authorize(db, "entry.void");
+    const rec = voidRecord(mine(db, db.chanda), id, reason, "chanda_id");
+    rec.status = "void";
+    write(db);
+    return rec;
+  },
+
+  // --- Expenses ---
+  async listExpenses(): Promise<ExpenseRecord[]> {
+    await delay();
+    const db = read();
+    return [...mine(db, db.expenses)].sort(
+      (a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at),
+    );
+  },
+  createExpense,
+  /** Name used by the UI integration brief; same as createExpense. */
+  addExpense: createExpense,
+  async voidExpense(id: string, reason: string): Promise<ExpenseRecord> {
+    await delay();
+    const db = read();
+    authorize(db, "entry.void");
+    const rec = voidRecord(mine(db, db.expenses), id, reason, "expense_id");
+    write(db);
+    return rec;
+  },
+  /** Stores an (already compressed) image and returns its id for `voucher_image_id`. */
+  async saveVoucherImage(blob: Blob): Promise<string> {
+    if (!blob.type.startsWith("image/")) throw new ValidationError("voucher", "err_photoType");
+    if (blob.size > VOUCHER_MAX_BYTES) throw new ValidationError("voucher", "err_photoTooLarge");
+    const id = uuid();
+    await voucherTx("readwrite", (s) => s.put(blob, id));
+    return id;
+  },
+  async getVoucherImage(id: string): Promise<Blob | null> {
+    try {
+      const local = (await voucherTx("readonly", (s) => s.get(id))) as Blob | undefined;
+      if (local) return local;
+    } catch {
+      /* no IndexedDB: try the server below */
     }
-    write(db);
-    return n;
+    // Recorded on another device: fetch from cloud storage once and keep a copy here.
+    if (!isCloud() || !isVoucherPath(id) || !isOnline()) return null;
+    const blob = await downloadVoucher(getCloudClient(), id);
+    if (blob) await voucherTx("readwrite", (s) => s.put(blob, id)).catch(() => {});
+    return blob;
   },
-  async resetDemo() {
+  /** Removes an image no record points at (e.g. the expense save failed). Not in SPEC §4. */
+  async deleteVoucherImage(id: string): Promise<void> {
+    await voucherTx("readwrite", (s) => s.delete(id));
+  },
+
+  // --- Events ---
+  async listEvents(): Promise<ClubEvent[]> {
     await delay();
-    write(seedDB());
+    const db = read();
+    return [...mine(db, db.events)].sort((a, b) => a.date.localeCompare(b.date));
+  },
+  async registerEvent(id: string): Promise<ClubEvent> {
+    await delay();
+    const db = read();
+    const ev = mine(db, db.events).find((e) => e.id === id);
+    if (!ev) throw new ValidationError("event_id", "err_notFound");
+    ev.registrations_count += 1;
+    enqueue(db, ev.club_id, { kind: "event_delta", id: uuid(), event_id: ev.id, delta: 1 });
+    write(db);
+    return ev;
+  },
+  /** Undoes a mistaken registration tap; the tally never goes below zero. Not in SPEC §4. */
+  async unregisterEvent(id: string): Promise<ClubEvent> {
+    await delay();
+    const db = read();
+    const ev = mine(db, db.events).find((e) => e.id === id);
+    if (!ev) throw new ValidationError("event_id", "err_notFound");
+    if (ev.registrations_count > 0)
+      enqueue(db, ev.club_id, { kind: "event_delta", id: uuid(), event_id: ev.id, delta: -1 });
+    ev.registrations_count = Math.max(0, ev.registrations_count - 1);
+    write(db);
+    return ev;
+  },
+  async createEvent(raw: EventInput): Promise<ClubEvent> {
+    await delay();
+    const input = parseOrThrow(eventSchema, raw);
+    const db = read();
+    const club = requireClub(db);
+    authorize(db, "event.manage");
+    const ev: ClubEvent = {
+      id: uuid(),
+      club_id: club.id,
+      title_bn: input.title,
+      title_en: input.title,
+      date: input.date,
+      registrations_count: 0,
+      created_at: now(),
+    };
+    db.events.push(ev);
+    enqueue(db, ev.club_id, { kind: "event", id: ev.id });
+    write(db);
+    return ev;
+  },
+
+  // --- Cash handovers (SPEC 6.3): never edited, only voided ---
+  async listHandovers(): Promise<CashHandover[]> {
+    await delay();
+    const db = read();
+    return newestFirst(mine(db, db.handovers));
+  },
+  /** The acting treasurer/admin receives `amount` in cash from a collector. */
+  async createHandover(raw: HandoverInput): Promise<CashHandover> {
+    await delay();
+    const input = parseOrThrow(handoverSchema, raw);
+    const db = read();
+    const existing = db.handovers.find((h) => h.id === input.id);
+    if (existing) return existing;
+    const club = requireClub(db);
+    const receiver = authorize(db, "handover.record");
+    const members = mine(db, db.members);
+    if (!members.some((m) => m.id === input.collector_id))
+      throw new ValidationError("collector_id", "err_collector");
+    if (input.collector_id === receiver.id)
+      throw new ValidationError("collector_id", "err_handoverSelf");
+    const position = cashByCollector(members, mine(db, db.chanda), mine(db, db.handovers)).find(
+      (r) => r.member_id === input.collector_id,
+    );
+    if (input.amount > (position?.outstanding ?? 0))
+      throw new ValidationError("amount", "err_handoverTooMuch");
+    const h: CashHandover = {
+      ...input,
+      club_id: club.id,
+      received_by_id: receiver.id,
+      created_at: now(),
+      sync_status: "pending",
+    };
+    db.handovers.push(h);
+    write(db);
+    return h;
+  },
+  async voidHandover(id: string, reason: string): Promise<CashHandover> {
+    await delay();
+    const db = read();
+    authorize(db, "entry.void");
+    const rec = voidRecord(mine(db, db.handovers), id, reason, "handover_id");
+    write(db);
+    return rec;
+  },
+
+  // --- Accounts ---
+  async getSummary(): Promise<AccountsSummary> {
+    await delay();
+    const db = read();
+    return computeSummary(
+      activeClub(db),
+      mine(db, db.chanda),
+      mine(db, db.expenses),
+      mine(db, db.handovers),
+    );
+  },
+  /**
+   * Read-only accounts of any club on this device, by slug (SPEC 4.1). Doesn't change the
+   * active club, so the page works without signing in. Null when the slug is unknown.
+   */
+  async getClubAccounts(slug: string): Promise<ClubAccounts | null> {
+    await delay();
+    const db = read();
+    const club = db.clubs.find((c) => c.slug === slug);
+    if (!club) return isCloud() && isOnline() ? publicAccounts(slug) : null;
+    const of = <T extends { club_id: string }>(list: T[]) =>
+      list.filter((x) => x.club_id === club.id);
+    const expenses = of(db.expenses);
+    return {
+      club,
+      summary: computeSummary(club, of(db.chanda), expenses, of(db.handovers)),
+      expenses,
+    };
+  },
+
+  /**
+   * Story 5.1: when online, send everything not yet on the server through the sync adapter
+   * (ledger rows that are pending/failed, plus the outbox) in dependency order, and record
+   * each outcome. The sample club is settled locally and never sent. Offline: no-op.
+   */
+  async sync(): Promise<{ synced: number; failed: number }> {
+    await delay();
+    if (!isOnline()) return { synced: 0, failed: 0 };
+    const db = read();
+    const queue = syncQueue(db);
+    if (!queue.length) return { synced: 0, failed: 0 };
+    const demo = db.clubs.find((c) => c.slug === DEMO_SLUG)?.id;
+    const isLocal = (item: SyncRecord) => clubOf(db, item) === demo;
+    const local = queue.filter(isLocal);
+    const remote = queue.filter((i) => !isLocal(i));
+    let results: SyncResult[] = local.map((i) => ({ id: i.record.id, ok: true }));
+    if (remote.length) {
+      try {
+        results = results.concat(await getSyncAdapter().push(remote));
+      } catch {
+        results = results.concat(remote.map((i) => ({ id: i.record.id, ok: false })));
+      }
+    }
+    const ok = new Map(results.map((r) => [r.id, r.ok]));
+    let synced = 0;
+    let failed = 0;
+    for (const item of queue) {
+      const success = ok.get(item.record.id) === true;
+      if (success) synced++;
+      else failed++;
+      if ("sync_status" in item.record) item.record.sync_status = success ? "synced" : "failed";
+    }
+    db.outbox = (db.outbox ?? [])
+      .filter((o) => ok.get(o.id) !== true)
+      .map((o) => (ok.has(o.id) ? { ...o, failed: true } : o));
+    write(db);
+    return { synced, failed };
+  },
+  /** Counts for the sync banner: records waiting, and records whose last push failed. */
+  async getSyncStatus(): Promise<{ pending: number; failed: number }> {
+    await delay();
+    const db = read();
+    const rows = [...mine(db, db.chanda), ...mine(db, db.expenses), ...mine(db, db.handovers)];
+    const ops = (db.outbox ?? []).filter((o) => outboxClub(db, o) === db.active_club_id);
+    return {
+      pending:
+        rows.filter((r) => r.sync_status === "pending").length +
+        ops.filter((o) => !o.failed).length,
+      failed:
+        rows.filter((r) => r.sync_status === "failed").length + ops.filter((o) => o.failed).length,
+    };
+  },
+  /**
+   * Cloud mode: bring down other devices' changes — the user's clubs, then everything in
+   * the active club since the last pull — and merge them (see cloud/merge.ts).
+   */
+  async pull(): Promise<{ pulled: number }> {
+    if (!isCloud() || !isOnline() || session.get()?.mode !== "user") return { pulled: 0 };
+    const client = getCloudClient();
+    const db = read();
+    const mineSnap = await fetchMyClubs(client);
+    const active = db.active_club_id;
+    const isDemo = db.clubs.find((c) => c.id === active)?.slug === DEMO_SLUG;
+    const clubSnap: Snapshot | null =
+      active && !isDemo ? await fetchClubSnapshot(client, active, db.pull_cursors?.[active]) : null;
+    const fresh = read(); // the store may have changed while we were fetching
+    mergeSnapshot(fresh, mineSnap);
+    if (clubSnap && active) {
+      mergeSnapshot(fresh, clubSnap);
+      const cursor = snapshotCursor(clubSnap, fresh.pull_cursors?.[active]);
+      if (cursor) fresh.pull_cursors = { ...fresh.pull_cursors, [active]: cursor };
+    }
+    write(fresh);
+    const count = (snap: Snapshot | null) =>
+      snap ? Object.values(snap).reduce((n, list) => n + list.length, 0) : 0;
+    return { pulled: count(mineSnap) + count(clubSnap) };
+  },
+  /** Logs out on this device (and of Supabase Auth in cloud mode). Data stays on the phone. */
+  async signOut() {
+    session.clear();
+    if (isCloud()) await cloudSignOut().catch(() => {});
   },
 };

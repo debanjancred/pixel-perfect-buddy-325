@@ -25,6 +25,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-deep: var(--primary-deep);
   --color-primary-soft: var(--primary-soft);
+  --color-primary-ink: var(--primary-ink);
+  --color-on-gold: var(--on-gold);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -66,6 +68,10 @@
   --primary-deep: oklch(0.38 0.15 26);
   --primary-soft: oklch(0.95 0.03 25);
   --primary-foreground: oklch(0.99 0.005 85);
+  /* Red for text. Same as --primary on light surfaces; lighter in dark mode (WCAG AA). */
+  --primary-ink: oklch(0.5 0.19 27);
+  /* Text on gold fills (e.g. progress pills) — dark in both modes. */
+  --on-gold: oklch(0.22 0.025 30);
   --secondary: oklch(0.955 0.012 80);
   --secondary-foreground: oklch(0.22 0.025 30);
   --muted: oklch(0.955 0.01 80);
@@ -82,18 +88,26 @@
   --gold-soft: oklch(0.94 0.045 85);
   --success: oklch(0.42 0.11 145);
   --success-soft: oklch(0.96 0.025 150);
-  --warning: oklch(0.58 0.18 45);
+  --warning: oklch(0.52 0.15 55); /* 5.3:1 on --warning-soft */
   --warning-soft: oklch(0.97 0.03 75);
   --info: oklch(0.42 0.15 260);
   --info-soft: oklch(0.95 0.025 240);
-  --whatsapp: oklch(0.55 0.15 150);
-  --chart-1: oklch(0.5 0.19 27);
-  --chart-2: oklch(0.64 0.13 80);
-  --chart-3: oklch(0.42 0.11 145);
-  --chart-4: oklch(0.42 0.15 260);
-  --chart-5: oklch(0.58 0.18 45);
-  --chart-6: oklch(0.55 0.03 40);
-  --gradient-hero: linear-gradient(145deg, oklch(0.53 0.21 22) 0%, var(--primary) 45%, var(--primary-deep) 100%);
+  --whatsapp: oklch(0.52 0.14 150); /* white text 5:1 */
+  /* Categorical series, in fixed order (validated: lightness band, chroma floor, CVD
+     and normal-vision separation of adjacent slots incl. the donut wrap, both modes).
+     Light slots 3–5 are under 3:1 on the card, so charts must keep visible labels. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --gradient-hero: linear-gradient(
+    145deg,
+    oklch(0.53 0.21 22) 0%,
+    var(--primary) 45%,
+    var(--primary-deep) 100%
+  );
   --shadow-card: 0 1px 2px oklch(0.3 0.05 30 / 6%), 0 8px 24px -12px oklch(0.3 0.05 30 / 18%);
   --shadow-fab: 0 12px 28px -8px color-mix(in oklab, var(--primary) 55%, transparent);
   --shadow-hero: 0 20px 40px -18px color-mix(in oklab, var(--primary-deep) 70%, transparent);
@@ -106,7 +120,11 @@
   --card-foreground: oklch(0.96 0.01 80);
   --popover: oklch(0.22 0.02 30);
   --popover-foreground: oklch(0.96 0.01 80);
-  --primary: oklch(0.6 0.19 27);
+  /* Dark mode splits red in two: a deeper fill so white text on buttons passes AA, and a
+     lighter ink for red text on dark surfaces (see .dark .text-primary below). */
+  --primary: oklch(0.55 0.19 27);
+  --primary-ink: oklch(0.7 0.16 27);
+  --destructive: oklch(0.68 0.19 25); /* text on dark surfaces ≥ 4.5:1 */
   --primary-deep: oklch(0.42 0.15 26);
   --primary-soft: oklch(0.3 0.07 25);
   --primary-foreground: oklch(0.99 0.005 85);
@@ -121,6 +139,13 @@
   --gold: oklch(0.75 0.13 82);
   --gold-ink: oklch(0.8 0.12 82);
   --gold-soft: oklch(0.3 0.05 80);
+  /* The same hues stepped for the dark surface (not an automatic flip). */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
   --success: oklch(0.8 0.13 150);
   --success-soft: oklch(0.3 0.05 150);
   --warning: oklch(0.8 0.14 60);
@@ -180,7 +205,10 @@
   padding: 0 1.25rem;
   border-radius: var(--radius-xl);
   font-weight: 600;
-  transition: transform 120ms ease, background-color 150ms ease, opacity 150ms;
+  transition:
+    transform 120ms ease,
+    background-color 150ms ease,
+    opacity 150ms;
   &:active {
     transform: scale(0.97);
   }
@@ -215,7 +243,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 1rem;
   border-radius: 9999px;
   border: 1.5px solid var(--input);
@@ -244,6 +272,12 @@
     border-color: var(--primary);
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
   }
+  &[aria-invalid="true"] {
+    border-color: var(--destructive);
+  }
+  &[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 18%, transparent);
+  }
 }
 
 @utility no-scrollbar {
@@ -251,4 +285,30 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Printing: only PrintPortal content is printed (e.g. a receipt), always on a light page. */
+.print-portal {
+  display: none;
+}
+@media print {
+  body > :not(.print-portal) {
+    display: none !important;
+  }
+  .print-portal {
+    display: block;
+    max-width: 120mm;
+    margin: 0 auto;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  @page {
+    margin: 12mm;
+  }
+}
+
+/* In dark mode red *text* uses the lighter ink; red *fills* keep --primary. Unlayered so
+   it wins over the text-primary utility without touching every component. */
+.dark .text-primary {
+  color: var(--primary-ink);
 }

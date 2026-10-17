@@ -12,11 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuditRouteImport } from './routes/audit'
+import { Route as CashRouteImport } from './routes/cash'
 import { Route as ChandaRouteImport } from './routes/chanda'
 import { Route as CollectRouteImport } from './routes/collect'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReceiptIdRouteImport } from './routes/receipt.$id'
+import { Route as ClubSlugAccountsRouteImport } from './routes/club/$slug/accounts'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -31,6 +35,11 @@ const AdminRoute = AdminRouteImport.update({
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CashRoute = CashRouteImport.update({
+  id: '/cash',
+  path: '/cash',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChandaRoute = ChandaRouteImport.update({
@@ -58,37 +67,64 @@ const HomeRoute = HomeRouteImport.update({
   path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceiptIdRoute = ReceiptIdRouteImport.update({
+  id: '/receipt/$id',
+  path: '/receipt/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubSlugAccountsRoute = ClubSlugAccountsRouteImport.update({
+  id: '/club/$slug/accounts',
+  path: '/club/$slug/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/audit': typeof AuditRoute
+  '/cash': typeof CashRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
   '/events': typeof EventsRoute
   '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
+  '/settings': typeof SettingsRoute
+  '/receipt/$id': typeof ReceiptIdRoute
+  '/club/$slug/accounts': typeof ClubSlugAccountsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/audit': typeof AuditRoute
+  '/cash': typeof CashRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
   '/events': typeof EventsRoute
   '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
+  '/settings': typeof SettingsRoute
+  '/receipt/$id': typeof ReceiptIdRoute
+  '/club/$slug/accounts': typeof ClubSlugAccountsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/audit': typeof AuditRoute
+  '/cash': typeof CashRoute
   '/chanda': typeof ChandaRoute
   '/collect': typeof CollectRoute
   '/events': typeof EventsRoute
   '/expenses': typeof ExpensesRoute
   '/home': typeof HomeRoute
+  '/settings': typeof SettingsRoute
+  '/receipt/$id': typeof ReceiptIdRoute
+  '/club/$slug/accounts': typeof ClubSlugAccountsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,42 +132,58 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/audit'
+    | '/cash'
     | '/chanda'
     | '/collect'
     | '/events'
     | '/expenses'
     | '/home'
+    | '/settings'
+    | '/receipt/$id'
+    | '/club/$slug/accounts'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
     | '/audit'
+    | '/cash'
     | '/chanda'
     | '/collect'
     | '/events'
     | '/expenses'
     | '/home'
+    | '/settings'
+    | '/receipt/$id'
+    | '/club/$slug/accounts'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/audit'
+    | '/cash'
     | '/chanda'
     | '/collect'
     | '/events'
     | '/expenses'
     | '/home'
+    | '/settings'
+    | '/receipt/$id'
+    | '/club/$slug/accounts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AuditRoute: typeof AuditRoute
+  CashRoute: typeof CashRoute
   ChandaRoute: typeof ChandaRoute
   CollectRoute: typeof CollectRoute
   EventsRoute: typeof EventsRoute
   ExpensesRoute: typeof ExpensesRoute
   HomeRoute: typeof HomeRoute
+  SettingsRoute: typeof SettingsRoute
+  ReceiptIdRoute: typeof ReceiptIdRoute
+  ClubSlugAccountsRoute: typeof ClubSlugAccountsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -155,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cash': {
+      id: '/cash'
+      path: '/cash'
+      fullPath: '/cash'
+      preLoaderRoute: typeof CashRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chanda': {
@@ -192,6 +251,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/receipt/$id': {
+      id: '/receipt/$id'
+      path: '/receipt/$id'
+      fullPath: '/receipt/$id'
+      preLoaderRoute: typeof ReceiptIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/club/$slug/accounts': {
+      id: '/club/$slug/accounts'
+      path: '/club/$slug/accounts'
+      fullPath: '/club/$slug/accounts'
+      preLoaderRoute: typeof ClubSlugAccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -199,11 +279,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AuditRoute: AuditRoute,
+  CashRoute: CashRoute,
   ChandaRoute: ChandaRoute,
   CollectRoute: CollectRoute,
   EventsRoute: EventsRoute,
   ExpensesRoute: ExpensesRoute,
   HomeRoute: HomeRoute,
+  SettingsRoute: SettingsRoute,
+  ReceiptIdRoute: ReceiptIdRoute,
+  ClubSlugAccountsRoute: ClubSlugAccountsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

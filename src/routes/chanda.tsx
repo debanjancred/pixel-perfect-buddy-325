@@ -1,19 +1,42 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
 import { useMemo, useState } from "react";
-import { Search, MessageCircle, MapPin } from "lucide-react";
+import { Search, MessageCircle, MapPin, ReceiptText } from "lucide-react";
 import { useI18n, type TKey } from "@/lib/i18n";
-import { useChandas, useHouseholds, useMembers, useSummary } from "@/hooks/use-data";
+import {
+  useClub,
+  useHouseholds,
+  useMembers,
+  usePermission,
+  useTransactions,
+} from "@/hooks/use-data";
 import { AppShell, Fab } from "@/components/pk/AppShell";
-import { StatusBadge, SyncBadge, waLink } from "@/components/pk/ui";
-import { toBnDigits, indian } from "@/lib/format";
+import { StatusBadge, SyncBadge } from "@/components/pk/ui";
+import { reminderText, waLink } from "@/lib/share";
+import { householdLedgers, householdMatches, laneOptions, ledgerOf } from "@/lib/households";
+import { isVoid } from "@/lib/accounts";
+
+// Status and lane filters live in the URL: refresh and the back button keep them.
+const searchSchema = z.object({
+  status: z.enum(["pending", "promised", "today"]).optional().catch(undefined),
+  lane: z.string().max(60).optional().catch(undefined),
+});
 
 export const Route = createFileRoute("/chanda")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "Chanda Register — Pujo Khata" },
-      { name: "description", content: "Every household's pledge and collection, grouped by lane, with one-tap WhatsApp reminders." },
+      {
+        name: "description",
+        content:
+          "Every household's pledge and collection, grouped by lane, with one-tap WhatsApp reminders.",
+      },
       { property: "og:title", content: "Chanda Register — Pujo Khata" },
-      { property: "og:description", content: "Household-wise chanda register for your puja committee." },
+      {
+        property: "og:description",
+        content: "Household-wise chanda register for your puja committee.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -23,88 +46,225 @@ export const Route = createFileRoute("/chanda")({
 
 type Filter = "all" | "pending" | "promised" | "today";
 const FILTERS: { k: Filter; t: TKey }[] = [
-  { k: "all", t: "all" }, { k: "pending", t: "pending" }, { k: "promised", t: "promised" }, { k: "today", t: "today" },
+  { k: "all", t: "all" },
+  { k: "pending", t: "pending" },
+  { k: "promised", t: "promised" },
+  { k: "today", t: "today" },
 ];
 
 function ChandaPage() {
-  const { t, money, pick, n } = useI18n();
-  const { data: households = [] } = useHouseholds();
-  const { data: chandas = [] } = useChandas();
+  const { t, money, pick, n, lang } = useI18n();
+  const { data: households = [], isPending } = useHouseholds();
+  const { data: chandas = [] } = useTransactions();
   const { data: members = [] } = useMembers();
-  const { data: s } = useSummary();
-  const [filter, setFilter] = useState<Filter>("all");
+  const { data: club } = useClub();
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const filter: Filter = search.status ?? "all";
+  const lanes = useMemo(() => laneOptions(households), [households]);
+  // A lane that no longer exists (e.g. after switching club) falls back to all lanes.
+  const lane = search.lane && lanes.some((l) => l.lane === search.lane) ? search.lane : undefined;
+  const setFilter = (f: Filter) =>
+    navigate({ search: (s) => ({ ...s, status: f === "all" ? undefined : f }), replace: true });
+  const setLane = (l: string) =>
+    navigate({ search: (s) => ({ ...s, lane: l || undefined }), replace: true });
+  const canCollect = usePermission("chanda.add");
   const [q, setQ] = useState("");
 
-  const groups = useMemo(() => {
+  const rows = useMemo(() => {
     const today = new Date().toDateString();
-    const rows = households.map((h) => {
-      const mine = chandas.filter((c) => c.household_id === h.id);
-      const last = mine[0];
-      return {
-        h,
-        collected: mine.reduce((a, c) => a + c.amount, 0),
-        collector: last ? members.find((m) => m.id === last.collector_id) : undefined,
-        today: mine.some((c) => new Date(c.created_at).toDateString() === today),
-      };
-    }).filter((r) => {
-      if (filter === "pending" && r.h.status !== "pending") return false;
-      if (filter === "promised" && r.h.status !== "promised") return false;
-      if (filter === "today" && !r.today) return false;
-      const s = q.trim().toLowerCase();
-      return !s || [r.h.resident_name, r.h.resident_name_en, r.h.house_no].some((x) => x.toLowerCase().includes(s));
-    });
-    const map = new Map<string, typeof rows>();
-    rows.forEach((r) => map.set(r.h.lane_bn, [...(map.get(r.h.lane_bn) ?? []), r]));
+    const ledgers = householdLedgers(chandas);
+    return households
+      .filter((h) => !lane || h.lane_block === lane)
+      .map((h) => {
+        const l = ledgerOf(ledgers, h.id);
+        return {
+          h,
+          ...l,
+          collector: l.last ? members.find((m) => m.id === l.last!.collector_id) : undefined,
+          today: chandas.some(
+            (c) =>
+              c.household_id === h.id &&
+              c.status === "collected" &&
+              !isVoid(c) &&
+              new Date(c.created_at).toDateString() === today,
+          ),
+        };
+      });
+  }, [households, chandas, members, lane]);
+
+  const counts = useMemo(
+    () => ({
+      all: rows.length,
+      pending: rows.filter((r) => r.status === "pending").length,
+      promised: rows.filter((r) => r.status === "promised").length,
+      today: rows.filter((r) => r.today).length,
+    }),
+    [rows],
+  );
+
+  const groups = useMemo(() => {
+    const visible = rows.filter(
+      (r) =>
+        (filter === "all" || (filter === "today" ? r.today : r.status === filter)) &&
+        householdMatches(r.h, q),
+    );
+    const map = new Map<string, typeof visible>();
+    visible.forEach((r) => map.set(r.h.lane_block, [...(map.get(r.h.lane_block) ?? []), r]));
     return [...map.entries()];
-  }, [households, chandas, members, filter, q]);
+  }, [rows, filter, q]);
+
+  const clubName = club ? pick(club.name_bn, club.name_en) : t("app");
 
   return (
-    <AppShell fab={<Fab to="/collect" label={t("addChanda")} />}>
+    <AppShell fab={canCollect && <Fab to="/collect" label={t("addChanda")} />}>
       <h1 className="text-2xl font-extrabold">{t("chandaRegister")}</h1>
       <div className="relative mt-3">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-        <input className="field pl-11" placeholder={t("search")} value={q} onChange={(e) => setQ(e.target.value)} />
+        <input
+          type="search"
+          className="field pl-11"
+          placeholder={t("search")}
+          aria-label={t("search")}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
       </div>
+      {lanes.length > 1 && (
+        <div className="mt-3">
+          <label htmlFor="register-lane" className="sr-only">
+            {t("lane")}
+          </label>
+          <select
+            id="register-lane"
+            className="field"
+            value={lane ?? ""}
+            onChange={(e) => setLane(e.target.value)}
+          >
+            <option value="">
+              {t("allLanes")} ({n(String(households.length))})
+            </option>
+            {lanes.map((l) => (
+              <option key={l.lane} value={l.lane}>
+                {l.lane} ({n(String(l.count))})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
         {FILTERS.map((f) => (
-          <button key={f.k} className="chip" data-active={filter === f.k} onClick={() => setFilter(f.k)}>{t(f.t)}</button>
+          <button
+            key={f.k}
+            className="chip"
+            data-active={filter === f.k}
+            aria-pressed={filter === f.k}
+            onClick={() => setFilter(f.k)}
+          >
+            {t(f.t)} <span className="num">{n(String(counts[f.k]))}</span>
+          </button>
         ))}
       </div>
 
-      {groups.length === 0 && <p className="py-12 text-center text-muted-foreground">{t("noResults")}</p>}
+      {isPending ? (
+        <ul className="mt-5 space-y-2" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="h-24 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </ul>
+      ) : households.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-dashed bg-card p-6 text-center">
+          <p className="font-bold">{t("emptyRegister")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("emptyRegisterHint")}</p>
+        </div>
+      ) : (
+        groups.length === 0 && (
+          <p className="py-12 text-center text-muted-foreground">{t("noResults")}</p>
+        )
+      )}
 
       {groups.map(([lane, rows]) => (
         <section key={lane} className="mt-5">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-gold-ink">
-            <MapPin className="h-4 w-4" /> {pick(lane, rows[0]!.h.lane_en)} <span className="font-medium text-muted-foreground">· {n(String(rows.length))} {t("houses")}</span>
+            <MapPin className="h-4 w-4" /> {lane}{" "}
+            <span className="font-medium text-muted-foreground">
+              · {n(String(rows.length))} {t("houses")}
+            </span>
           </h2>
           <ul className="space-y-2">
-            {rows.map(({ h, collected, collector }) => {
-              const due = h.status !== "paid";
-              const msg = `নমস্কার ${h.resident_name}, ${s?.club.name ?? "পুজো কমিটি"}-এর জন্য আপনার প্রতিশ্রুত ₹${toBnDigits(indian(h.pledged_amount))} চাঁদা এখনো বাকি আছে। আমাদের সংগ্রাহক শীঘ্রই আসবেন, অথবা UPI-তে পাঠাতে পারেন। ধন্যবাদ 🙏`;
+            {rows.map(({ h, collected, due, status, last, lastCollected, collector }) => {
+              const msg = reminderText(
+                lang,
+                h.resident_name,
+                clubName,
+                due > 0 ? money(due) : undefined,
+              );
               return (
                 <li key={h.id} className="rounded-2xl border bg-card p-3 shadow-card">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-muted px-1 text-sm font-extrabold">{n(h.house_no)}</div>
+                    <div className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-muted px-1 text-sm font-extrabold">
+                      {n(h.house_flat_no)}
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-bold leading-snug">{pick(h.resident_name, h.resident_name_en)}</div>
+                      <div className="font-bold leading-snug">{h.resident_name}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                        <StatusBadge status={h.status} />
-                        {collector && <span>{t("collector")}: {pick(collector.name, collector.name_en)}</span>}
-                        <SyncBadge status={h.sync_status} />
+                        <StatusBadge status={status} />
+                        {collector && (
+                          <span>
+                            {t("collector")}: {collector.name}
+                          </span>
+                        )}
+                        {last && <SyncBadge status={last.sync_status} />}
                       </div>
+                      {due > 0 && collected > 0 && (
+                        <div className="mt-1 text-xs font-semibold text-success">
+                          {t("paidSoFar")} <span className="num">{money(collected)}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
-                      <div className="num font-extrabold">{money(due ? h.pledged_amount : collected)}</div>
-                      <div className="text-[11px] text-muted-foreground">{due ? t("pledged") : t("collected")}</div>
+                      <div className="num font-extrabold">{money(due > 0 ? due : collected)}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {due > 0
+                          ? collected > 0
+                            ? t("dueAmount")
+                            : t("pledged")
+                          : collected > 0
+                            ? t("collected")
+                            : t("pending")}
+                      </div>
                     </div>
                   </div>
-                  {due && (
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <a href={waLink(h.phone, msg)} target="_blank" rel="noreferrer" className="btn btn-whatsapp min-h-12 text-sm">
-                        <MessageCircle className="h-4 w-4" /> {t("remind")}
-                      </a>
-                      <Link to="/collect" search={{ household: h.id }} className="btn btn-outline min-h-12 text-sm">{t("collect")}</Link>
+                  {(status !== "paid" || lastCollected) && (
+                    <div className="mt-3 flex gap-2 [&>*]:flex-1">
+                      {status !== "paid" && (
+                        <a
+                          href={waLink(h.phone_number, msg)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-whatsapp min-h-12 px-2 text-sm"
+                        >
+                          <MessageCircle className="h-4 w-4" /> {t("remind")}
+                        </a>
+                      )}
+                      {status !== "paid" && canCollect && (
+                        <Link
+                          to="/collect"
+                          search={{ household: h.id }}
+                          className="btn btn-outline min-h-12 px-2 text-sm"
+                        >
+                          {t("collect")}
+                        </Link>
+                      )}
+                      {lastCollected && (
+                        <Link
+                          to="/receipt/$id"
+                          params={{ id: lastCollected.id }}
+                          className="btn btn-outline min-h-12 px-2 text-sm"
+                        >
+                          <ReceiptText className="h-4 w-4" /> {t("viewReceipt")}
+                        </Link>
+                      )}
                     </div>
                   )}
                 </li>

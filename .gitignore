@@ -30,3 +30,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# npm lockfile — Lovable uses bun.lock
+package-lock.json
+
+# Browser QA output
+.qa-out
+
+# Local environment
+.env
+.env.local

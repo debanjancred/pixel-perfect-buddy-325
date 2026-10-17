@@ -1,16 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Share2, CalendarDays } from "lucide-react";
-import { useI18n } from "@/lib/i18n";
-import { useEvents, useInvalidateAll, useSummary } from "@/hooks/use-data";
-import { api } from "@/services/api";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+import { useI18n, type TKey } from "@/lib/i18n";
+import { isoDate } from "@/lib/format";
+import { useEvents, usePermission } from "@/hooks/use-data";
+import { useSearchModal } from "@/hooks/use-search-modal";
 import { AppShell } from "@/components/pk/AppShell";
-import { shareOrWhatsApp } from "@/components/pk/ui";
+import {
+  EventCard,
+  EventForm,
+  groupEvents,
+  useEventActions,
+  type EventPhase,
+} from "@/features/events";
 
 export const Route = createFileRoute("/events")({
+  validateSearch: z.object({ add: z.boolean().optional().catch(undefined) }),
   head: () => ({
     meta: [
       { title: "Pujo Competitions — Pujo Khata" },
-      { name: "description", content: "Sit & Draw, Dhunuchi Naach, Shankha and Pushpanjali batch registrations." },
+      {
+        name: "description",
+        content: "Pujo competitions and cultural events with live registration tallies.",
+      },
       { property: "og:title", content: "Pujo Competitions — Pujo Khata" },
       { property: "og:description", content: "Register for your para's puja events." },
       { property: "og:type", content: "website" },
@@ -20,65 +33,96 @@ export const Route = createFileRoute("/events")({
   component: EventsPage,
 });
 
-const EMOJI = { draw: "🎨", dhunuchi: "🔥", shankha: "🐚", pushpanjali: "🌺" };
+const SECTION_TITLE: Record<EventPhase, TKey> = {
+  today: "eventsToday",
+  upcoming: "eventsUpcoming",
+  past: "eventsPast",
+};
 
 function EventsPage() {
-  const { t, n, pick } = useI18n();
-  const { data: events = [] } = useEvents();
-  const { data: s } = useSummary();
-  const invalidate = useInvalidateAll();
-  const reg = async (id: string, slot?: number) => { await api.registerEvent(id, slot); invalidate(); };
+  const { t } = useI18n();
+  const { add } = Route.useSearch();
+  const { data: events = [], isPending, isError, refetch } = useEvents();
+  const actions = useEventActions();
+  const addSheet = useSearchModal("add");
+  const canManage = usePermission("event.manage");
+  // Events only render after the client-side query resolves, so this never runs on the server.
+  const today = isoDate();
+  const sections = groupEvents(events, today);
 
   return (
-    <AppShell>
+    <AppShell
+      fab={
+        canManage && (
+          <button
+            type="button"
+            onClick={() => addSheet.open()}
+            className="btn btn-primary shadow-fab fixed bottom-24 right-4 z-40 h-16 rounded-full px-6"
+          >
+            <Plus className="h-6 w-6" /> {t("addEvent")}
+          </button>
+        )
+      }
+    >
       <h1 className="text-2xl font-extrabold">{t("eventsTitle")}</h1>
-      <div className="mt-4 space-y-4">
-        {events.map((e) => {
-          const share = () => shareOrWhatsApp(`${s?.club.name ?? ""} — ${e.name_bn} (${e.date_bn})-এ নাম লেখান:`, `${window.location.origin}/events`);
-          return (
-            <article key={e.id} className="rounded-3xl border bg-card p-4 shadow-card">
-              <div className="flex items-start gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-soft text-3xl">{EMOJI[e.key]}</div>
-                <div className="flex-1">
-                  <h2 className="text-lg font-bold leading-snug">{pick(e.name_bn, e.name_en)}</h2>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground"><CalendarDays className="h-4 w-4" /> {pick(e.date_bn, e.date_en)}</div>
-                </div>
-              </div>
 
-              {e.slots.length === 0 ? (
-                <div className="mt-4">
-                  <div className="flex items-baseline justify-between">
-                    <span className="num text-3xl font-extrabold text-primary">{n(String(e.registrations))}<span className="text-base font-semibold text-muted-foreground"> / {n(String(e.capacity))}</span></span>
-                    <span className="text-sm text-muted-foreground">{t("registered")}</span>
-                  </div>
-                  <div className="mt-2 h-3 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-gold" style={{ width: `${(e.registrations / e.capacity) * 100}%` }} /></div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button className="btn btn-primary" disabled={e.registrations >= e.capacity} onClick={() => reg(e.id)}>{e.registrations >= e.capacity ? t("full") : t("register")}</button>
-                    <button className="btn btn-outline" onClick={share}><Share2 className="h-5 w-5" /> {t("shareLink")}</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-4 space-y-2">
-                  {e.slots.map((sl, i) => {
-                    const full = sl.filled >= sl.capacity;
-                    return (
-                      <div key={i} className="flex items-center gap-3 rounded-2xl bg-muted p-2 pl-3">
-                        <div className="flex-1">
-                          <div className="font-semibold">{pick(sl.label_bn, sl.label_en)}</div>
-                          <div className="mt-1 h-2 overflow-hidden rounded-full bg-card"><div className={`h-full rounded-full ${full ? "bg-primary" : "bg-success"}`} style={{ width: `${(sl.filled / sl.capacity) * 100}%` }} /></div>
-                        </div>
-                        <span className="num w-16 text-right text-sm font-bold">{n(String(sl.filled))}/{n(String(sl.capacity))}</span>
-                        <button className="btn btn-outline min-h-12 px-3 text-sm" disabled={full} onClick={() => reg(e.id, i)}>{full ? t("full") : "+১"}</button>
-                      </div>
-                    );
-                  })}
-                  <button className="btn btn-outline w-full" onClick={share}><Share2 className="h-5 w-5" /> {t("shareLink")}</button>
-                </div>
-              )}
-            </article>
-          );
-        })}
-      </div>
+      {isError && (
+        <div
+          role="alert"
+          className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-warning-soft p-3 text-sm font-semibold text-warning"
+        >
+          {t("loadFailedHint")}
+          <button className="btn btn-outline shrink-0 text-sm" onClick={() => refetch()}>
+            {t("tryAgain")}
+          </button>
+        </div>
+      )}
+
+      {isPending ? (
+        <div className="mt-4 space-y-4" aria-busy="true">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-52 animate-pulse rounded-3xl bg-muted" />
+          ))}
+        </div>
+      ) : sections.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-dashed bg-card p-6 text-center">
+          <p className="font-bold">{t("noEvents")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("noEventsHint")}</p>
+        </div>
+      ) : (
+        sections.map((s) => (
+          <section key={s.phase} className="mt-5" aria-labelledby={`events-${s.phase}`}>
+            <h2
+              id={`events-${s.phase}`}
+              className="mb-2 text-sm font-bold uppercase tracking-wide text-gold-ink"
+            >
+              {t(SECTION_TITLE[s.phase])}
+            </h2>
+            <div className="space-y-4">
+              {s.events.map((e) => (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  today={today}
+                  onRegister={() => actions.register(e)}
+                  onShare={() => actions.share(e)}
+                />
+              ))}
+            </div>
+          </section>
+        ))
+      )}
+      <div className="h-20" />
+
+      {add && canManage && (
+        <EventForm
+          onClose={addSheet.close}
+          onSaved={() => {
+            toast.success(t("eventAdded"));
+            void addSheet.close();
+          }}
+        />
+      )}
     </AppShell>
   );
 }

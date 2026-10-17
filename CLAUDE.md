@@ -10,6 +10,9 @@ npm run test       # vitest run
 npm run lint       # eslint .
 npm run format     # prettier --write .
 npm run build      # production build
+npm run typecheck  # tsc --noEmit
+npm run qa         # browser suites + a11y audit (needs `npm run dev -- --port 5199`)
+supabase/tests/run.sh  # SQL tests on local PostgreSQL (Postgres.app)
 ```
 
 ## Stack
@@ -22,20 +25,43 @@ defined in `src/styles.css`.
 ## Conventions (do not bypass)
 
 - All data access goes through `src/services/api.ts` — async, snake_case, UUIDs,
-  backed by localStorage today, a Laravel REST API later.
+  backed by the device (localStorage + IndexedDB). Optional cloud mode syncs it with
+  Supabase through `src/services/cloud/` (docs/BACKEND.md, ADR 0001); schema, RLS and
+  server functions live in `supabase/migrations/` and must stay in step with
+  `src/types/domain.ts`, `src/lib/validation.ts` and `src/lib/permissions.ts`.
 - Data reads happen in client-side react-query hooks in `src/hooks/use-data.ts`,
   not in route loaders.
-- Every user-visible string goes through `src/lib/i18n.tsx` (`t`, `n`, `money`, `pick`)
+- Every user-visible string goes through `src/lib/i18n.tsx` (`t` with `{name}` placeholders,
+  `n`, `money`, `words` for amounts in words, `date`, `pick`)
   so Bengali/English and Bengali numerals switch globally.
+- Module code lives in `src/features/<module>/`: a pure model (domain → view data,
+  unit-tested), hooks, and components, exposed only through its `index.ts`. Routes stay
+  thin and compose features; `src/components/pk` holds shared UI primitives and
+  `src/lib` shared pure helpers. Examples: `src/features/receipt`, `src/features/expenses`.
+- Permissions: check with `usePermission` / `useAccess` in the UI **and** `authorize()` in
+  `api.ts`; the table is `src/lib/permissions.ts`.
+- Sheets, filters and other view state that should survive refresh or close on the phone's
+  back button go in the route's search params (zod `validateSearch` with `.catch`), opened
+  and closed through `useSearchModal` in `src/hooks/use-search-modal.ts`.
 - Mobile-first at 360px, touch targets at least 48px.
 - Palette: vermilion `#B71C1C`/`#C8102E`, antique gold `#B8860B`, canvas `#FDFBF7`.
+  Chart series use `--chart-1…6` in fixed category order (validated for colour-blind
+  separation in both modes; keep visible labels).
   Fonts: Hind Siliguri for Bengali, Inter for English. The alpona motif belongs only
   on the top header — never behind numbers or inputs.
-- Bengali is the default language; the demo club is
-  বিবেকানন্দ পার্ক সার্বজনীন দুর্গোৎসব ২০২৬.
+- Bengali is the default language; the demo club is the generic
+  নমুনা পূজা কমিটি ২০২৬ / Sample Puja Committee 2026 (fixtures in `src/mocks/mockData.ts`,
+  SPEC.md Section 5). Domain types live in `src/types/domain.ts`.
 
-## Git
+## Git & releases
 
-This repository two-way syncs with Lovable on a single branch. Do not rewrite
-already-published history (no force push, rebase or amend of pushed commits).
-Pushing updates the Lovable editor but does not publish the live site.
+Full process in `CONTRIBUTING.md`; plan and status in `docs/ROADMAP.md`.
+
+- `main` two-way syncs with Lovable and must stay releasable. Work on
+  short-lived `feat/…`, `fix/…`, `chore/…` branches; merge into `main` with
+  `--no-ff` once CI is green.
+- Pick up Lovable edits by merging `main` into the branch. Never rewrite
+  already-published history (no force push, rebase or amend of pushed commits).
+- Conventional Commits; SemVer in `package.json` (0.x until the Supabase backend is live in production);
+  tag releases `vX.Y.Z` and keep `CHANGELOG.md` current.
+- Pushing `main` updates the Lovable editor but does not publish the live site.
