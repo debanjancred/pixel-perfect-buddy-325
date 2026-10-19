@@ -17,6 +17,7 @@ import {
 import { AlponaStrip, FieldError, Label, LangToggle, Spinner } from "@/components/pk/ui";
 import { ClubPicker } from "@/components/pk/ClubPicker";
 import { DeviceLimitStep } from "@/features/devices";
+import { InstallApp } from "@/features/install";
 
 // Why this device was signed out (cloud mode), shown until the next login.
 const searchSchema = z.object({
@@ -296,6 +297,7 @@ function Onboarding() {
             <p className="flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
               <ShieldCheck className="h-4 w-4" /> {n("2026")} · {t("offlineReady")}
             </p>
+            <InstallApp variant="inline" />
           </>
         )}
       </div>

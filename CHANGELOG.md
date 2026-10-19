@@ -7,6 +7,9 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- "Install app" (অ্যাপ ইনস্টল করুন) on the login screen and in Settings: on Android
+  Chrome/Edge it opens the browser's install dialog; on iPhone it explains Share → Add to
+  Home Screen; it disappears once the app is installed.
 - Error monitoring (ADR 0002): production builds with `VITE_SENTRY_DSN` report crashes and
   unhandled errors to Sentry, tagged with the release, club id, role and language. Phone
   numbers, amounts, Bengali text, query strings, console output and request data are

@@ -296,6 +296,17 @@ const dict = {
   tryAgain: ["আবার চেষ্টা করুন", "Try again"],
   close: ["বন্ধ করুন", "Close"],
   offlineReady: ["অফলাইনেও চলে", "Offline-ready"],
+  installTitle: ["অ্যাপ হিসেবে রাখুন", "Install the app"],
+  installHint: [
+    "হোম স্ক্রিন থেকে এক চাপে খুলবে, নেট ছাড়াও চলবে।",
+    "Opens from your home screen in one tap and works offline.",
+  ],
+  installApp: ["অ্যাপ ইনস্টল করুন", "Install app"],
+  installIos: [
+    "আইফোনে: শেয়ার বোতাম চাপুন, তারপর “Add to Home Screen”।",
+    "On iPhone: tap Share, then “Add to Home Screen”.",
+  ],
+  installDone: ["অ্যাপ ইনস্টল হয়েছে", "App installed"],
   demoClub: ["নমুনা পূজা কমিটি", "Sample Puja Committee"],
   paidTo: ["কাকে দেওয়া হয়েছে", "Paid to"],
   // Devices (cloud mode): up to 3 per person, chanda collected on one of them.

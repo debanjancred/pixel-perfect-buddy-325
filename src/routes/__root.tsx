@@ -14,11 +14,14 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider, themeBootScript, useI18n } from "../lib/i18n";
-import { registerServiceWorker } from "../lib/pwa";
+import { listenForInstallPrompt, registerServiceWorker } from "../lib/pwa";
 import { initCloud } from "../services/cloud";
 import { captureError, initMonitoring } from "../services/monitoring";
 import { LoadingBar } from "../components/pk/ui";
 import { SYNC_KEY } from "../hooks/use-data";
+
+// Before any route renders: the browser's install offer can arrive early (src/lib/pwa.ts).
+listenForInstallPrompt();
 
 function NotFoundComponent() {
   const { t } = useI18n();
