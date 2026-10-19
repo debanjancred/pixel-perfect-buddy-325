@@ -29,6 +29,7 @@ export type SyncRecord =
   | { kind: "member"; record: ClubMember }
   | { kind: "household"; record: Household }
   | { kind: "event"; record: ClubEvent }
+  | { kind: "event_update"; record: ClubEvent }
   | { kind: "chanda"; record: ChandaTransaction }
   | { kind: "expense"; record: ExpenseRecord }
   | { kind: "handover"; record: CashHandover }
@@ -39,6 +40,7 @@ export const SYNC_ORDER: SyncRecord["kind"][] = [
   "member",
   "household",
   "event",
+  "event_update",
   "chanda",
   "expense",
   "handover",

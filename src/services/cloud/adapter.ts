@@ -104,6 +104,17 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
       case "event":
         await insertOnce(TABLE[item.kind], item.record);
         return;
+      case "event_update": {
+        // An admin's edit or (soft) delete; the server refuses anyone else.
+        const e = item.record;
+        await updateOne(TABLE.event, e.id, {
+          title_bn: e.title_bn,
+          title_en: e.title_en,
+          date: e.date,
+          deleted_at: e.deleted_at ?? null,
+        });
+        return;
+      }
       case "chanda":
       case "handover":
         await insertOnce(TABLE[item.kind], row(item.record));

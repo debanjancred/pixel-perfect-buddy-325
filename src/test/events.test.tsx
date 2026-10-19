@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,7 @@ import {
   eventShareText,
   groupEvents,
 } from "@/features/events";
+import { EventCard } from "@/features/events";
 import { queryKeys, useRegisterEvent } from "@/hooks/use-data";
 import { isoDate } from "@/lib/format";
 import { I18nProvider, useI18n } from "@/lib/i18n";
@@ -116,6 +117,61 @@ describe("events api", () => {
     expect(await keyOf(api.createEvent({ title: "অ", date: isoDate() }))).toBe("err_nameShort");
   });
 
+  it("only an admin edits or deletes an event; other roles view and register", async () => {
+    await api.seedDemo(); // the demo acts as a collector (SPEC 2.1)
+    const [first] = await api.listEvents();
+    expect(await keyOf(api.updateEvent(first!.id, { title: "নতুন নাম", date: first!.date }))).toBe(
+      "err_forbidden",
+    );
+    expect(await keyOf(api.deleteEvent(first!.id))).toBe("err_forbidden");
+    expect((await api.registerEvent(first!.id)).registrations_count).toBe(
+      first!.registrations_count + 1,
+    );
+  });
+
+  it("an admin renames and re-dates an event; its registrations stay", async () => {
+    await seedAsAdmin();
+    const e = await api.createEvent({ title: "শঙ্খ", date: isoDate() });
+    await api.registerEvent(e.id);
+    const later = isoDate(new Date(Date.now() + 3 * 86_400_000));
+    const updated = await api.updateEvent(e.id, { title: " শঙ্খধ্বনি ", date: later });
+    expect(updated).toMatchObject({
+      title_bn: "শঙ্খধ্বনি",
+      title_en: "শঙ্খধ্বনি",
+      date: later,
+      registrations_count: 1,
+    });
+    const yesterday = isoDate(new Date(Date.now() - 86_400_000));
+    expect(await keyOf(api.updateEvent(e.id, { title: "শঙ্খ", date: yesterday }))).toBe(
+      "err_eventPast",
+    );
+  });
+
+  it("a finished event can still be renamed without moving its date", async () => {
+    await seedAsAdmin();
+    const e = await api.createEvent({ title: "আঁকা", date: isoDate() });
+    const past = isoDate(new Date(Date.now() - 2 * 86_400_000));
+    // Simulate an event that has already happened.
+    const db = JSON.parse(localStorage.getItem("pk_db_v2")!);
+    db.events.find((x: ClubEvent) => x.id === e.id).date = past;
+    localStorage.setItem("pk_db_v2", JSON.stringify(db));
+    expect((await api.updateEvent(e.id, { title: "বসে আঁকো", date: past })).title_bn).toBe(
+      "বসে আঁকো",
+    );
+  });
+
+  it("a deleted event disappears and takes no more registrations", async () => {
+    await seedAsAdmin();
+    const e = await api.createEvent({ title: "ধুনুচি", date: isoDate() });
+    await api.deleteEvent(e.id);
+    expect((await api.listEvents()).some((x) => x.id === e.id)).toBe(false);
+    expect(await keyOf(api.registerEvent(e.id))).toBe("err_notFound");
+    expect(await keyOf(api.updateEvent(e.id, { title: "ধুনুচি", date: isoDate() }))).toBe(
+      "err_notFound",
+    );
+    expect(await keyOf(api.deleteEvent(e.id))).toBe("err_notFound");
+  });
+
   it("undo never takes the tally below zero", async () => {
     await seedAsAdmin();
     const e = await api.createEvent({ title: "নতুন", date: isoDate() });
@@ -151,5 +207,28 @@ describe("useRegisterEvent", () => {
     vi.spyOn(api, "registerEvent").mockRejectedValue(new Error("disk full"));
     await act(() => result.current.mutateAsync(e.id).catch(() => {}));
     expect(count()).toBe(5);
+  });
+});
+
+describe("EventCard", () => {
+  const props = { event: ev("2026-10-25"), today: TODAY, onRegister: () => {}, onShare: () => {} };
+
+  it("shows only register and share to members who can't manage events", () => {
+    render(<EventCard {...props} />, { wrapper: I18nProvider });
+    expect(screen.getByRole("button", { name: "নাম লেখান" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /সম্পাদনা/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /মুছে দিন/ })).toBeNull();
+  });
+
+  it("gives admins labelled edit and delete buttons", () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    render(<EventCard {...props} onEdit={onEdit} onDelete={onDelete} />, {
+      wrapper: I18nProvider,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "বসে আঁকো সম্পাদনা" }));
+    fireEvent.click(screen.getByRole("button", { name: "বসে আঁকো মুছে দিন" }));
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(onDelete).toHaveBeenCalledOnce();
   });
 });

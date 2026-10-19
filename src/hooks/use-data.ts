@@ -241,6 +241,23 @@ export function useCreateEvent() {
   });
 }
 
+export function useUpdateEvent() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, ...input }: { id: string; title: string; date: string }) =>
+      api.updateEvent(id, input),
+    onSuccess: () => invalidate(queryKeys.events),
+  });
+}
+
+export function useDeleteEvent() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: api.deleteEvent,
+    onSuccess: () => invalidate(queryKeys.events),
+  });
+}
+
 export function useCreateMember() {
   const invalidate = useInvalidate();
   return useMutation({

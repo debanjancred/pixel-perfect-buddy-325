@@ -187,6 +187,42 @@ select test.act_as('9000000555');
 select test.expect_error($$select public.register_event('eeeeeeee-0000-4000-8000-000000000001', 1)$$,
   'err_notFound');
 
+-- Only an admin edits or deletes an event; deleting is soft and final (…_event_edit_delete.sql).
+\set ev2 '''eeeeeeee-0000-4000-8000-000000000002'''
+select test.act_as('9000000001');
+insert into public.club_events (id, club_id, title_bn, title_en, date)
+  values (:ev2, :club, 'শঙ্খ বাজানো', 'Conch', current_date + 2);
+select test.act_as('9000000003');
+select public.register_event(:ev2, 1);
+update public.club_events set title_bn = 'হ্যাক', title_en = 'hack' where id = :ev2;
+update public.club_events set deleted_at = now() where id = :ev2;
+select test.act_as('9000000002');
+update public.club_events set deleted_at = now() where id = :ev2;
+select test.ok((select title_bn = 'শঙ্খ বাজানো' and deleted_at is null from public.club_events
+  where id = :ev2), 'a collector or treasurer cannot edit or delete an event');
+select test.expect_error($$update public.club_events set registrations_count = 99
+  where id = 'eeeeeeee-0000-4000-8000-000000000002'$$, 'permission denied');
+select test.act_as('9000000001');
+update public.club_events set title_bn = 'শঙ্খধ্বনি', title_en = 'শঙ্খধ্বনি', date = current_date + 3
+  where id = :ev2;
+select test.ok((select title_bn = 'শঙ্খধ্বনি' and date = current_date + 3 and registrations_count = 1
+  from public.club_events where id = :ev2), 'an admin edits the name and date; the tally stays');
+select test.expect_error($$update public.club_events set registrations_count = 99
+  where id = 'eeeeeeee-0000-4000-8000-000000000002'$$, 'permission denied');
+update public.club_events set deleted_at = '2026-10-19 10:00+05:30' where id = :ev2;
+update public.club_events set deleted_at = now() where id = :ev2;
+select test.ok((select deleted_at = '2026-10-19 10:00+05:30' from public.club_events where id = :ev2),
+  'deleting again is harmless and keeps the first deletion time');
+select test.expect_error($$update public.club_events set title_bn = 'আবার', title_en = 'again'
+  where id = 'eeeeeeee-0000-4000-8000-000000000002'$$, 'err_notFound');
+select test.expect_error($$update public.club_events set deleted_at = null
+  where id = 'eeeeeeee-0000-4000-8000-000000000002'$$, 'err_notFound');
+select test.act_as('9000000003');
+select test.ok(public.register_event(:ev2, 1) = 0,
+  'a registration queued offline for a deleted event counts nothing and is not an error');
+select test.ok((select registrations_count = 1 from public.club_events where id = :ev2),
+  'a deleted event takes no registrations');
+
 -- 10. Public accounts: anyone may read totals by slug; no personal data.
 select test.act_as(null);
 select test.ok((public.public_accounts('test-club-2026') -> 'summary' ->> 'total_collected')::int = 1001,

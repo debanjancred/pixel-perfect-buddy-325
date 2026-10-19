@@ -106,21 +106,29 @@ export const expenseSchema = z.object({
 export type ExpenseInput = z.infer<typeof expenseSchema>;
 
 /** User-entered event: one title as typed (stored in both language slots, like club names). */
+const eventTitle = z
+  .string()
+  .trim()
+  .min(1, m("err_required"))
+  .min(2, m("err_nameShort"))
+  .max(80, m("err_tooLong"));
+const eventDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, m("err_date"))
+  .refine((v) => !Number.isNaN(Date.parse(v)), m("err_date"));
 export const eventSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, m("err_required"))
-    .min(2, m("err_nameShort"))
-    .max(80, m("err_tooLong")),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, m("err_date"))
-    .refine((v) => !Number.isNaN(Date.parse(v)), m("err_date"))
-    // New events are planned ahead; a past date is almost always a typo.
-    .refine((v) => v >= isoDate(), m("err_eventPast")),
+  title: eventTitle,
+  // New events are planned ahead; a past date is almost always a typo.
+  date: eventDate.refine((v) => v >= isoDate(), m("err_eventPast")),
 });
 export type EventInput = z.infer<typeof eventSchema>;
+
+/** Editing an event: a new date must be today or later; its current date may stay. */
+export const eventEditSchema = (currentDate: string) =>
+  z.object({
+    title: eventTitle,
+    date: eventDate.refine((v) => v === currentDate || v >= isoDate(), m("err_eventPast")),
+  });
 
 /** A collector hands cash to the treasurer/admin recording it (SPEC 6.3). */
 export const handoverSchema = z.object({

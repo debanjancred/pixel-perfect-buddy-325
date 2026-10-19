@@ -1,19 +1,26 @@
-import { CalendarDays, Share2, UserPlus } from "lucide-react";
+import { CalendarDays, Pencil, Share2, Trash2, UserPlus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { ClubEvent, IsoDate } from "@/types/domain";
 import { canRegister, countdownLabel, eventDate } from "./model";
 
-/** One event (Story 6.1): title, date, countdown, tally, register and share. */
+/**
+ * One event (Story 6.1): title, date, countdown, tally, register and share. Admins also get
+ * edit and delete (pass onEdit/onDelete only when the person may manage events).
+ */
 export function EventCard({
   event: e,
   today,
   onRegister,
   onShare,
+  onEdit,
+  onDelete,
 }: {
   event: ClubEvent;
   today: IsoDate;
   onRegister: () => void;
   onShare: () => void;
+  onEdit?: (() => void) | undefined;
+  onDelete?: (() => void) | undefined;
 }) {
   const i18n = useI18n();
   const { t, n, pick } = i18n;
@@ -45,6 +52,30 @@ export function EventCard({
             )}
           </div>
         </div>
+        {(onEdit || onDelete) && (
+          <div className="-mr-2 -mt-2 flex shrink-0">
+            {onEdit && (
+              <button
+                type="button"
+                className="tap flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                aria-label={t("editEventLabel", { title: pick(e.title_bn, e.title_en) })}
+                onClick={onEdit}
+              >
+                <Pencil className="h-5 w-5" aria-hidden />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                className="tap flex h-12 w-12 items-center justify-center rounded-full text-primary-ink hover:bg-primary-soft"
+                aria-label={t("deleteEventLabel", { title: pick(e.title_bn, e.title_en) })}
+                onClick={onDelete}
+              >
+                <Trash2 className="h-5 w-5" aria-hidden />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex items-baseline justify-between">

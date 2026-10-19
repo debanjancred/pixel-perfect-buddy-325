@@ -1,12 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { isoDate } from "@/lib/format";
-import { useEvents, usePermission } from "@/hooks/use-data";
+import { useDeleteEvent, useEvents, usePermission } from "@/hooks/use-data";
 import { useSearchModal } from "@/hooks/use-search-modal";
 import { AppShell } from "@/components/pk/AppShell";
+import { ConfirmDialog } from "@/components/pk/ConfirmDialog";
+import { ValidationError } from "@/lib/validation";
+import type { ClubEvent } from "@/types/domain";
 import {
   EventCard,
   EventForm,
@@ -16,7 +20,11 @@ import {
 } from "@/features/events";
 
 export const Route = createFileRoute("/events")({
-  validateSearch: z.object({ add: z.boolean().optional().catch(undefined) }),
+  // Sheets open from the URL so the phone's back button closes them (useSearchModal).
+  validateSearch: z.object({
+    add: z.boolean().optional().catch(undefined),
+    edit: z.string().uuid().optional().catch(undefined),
+  }),
   head: () => ({
     meta: [
       { title: "Pujo Competitions — Pujo Khata" },
@@ -40,12 +48,17 @@ const SECTION_TITLE: Record<EventPhase, TKey> = {
 };
 
 function EventsPage() {
-  const { t } = useI18n();
-  const { add } = Route.useSearch();
+  const { t, n, pick } = useI18n();
+  const { add, edit } = Route.useSearch();
   const { data: events = [], isPending, isError, refetch } = useEvents();
   const actions = useEventActions();
   const addSheet = useSearchModal("add");
+  const editSheet = useSearchModal("edit");
+  // Admins only (event.manage); everyone else views and registers. The server agrees.
   const canManage = usePermission("event.manage");
+  const editing = canManage ? events.find((e) => e.id === edit) : undefined;
+  const [deleting, setDeleting] = useState<ClubEvent | null>(null);
+  const remove = useDeleteEvent();
   // Events only render after the client-side query resolves, so this never runs on the server.
   const today = isoDate();
   const sections = groupEvents(events, today);
@@ -106,6 +119,8 @@ function EventsPage() {
                   today={today}
                   onRegister={() => actions.register(e)}
                   onShare={() => actions.share(e)}
+                  onEdit={canManage ? () => editSheet.open(e.id) : undefined}
+                  onDelete={canManage ? () => setDeleting(e) : undefined}
                 />
               ))}
             </div>
@@ -122,6 +137,39 @@ function EventsPage() {
             void addSheet.close();
           }}
         />
+      )}
+
+      {editing && (
+        <EventForm
+          key={editing.id}
+          event={editing}
+          onClose={editSheet.close}
+          onSaved={() => {
+            toast.success(t("eventUpdated"));
+            void editSheet.close();
+          }}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title={t("deleteEventConfirm", { title: pick(deleting.title_bn, deleting.title_en) })}
+          confirmLabel={t("deleteEvent")}
+          busy={remove.isPending}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() =>
+            remove.mutate(deleting.id, {
+              onSuccess: () => {
+                setDeleting(null);
+                toast.success(t("eventDeleted"));
+              },
+              onError: (ex) =>
+                toast.error(t(ex instanceof ValidationError ? ex.key : "loadFailedHint")),
+            })
+          }
+        >
+          <p>{t("deleteEventHint", { count: n(String(deleting.registrations_count)) })}</p>
+        </ConfirmDialog>
       )}
     </AppShell>
   );

@@ -130,6 +130,17 @@ const dict = {
   registeredOne: ["{title}: একজনের নাম লেখা হয়েছে", "{title}: one registration added"],
   undo: ["ফিরিয়ে নিন", "Undo"],
   eventAdded: ["প্রতিযোগিতা যোগ হয়েছে", "Event added"],
+  editEvent: ["প্রতিযোগিতা সম্পাদনা", "Edit event"],
+  editEventLabel: ["{title} সম্পাদনা", "Edit {title}"],
+  eventUpdated: ["প্রতিযোগিতা আপডেট হয়েছে", "Event updated"],
+  deleteEvent: ["মুছে দিন", "Delete"],
+  deleteEventLabel: ["{title} মুছে দিন", "Delete {title}"],
+  deleteEventConfirm: ["“{title}” মুছে দেবেন?", "Delete “{title}”?"],
+  deleteEventHint: [
+    "প্রতিযোগিতাটি সবার তালিকা থেকে সরে যাবে, আর নাম নথিভুক্ত করা যাবে না। এখন পর্যন্ত {count} জনের নাম নথিভুক্ত।",
+    "It disappears from everyone's list and takes no more registrations. {count} registered so far.",
+  ],
+  eventDeleted: ["প্রতিযোগিতা মুছে দেওয়া হয়েছে", "Event deleted"],
   noEvents: ["এখনো কোনো প্রতিযোগিতা নেই", "No events yet"],
   noEventsHint: [
     "বসে আঁকো, ধুনুচি নাচের মতো প্রতিযোগিতা যোগ করুন",
@@ -444,6 +455,7 @@ const dict = {
   sync_kind_household: ["বাড়ি", "Household"],
   sync_kind_club: ["ক্লাব", "Club"],
   sync_kind_event: ["প্রতিযোগিতা", "Event"],
+  sync_kind_event_update: ["প্রতিযোগিতা বদল", "Event change"],
   sync_kind_event_delta: ["নাম নথিভুক্তি", "Registration"],
   err_immutable: [
     "এই এন্ট্রি বদলানো যায় না, শুধু বাতিল করা যায়",
