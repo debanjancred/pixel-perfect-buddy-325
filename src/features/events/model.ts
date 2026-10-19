@@ -52,6 +52,28 @@ export function countdownLabel(e: ClubEvent, today: IsoDate, f: Format): string 
   return f.t("inDays", { days: f.n(String(d)) });
 }
 
+export interface DateParts {
+  /** Day of the month, 1–31. */
+  day: number;
+  /** Short month, e.g. "অক্টো" / "Oct". */
+  month: string;
+  /** e.g. "মঙ্গলবার" / "Tuesday". */
+  weekday: string;
+}
+
+/** The pieces of the calendar tile, in the app's language ("bn" or "en"). */
+export function eventDateParts(e: Pick<ClubEvent, "date">, lang: "bn" | "en"): DateParts {
+  const [y, m, d] = e.date.split("-").map(Number);
+  const local = new Date(y!, m! - 1, d!);
+  const locale = lang === "bn" ? "bn-IN" : "en-IN";
+  return {
+    day: d!,
+    // Drop a trailing "." or the Bengali abbreviation mark (ঃ, U+0983): "অক্টোঃ" → "অক্টো".
+    month: local.toLocaleDateString(locale, { month: "short" }).replace(/(?:\.|\u0983)$/, ""),
+    weekday: local.toLocaleDateString(locale, { weekday: "long" }),
+  };
+}
+
 /** A bare "YYYY-MM-DD" parses as UTC midnight; pin it to local midnight for display. */
 export const eventDate = (e: ClubEvent, f: Format) => f.date(`${e.date}T00:00:00`);
 
@@ -61,5 +83,4 @@ export const eventShareText = (e: ClubEvent, club: Club | null | undefined, f: F
     club: club ? f.pick(club.name_bn, club.name_en) : f.t("app"),
     title: f.pick(e.title_bn, e.title_en),
     date: eventDate(e, f),
-    count: f.n(String(e.registrations_count)),
   });

@@ -7,6 +7,7 @@ export {
   canRegister,
   countdownLabel,
   daysUntil,
+  eventDateParts,
   eventPhase,
   eventShareText,
   groupEvents,
