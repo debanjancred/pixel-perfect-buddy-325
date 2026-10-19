@@ -40,3 +40,6 @@ package-lock.json
 # Local environment
 .env
 .env.local
+
+# Supabase CLI link state (project ref, pooler URL)
+supabase/.temp/

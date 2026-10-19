@@ -10,10 +10,23 @@ stays on the device. Why Supabase: [ADR 0001](adr/0001-backend-supabase.md).
 2. Note **Project URL** and the **anon public** key (Settings → API).
 
 ## 2. Apply the database
-Either paste each file of `supabase/migrations/` (in name order) into the SQL editor, or with
-the Supabase CLI: `supabase link --project-ref <ref>` then `supabase db push`.
+Use the Supabase CLI (no Docker needed for these commands). Put `SUPABASE_ACCESS_TOKEN`
+(Account → Access Tokens) and `SUPABASE_DB_PASSWORD` in `.env`, then:
+```bash
+set -a; . ./.env; set +a
+npx supabase@2.119.0 link --project-ref <ref> -p "$SUPABASE_DB_PASSWORD"
+npx supabase@2.119.0 db push --dry-run -p "$SUPABASE_DB_PASSWORD"   # shows what would run
+npx supabase@2.119.0 db push -p "$SUPABASE_DB_PASSWORD"
+npx supabase@2.119.0 migration list -p "$SUPABASE_DB_PASSWORD"      # local = remote
+```
 This creates the tables, row-level security, guard triggers, server functions and the
-private `vouchers` storage bucket.
+private `vouchers` storage bucket. The link state lives in `supabase/.temp/` (not committed).
+
+Every schema change is a new file in `supabase/migrations/` (`YYYYMMDDHHMMSS_name.sql`), tested
+with `supabase/tests/run.sh`, then applied with `db push`. Don't paste SQL into the editor: the
+CLI records each applied migration, and a pasted one is invisible to it. If that happens,
+`migration repair --status applied <version>` records it (done once on 2026-10-19 for the
+first six migrations).
 
 ## 3. Turn on phone login
 Authentication → Providers → **Phone**: enable it and connect an SMS provider.
