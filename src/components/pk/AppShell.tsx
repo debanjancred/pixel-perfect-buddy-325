@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n, type TKey } from "@/lib/i18n";
+import { setMonitoringContext } from "@/services/monitoring";
 import {
   session,
   useAccess,
@@ -41,7 +42,7 @@ const NAV: {
 ];
 
 export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNode }) {
-  const { t, pick, n } = useI18n();
+  const { t, pick, n, lang } = useI18n();
   const navigate = useNavigate();
   const online = useOnline();
   const invalidate = useInvalidateAll();
@@ -71,6 +72,11 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
       navigate({ to: "/", replace: true });
     }
   }, [authed, clubLoaded, club, navigate]);
+
+  // Error reports carry ids only (ADR 0002): which club, role and language it happened in.
+  useEffect(() => {
+    setMonitoringContext({ club_id: club?.id, role: me?.role, mode: current?.mode, locale: lang });
+  }, [club?.id, me?.role, current?.mode, lang]);
 
   useEffect(() => {
     if (!online) return;

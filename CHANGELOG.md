@@ -6,6 +6,15 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Added
+- Error monitoring (ADR 0002): production builds with `VITE_SENTRY_DSN` report crashes and
+  unhandled errors to Sentry, tagged with the release, club id, role and language. Phone
+  numbers, amounts, Bengali text, query strings, console output and request data are
+  scrubbed on the phone first; errors recorded offline are sent on reconnect, and each page
+  load sends at most 25. The SDK loads only when monitoring is on.
+- Builds with a Sentry organization token (`SENTRY_AUTH_TOKEN`) upload source maps for
+  readable stack traces and delete them before publishing; the build fails if one is left.
+
 ## [0.10.0] - 2026-10-19
 
 Cloud-mode hardening after the first real use on Supabase: entries no longer fail to sync
