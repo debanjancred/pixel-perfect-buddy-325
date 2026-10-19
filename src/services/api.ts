@@ -189,7 +189,9 @@ async function voucherTx<T>(
   });
 }
 
-// --- Receipt numbers: "PK-{puja_year}-{collector_code}-{seq:4}", per collector and year ---
+// --- Receipt numbers: "PK-{puja_year}-{code}-{seq:4}", where code is the collector_code of
+// whoever *writes* the receipt (not the collector the cash is for), so two people never share
+// a sequence. The server still renumbers a clash (supabase/migrations/…_receipt_renumber.sql). ---
 function nextReceiptNo(db: Store, club: Club, code: string) {
   const prefix = `PK-${club.puja_year}-${code}-`;
   const used = mine(db, db.chanda)
@@ -242,7 +244,7 @@ async function createChanda(raw: ChandaInput): Promise<ChandaTransaction> {
   const existing = db.chanda.find((c) => c.id === input.id);
   if (existing) return existing;
   const club = requireClub(db);
-  authorize(db, "chanda.add");
+  const writer = authorize(db, "chanda.add");
   if (!mine(db, db.households).some((h) => h.id === input.household_id))
     throw new ValidationError("household_id", "err_household");
   const collector = mine(db, db.members).find((m) => m.id === input.collector_id);
@@ -250,7 +252,7 @@ async function createChanda(raw: ChandaInput): Promise<ChandaTransaction> {
   const at = now();
   const tx: ChandaTransaction = {
     ...input,
-    receipt_no: nextReceiptNo(db, club, collector.collector_code),
+    receipt_no: nextReceiptNo(db, club, writer.collector_code),
     club_id: club.id,
     created_at: at,
     updated_at: at,

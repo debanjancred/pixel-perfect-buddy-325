@@ -11,6 +11,11 @@ All notable changes to Pujo Khata. Format follows
   saving, uploading or sharing (`aria-busy`, stays full strength), and a gold strip along
   the top while any save runs (background sync excluded; slower with reduced motion).
 
+### Changed
+- Receipt numbers use the code of whoever writes the receipt, not the collector the cash is
+  for (`PK-2026-A01-0007` when the admin records a collector's cash), so two people never
+  share a sequence.
+
 ### Fixed
 - Cash handovers (and the chanda behind them) never synced when two phones issued the same
   receipt number for a collector, e.g. an admin recording cash for a collector who was also

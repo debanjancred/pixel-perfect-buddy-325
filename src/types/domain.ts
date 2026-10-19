@@ -51,7 +51,7 @@ export interface Household {
 
 export interface ChandaTransaction {
   id: string; // doubles as idempotency key
-  receipt_no: string; // "PK-{puja_year}-{collector_code}-{seq:4}", e.g. "PK-2026-C01-0001"
+  receipt_no: string; // "PK-{puja_year}-{writer's collector_code}-{seq:4}", e.g. "PK-2026-C01-0001"
   club_id: string;
   household_id: string;
   amount: number; // integer rupees, >= 1
