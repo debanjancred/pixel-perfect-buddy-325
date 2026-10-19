@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Search, UserPlus, Banknote, QrCode, Check } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { newId } from "@/lib/id";
 import { useI18n } from "@/lib/i18n";
 import {
   useAddHousehold,
@@ -187,7 +188,7 @@ function CollectPage() {
         setHh(target);
         setAdding(false);
       }
-      txId.current ??= crypto.randomUUID();
+      txId.current ??= newId();
       const c = await addTransaction.mutateAsync({
         id: txId.current,
         household_id: target.id,

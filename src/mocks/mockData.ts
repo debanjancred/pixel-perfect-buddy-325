@@ -1,6 +1,7 @@
 // Demo fixtures (SPEC.md Section 5). Generic only: no real clubs, places, people, vendors,
 // phone numbers or domains. Stored values use ASCII digits; Bengali numerals are applied at
 // render time. Built lazily (never at module scope) so Worker SSR never runs random/time code.
+import { newId } from "@/lib/id";
 import type {
   ChandaTransaction,
   Club,
@@ -31,7 +32,7 @@ const bn2 = (i: number) =>
     .replace(/\d/g, (d) => BN[Number(d)]!);
 
 export function buildDemoData(): DemoData {
-  const uuid = () => crypto.randomUUID();
+  const uuid = newId;
   const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
   const created = ago(60 * 24 * 60);
 

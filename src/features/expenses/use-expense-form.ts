@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useAddExpense, useCurrentMember, useMembers } from "@/hooks/use-data";
 import { isoDate } from "@/lib/format";
+import { newId } from "@/lib/id";
 import { ValidationError, expenseSchema, fieldErrors, type ErrKey } from "@/lib/validation";
 import type { ExpenseCategory, ExpenseRecord } from "@/types/domain";
 import { approversOf, defaultApprover } from "./model";
@@ -78,7 +79,7 @@ export function useExpenseForm({
     const first = EXPENSE_FIELDS.find((f) => errors[f]);
     if (first) return document.getElementById(`expense-${first}`)?.focus();
     setServerErr(null);
-    idRef.current ??= crypto.randomUUID();
+    idRef.current ??= newId();
     try {
       const saved = await addExpense.mutateAsync({ ...input, id: idRef.current, voucher });
       idRef.current = null;

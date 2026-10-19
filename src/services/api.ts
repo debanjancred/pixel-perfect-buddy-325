@@ -2,6 +2,7 @@
 // Every method is async with a short delay so it can be swapped for the Laravel REST
 // client later without touching UI code. Inputs are validated here as well as in forms.
 import { cashByCollector, computeSummary } from "@/lib/accounts";
+import { newId } from "@/lib/id";
 import { can, type Permission } from "@/lib/permissions";
 import { session } from "./session";
 import { getSyncAdapter, SYNC_ORDER, type SyncRecord, type SyncResult } from "./sync";
@@ -72,7 +73,7 @@ export interface Store {
 
 const KEY = "pk_db_v2";
 const delay = (ms = 150) => new Promise<void>((r) => setTimeout(r, ms));
-const uuid = () => crypto.randomUUID();
+const uuid = newId;
 const now = () => new Date().toISOString();
 const isOnline = () => typeof navigator === "undefined" || navigator.onLine;
 

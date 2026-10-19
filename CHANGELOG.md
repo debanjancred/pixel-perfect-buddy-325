@@ -10,6 +10,10 @@ All notable changes to Pujo Khata. Format follows
 - A new club showed "1 entry not synced" in cloud mode: two overlapping syncs sent it twice
   and the second copy failed as a duplicate. Syncs now run one at a time, and results are
   recorded on a fresh read of the store, so entries saved during a push are no longer lost.
+- Nothing could be saved (e.g. creating a club did nothing) when the app was opened over
+  plain http on a LAN address such as `http://192.168.x.x`: `crypto.randomUUID` only exists
+  in secure contexts. IDs now come from `newId()` (`src/lib/id.ts`), which falls back to
+  `crypto.getRandomValues`.
 
 ## [0.9.0] - 2026-10-17
 
