@@ -1,7 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { chandaCsv, expensesCsv, exportFileName, membersByRole } from "@/features/settings";
+import {
+  chandaCsv,
+  expensesCsv,
+  exportFileName,
+  initialOf,
+  membersByRole,
+  phoneDisplay,
+} from "@/features/settings";
 import { csvCell, toCsv } from "@/lib/csv";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { ValidationError } from "@/lib/validation";
@@ -16,6 +23,20 @@ const keyOf = (p: Promise<unknown>) =>
     () => null,
     (e: ValidationError) => e.key,
   );
+
+describe("member rows", () => {
+  it("shows the first letter whole, without a dangling hasanta", () => {
+    expect(initialOf("অ্যাডমিন ০১")).toBe("অ");
+    expect(initialOf("কোষাধ্যক্ষ")).toBe("কো");
+    expect(initialOf("  শ্রীমতী অনুরাধা")).toBe("শ্রী");
+    expect(initialOf("Acme smith")).toBe("A");
+    expect(initialOf("")).toBe("?");
+  });
+  it("groups a mobile number 5 + 5", () => {
+    expect(phoneDisplay("9830012345")).toBe("98300 12345");
+    expect(phoneDisplay("12345")).toBe("12345");
+  });
+});
 
 describe("csv", () => {
   it("quotes text, writes numbers bare and neutralises formulas", () => {

@@ -2,14 +2,25 @@
 // Every method is async with a short delay so it can be swapped for the Laravel REST
 // client later without touching UI code. Inputs are validated here as well as in forms.
 import { cashByCollector, computeSummary } from "@/lib/accounts";
+import { newId } from "@/lib/id";
 import { can, type Permission } from "@/lib/permissions";
 import { session } from "./session";
+import { device } from "./device";
 import { getSyncAdapter, SYNC_ORDER, type SyncRecord, type SyncResult } from "./sync";
 import { isCloud } from "./cloud/config";
 import { getCloudClient } from "./cloud/client";
 import { cloudRequestOtp, cloudSignOut, cloudVerifyOtp } from "./cloud/auth";
 import { mergeSnapshot, snapshotCursor, type OutboxOp, type Snapshot } from "./cloud/merge";
 import { isVoucherPath } from "./cloud/adapter";
+import {
+  listDevices,
+  removeDevice,
+  resetCollectDevice,
+  setCollectDevice,
+  touchDevice,
+  type DeviceCheck,
+} from "./cloud/devices";
+import { deviceLabel } from "@/lib/device";
 import {
   downloadVoucher,
   fetchClubSnapshot,
@@ -35,6 +46,7 @@ import {
   sameName,
   voidReasonSchema,
   type ChandaInput,
+  type ErrKey,
   type ClubInput,
   type EventInput,
   type ExpenseInput,
@@ -51,8 +63,18 @@ import type {
   ClubMember,
   ExpenseRecord,
   Household,
+  UserDevice,
   UserRole,
 } from "@/types/domain";
+
+/** A record that didn't sync, for the "why" list under the sync banner. */
+export interface SyncFailure {
+  id: string;
+  kind: SyncRecord["kind"];
+  title: string;
+  amount?: number;
+  error: ErrKey;
+}
 
 export interface Store {
   version: 2;
@@ -68,11 +90,13 @@ export interface Store {
   outbox?: OutboxOp[];
   /** Per club: latest server updated_at already merged (cloud mode). */
   pull_cursors?: Record<string, string>;
+  /** Why each failed record was refused, by record id (shown from the sync banner). */
+  sync_errors?: Record<string, ErrKey>;
 }
 
 const KEY = "pk_db_v2";
 const delay = (ms = 150) => new Promise<void>((r) => setTimeout(r, ms));
-const uuid = () => crypto.randomUUID();
+const uuid = newId;
 const now = () => new Date().toISOString();
 const isOnline = () => typeof navigator === "undefined" || navigator.onLine;
 
@@ -125,6 +149,16 @@ function currentMember(db: Store): ClubMember | null {
     null
   );
 }
+
+/**
+ * Cloud mode, signed in, in a real club: a person collects chanda on their one collect device
+ * (supabase/migrations/…_devices.sql). The sample club and device-only mode have no devices.
+ */
+function deviceRuleApplies(db: Store) {
+  return isCloud() && session.get()?.mode === "user" && activeClub(db)?.slug !== DEMO_SLUG;
+}
+const thisDeviceLabel = () =>
+  deviceLabel(typeof navigator === "undefined" ? "" : navigator.userAgent);
 
 /** Refuses the call unless the acting member has `p` (SPEC 6.2: enforced in api.ts too). */
 function authorize(db: Store, p: Permission): ClubMember {
@@ -188,7 +222,10 @@ async function voucherTx<T>(
   });
 }
 
-// --- Receipt numbers: "PK-{puja_year}-{collector_code}-{seq:4}", per collector and year ---
+// --- Receipt numbers: "PK-{puja_year}-{code}-{seq:4}", where code is the collector_code of
+// whoever *writes* the receipt (not the collector the cash is for). Each person writes on one
+// collect device, so their sequence lives on one phone and two phones can't issue the same
+// number. The server still renumbers a clash (supabase/migrations/…_receipt_renumber.sql). ---
 function nextReceiptNo(db: Store, club: Club, code: string) {
   const prefix = `PK-${club.puja_year}-${code}-`;
   const used = mine(db, db.chanda)
@@ -241,7 +278,12 @@ async function createChanda(raw: ChandaInput): Promise<ChandaTransaction> {
   const existing = db.chanda.find((c) => c.id === input.id);
   if (existing) return existing;
   const club = requireClub(db);
-  authorize(db, "chanda.add");
+  const writer = authorize(db, "chanda.add");
+  // Offline too, from what the server last said; before the first check-in the server decides
+  // (it flags chanda from a device that doesn't collect).
+  const devices = deviceRuleApplies(db);
+  if (devices && device.state()?.is_collect === false)
+    throw new ValidationError("device", "err_notCollectDevice");
   if (!mine(db, db.households).some((h) => h.id === input.household_id))
     throw new ValidationError("household_id", "err_household");
   const collector = mine(db, db.members).find((m) => m.id === input.collector_id);
@@ -249,7 +291,8 @@ async function createChanda(raw: ChandaInput): Promise<ChandaTransaction> {
   const at = now();
   const tx: ChandaTransaction = {
     ...input,
-    receipt_no: nextReceiptNo(db, club, collector.collector_code),
+    receipt_no: nextReceiptNo(db, club, writer.collector_code),
+    ...(devices && { device_id: device.id() }),
     club_id: club.id,
     created_at: at,
     updated_at: at,
@@ -380,6 +423,57 @@ export interface ClubAccounts {
   category_totals?: { category: ExpenseRecord["category"]; total: number }[];
 }
 
+/** The sync run in progress (or the last one), so api.sync() calls queue behind it. */
+let syncRun: Promise<unknown> = Promise.resolve();
+
+async function pushQueue(): Promise<{ synced: number; failed: number }> {
+  await delay();
+  if (!isOnline()) return { synced: 0, failed: 0 };
+  const db = read();
+  const queue = syncQueue(db);
+  if (!queue.length) return { synced: 0, failed: 0 };
+  const demo = db.clubs.find((c) => c.slug === DEMO_SLUG)?.id;
+  const isLocal = (item: SyncRecord) => clubOf(db, item) === demo;
+  const local = queue.filter(isLocal);
+  const remote = queue.filter((i) => !isLocal(i));
+  let results: SyncResult[] = local.map((i) => ({ id: i.record.id, ok: true }));
+  if (remote.length) {
+    try {
+      results = results.concat(await getSyncAdapter().push(remote));
+    } catch {
+      results = results.concat(remote.map((i) => ({ id: i.record.id, ok: false })));
+    }
+  }
+  const ok = new Map(results.map((r) => [r.id, r.ok]));
+  let synced = 0;
+  let failed = 0;
+  // The store may have changed during the push: record outcomes on a fresh copy, and leave
+  // alone any row whose status moved on meanwhile (e.g. voided again, so pending once more).
+  const fresh = read();
+  const rows = new Map<string, { sync_status: string }>(
+    [...fresh.chanda, ...fresh.expenses, ...fresh.handovers].map((r) => [r.id, r]),
+  );
+  const reasons = new Map(results.map((r) => [r.id, r.error]));
+  const errors = { ...fresh.sync_errors };
+  for (const item of queue) {
+    const success = ok.get(item.record.id) === true;
+    if (success) delete errors[item.record.id];
+    else errors[item.record.id] = reasons.get(item.record.id) ?? "err_syncFailed";
+    if (success) synced++;
+    else failed++;
+    if (!("sync_status" in item.record)) continue;
+    const row = rows.get(item.record.id);
+    if (row && row.sync_status === item.record.sync_status)
+      row.sync_status = success ? "synced" : "failed";
+  }
+  fresh.outbox = (fresh.outbox ?? [])
+    .filter((o) => ok.get(o.id) !== true)
+    .map((o) => (ok.has(o.id) ? { ...o, failed: true } : o));
+  fresh.sync_errors = errors;
+  write(fresh);
+  return { synced, failed };
+}
+
 export const api = {
   // --- Auth (mock) ---
   async requestOtp(phone: string) {
@@ -399,11 +493,7 @@ export const api = {
       const err = check(otpSchemaFor(6), otp);
       if (err) throw new ValidationError("otp", err);
       await cloudVerifyOtp(phone, otp);
-      // Bring down the user's clubs so the club picker can show them.
-      session.set({ mode: "user", phone });
-      await api.pull().catch(() => {});
-      session.clear(); // the session starts once a club is chosen (index.tsx)
-      return { phone };
+      return api.completeLogin(phone);
     }
     const used = otpAttempts.get(phone);
     if (used === undefined || used >= OTP_MAX_ATTEMPTS)
@@ -776,38 +866,12 @@ export const api = {
    * (ledger rows that are pending/failed, plus the outbox) in dependency order, and record
    * each outcome. The sample club is settled locally and never sent. Offline: no-op.
    */
-  async sync(): Promise<{ synced: number; failed: number }> {
-    await delay();
-    if (!isOnline()) return { synced: 0, failed: 0 };
-    const db = read();
-    const queue = syncQueue(db);
-    if (!queue.length) return { synced: 0, failed: 0 };
-    const demo = db.clubs.find((c) => c.slug === DEMO_SLUG)?.id;
-    const isLocal = (item: SyncRecord) => clubOf(db, item) === demo;
-    const local = queue.filter(isLocal);
-    const remote = queue.filter((i) => !isLocal(i));
-    let results: SyncResult[] = local.map((i) => ({ id: i.record.id, ok: true }));
-    if (remote.length) {
-      try {
-        results = results.concat(await getSyncAdapter().push(remote));
-      } catch {
-        results = results.concat(remote.map((i) => ({ id: i.record.id, ok: false })));
-      }
-    }
-    const ok = new Map(results.map((r) => [r.id, r.ok]));
-    let synced = 0;
-    let failed = 0;
-    for (const item of queue) {
-      const success = ok.get(item.record.id) === true;
-      if (success) synced++;
-      else failed++;
-      if ("sync_status" in item.record) item.record.sync_status = success ? "synced" : "failed";
-    }
-    db.outbox = (db.outbox ?? [])
-      .filter((o) => ok.get(o.id) !== true)
-      .map((o) => (ok.has(o.id) ? { ...o, failed: true } : o));
-    write(db);
-    return { synced, failed };
+  sync(): Promise<{ synced: number; failed: number }> {
+    // One push at a time: overlapping runs would send the same records twice (a second
+    // create_club then fails on the duplicate id and the entry shows as not synced).
+    const run = syncRun.then(pushQueue, pushQueue);
+    syncRun = run.catch(() => undefined);
+    return run;
   },
   /** Counts for the sync banner: records waiting, and records whose last push failed. */
   async getSyncStatus(): Promise<{ pending: number; failed: number }> {
@@ -822,6 +886,47 @@ export const api = {
       failed:
         rows.filter((r) => r.sync_status === "failed").length + ops.filter((o) => o.failed).length,
     };
+  },
+  /** The active club's records that failed to sync: what each is, and the server's reason. */
+  async listSyncFailures(): Promise<SyncFailure[]> {
+    await delay();
+    const db = read();
+    const name = (id: string) => db.members.find((m) => m.id === id)?.name ?? "—";
+    const resident = (id: string) => db.households.find((h) => h.id === id)?.resident_name ?? "—";
+    const failedOps = new Set((db.outbox ?? []).filter((o) => o.failed).map((o) => o.id));
+    return syncQueue(db)
+      .filter((i) => clubOf(db, i) === db.active_club_id)
+      .filter((i) =>
+        "sync_status" in i.record ? i.record.sync_status === "failed" : failedOps.has(i.record.id),
+      )
+      .map((i): SyncFailure => {
+        const base = {
+          id: i.record.id,
+          kind: i.kind,
+          error: db.sync_errors?.[i.record.id] ?? "err_syncFailed",
+        };
+        switch (i.kind) {
+          case "chanda":
+            return { ...base, title: resident(i.record.household_id), amount: i.record.amount };
+          case "handover":
+            return { ...base, title: name(i.record.collector_id), amount: i.record.amount };
+          case "expense":
+            return { ...base, title: i.record.title, amount: i.record.amount };
+          case "member":
+            return { ...base, title: i.record.name };
+          case "household":
+            return { ...base, title: i.record.resident_name };
+          case "club":
+            return { ...base, title: i.record.name_bn };
+          case "event":
+            return { ...base, title: i.record.title_bn };
+          case "event_delta":
+            return {
+              ...base,
+              title: db.events.find((e) => e.id === i.record.event_id)?.title_bn ?? "—",
+            };
+        }
+      });
   },
   /**
    * Cloud mode: bring down other devices' changes — the user's clubs, then everything in
@@ -850,7 +955,72 @@ export const api = {
   },
   /** Logs out on this device (and of Supabase Auth in cloud mode). Data stays on the phone. */
   async signOut() {
+    const signedIn = session.get()?.mode === "user";
     session.clear();
-    if (isCloud()) await cloudSignOut().catch(() => {});
+    if (!isCloud()) return;
+    // Logging out frees this device's slot (best effort: offline, it stays listed).
+    if (signedIn) await removeDevice(getCloudClient(), device.id()).catch(() => {});
+    device.clearState();
+    await cloudSignOut().catch(() => {});
+  },
+
+  // --- Devices (cloud mode) ---
+  /**
+   * Cloud login, after the OTP: registers this device (err_deviceLimit when 3 are in use —
+   * the login screen then offers to remove one and calls this again) and brings down the
+   * user's clubs for the club picker.
+   */
+  async completeLogin(phone: string) {
+    device.setState(await api.registerDevice());
+    session.set({ mode: "user", phone });
+    await api.pull().catch(() => {});
+    session.clear(); // the session starts once a club is chosen (index.tsx)
+    return { phone };
+  },
+  async registerDevice() {
+    const r = await touchDevice(getCloudClient(), device.id(), thisDeviceLabel(), true);
+    if (r.status !== "active") throw new ValidationError("device", "err_deviceLimit");
+    return { is_collect: r.is_collect, collect_label: r.collect_label };
+  },
+  /**
+   * On app open: tells the server this device is still in use and learns whether it collects.
+   * "removed" (from another device) and "limit" mean this device must log out; "skipped" when
+   * offline or not applicable.
+   */
+  async checkDevice(): Promise<DeviceCheck["status"] | "skipped"> {
+    if (!isCloud() || !isOnline() || session.get()?.mode !== "user") return "skipped";
+    const r = await touchDevice(getCloudClient(), device.id(), thisDeviceLabel(), false);
+    if (r.status === "active") device.setState(r);
+    return r.status;
+  },
+  /** Whether chanda can be collected here; `applies` is false outside cloud mode or in the demo. */
+  async getCollectStanding() {
+    const s = device.state();
+    return {
+      applies: deviceRuleApplies(read()),
+      is_collect: s?.is_collect ?? true,
+      collect_label: s?.collect_label ?? null,
+    };
+  },
+  async listDevices(): Promise<(UserDevice & { this_device: boolean })[]> {
+    const mineId = device.id();
+    return (await listDevices(getCloudClient())).map((d) => ({
+      ...d,
+      this_device: d.id === mineId,
+    }));
+  },
+  /** Makes `id` (default: this device) the collecting device. */
+  async setCollectDevice(id: string = device.id()) {
+    const r = await setCollectDevice(getCloudClient(), id);
+    if (id === device.id() && r.status === "active") device.setState(r);
+    else await api.checkDevice();
+  },
+  async removeDevice(id: string) {
+    await removeDevice(getCloudClient(), id);
+  },
+  /** Admin: clears a member's collect device (lost phone); they choose one again. */
+  async resetCollectDevice(memberId: string) {
+    authorize(read(), "member.manage");
+    await resetCollectDevice(getCloudClient(), memberId);
   },
 };

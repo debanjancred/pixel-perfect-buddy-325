@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { newId } from "@/lib/id";
 import { useI18n } from "@/lib/i18n";
-import { Modal, TextField } from "@/components/pk/ui";
+import { Modal, Spinner, TextField } from "@/components/pk/ui";
 import { useCreateHandover } from "@/hooks/use-data";
 import { ValidationError, amountSchema, check, type ErrKey } from "@/lib/validation";
 import type { CashHandover, ClubMember } from "@/types/domain";
@@ -23,7 +24,7 @@ export function HandoverForm({
   const [submitted, setSubmitted] = useState(false);
   const [serverErr, setServerErr] = useState<ErrKey | null>(null);
   // Client id = idempotency key, so a double tap can't record the handover twice.
-  const [id] = useState(() => crypto.randomUUID());
+  const [id] = useState(newId);
   const value = amount ? Number(amount) : NaN;
   const localErr =
     check(amountSchema, value) ?? (value > outstanding ? "err_handoverTooMuch" : null);
@@ -64,7 +65,9 @@ export function HandoverForm({
           type="submit"
           className="btn btn-primary w-full text-lg"
           disabled={create.isPending}
+          aria-busy={create.isPending}
         >
+          {create.isPending && <Spinner />}
           {t("receiveCash")}
         </button>
       </form>

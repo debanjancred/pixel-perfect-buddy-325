@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type InputHTMLAttributes, type ReactNode } from "react";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
+import { useVisibleArea } from "@/hooks/use-visual-viewport";
 import { createPortal } from "react-dom";
 import { X, CloudOff, CircleAlert } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -7,6 +8,41 @@ import { cn } from "@/lib/utils";
 import type { ErrKey } from "@/lib/validation";
 import type { HouseholdStatus } from "@/lib/households";
 import type { SyncStatus } from "@/types/domain";
+
+/**
+ * Busy indicator for buttons: a gold ring with a turning arc in the button's own text colour,
+ * tipped with a sindoor dot. Pair it with aria-busy on the button.
+ */
+export function Spinner({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className={cn("pk-spinner h-5 w-5 shrink-0", className)}>
+      <circle cx="12" cy="12" r="9" fill="none" stroke="var(--gold)" strokeWidth="3" opacity=".5" />
+      <g className="pk-spinner-arc">
+        <path
+          d="M12 3a9 9 0 0 1 0 18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <circle
+          cx="12"
+          cy="21"
+          r="2.2"
+          fill="var(--primary)"
+          stroke="var(--gold)"
+          strokeWidth="1"
+        />
+      </g>
+    </svg>
+  );
+}
+
+/** Branded strip along the very top while any save, upload or delete is running. */
+export function LoadingBar({ active }: { active: boolean }) {
+  if (!active) return null;
+  return <div aria-hidden className="pk-loading-bar" />;
+}
 
 /** Thin alpona motif strip — used only along the top header. */
 export function AlponaStrip() {
@@ -98,6 +134,8 @@ export function Modal({
   const id = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, open);
+  // Sized to the area above the on-screen keyboard, so a sheet with inputs stays visible.
+  const area = useVisibleArea(open);
   useEffect(() => {
     if (!open) return;
     openModals.push(id);
@@ -116,6 +154,7 @@ export function Modal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/50 animate-in fade-in sm:items-center"
+      style={area ? { top: area.top, height: area.height, bottom: "auto" } : undefined}
       onClick={onClose}
     >
       <div
@@ -124,7 +163,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 pb-8 outline-none animate-in slide-in-from-bottom-8 sm:rounded-3xl"
+        className="max-h-[92%] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 pb-8 outline-none animate-in slide-in-from-bottom-8 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">

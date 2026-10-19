@@ -69,6 +69,7 @@ function HomePage() {
         sub: c.payment_method === "upi" ? "UPI" : t("cash"),
         at: c.created_at,
         sync: c.sync_status,
+        offDevice: !!c.off_device,
       })),
     ...expenses.map((e) => {
       const m = members.find((x) => x.id === e.authorized_by_id);
@@ -81,6 +82,7 @@ function HomePage() {
         sub: m?.name ?? "",
         at: e.created_at,
         sync: e.sync_status,
+        offDevice: false,
       };
     }),
   ]
@@ -227,6 +229,14 @@ function HomePage() {
                         </span>
                       )}
                       <SyncBadge status={x.sync} />
+                      {x.offDevice && (
+                        <span
+                          className="rounded-full bg-gold-soft px-2 py-0.5 font-bold text-gold-ink"
+                          title={t("offDeviceHint")}
+                        >
+                          {t("offDevice")}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div

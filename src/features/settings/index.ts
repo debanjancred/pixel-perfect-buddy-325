@@ -5,4 +5,12 @@ export { DemoActorSection } from "./DemoActorSection";
 export { ExportSection } from "./ExportSection";
 export { MembersSection } from "./MembersSection";
 export { PreferencesSection } from "./PreferencesSection";
-export { ROLES, chandaCsv, expensesCsv, exportFileName, membersByRole } from "./model";
+export {
+  ROLES,
+  chandaCsv,
+  expensesCsv,
+  exportFileName,
+  initialOf,
+  membersByRole,
+  phoneDisplay,
+} from "./model";

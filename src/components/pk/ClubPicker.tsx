@@ -10,7 +10,7 @@ import {
   sameName,
   type ErrKey,
 } from "@/lib/validation";
-import { TextField } from "./ui";
+import { Spinner, TextField } from "./ui";
 
 const PUJA_YEAR = new Date().getFullYear();
 const FIELDS = ["name", "para", "zone", "target_amount", "creator_name", "creator_phone"] as const;
@@ -158,7 +158,8 @@ export function ClubPicker({ phone, onDone }: { phone?: string | undefined; onDo
           <button type="button" className="btn btn-outline" onClick={() => setCreating(false)}>
             {t("cancel")}
           </button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
+          <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
+            {busy && <Spinner />}
             {t("save")}
           </button>
         </div>

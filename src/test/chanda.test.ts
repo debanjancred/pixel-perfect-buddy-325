@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
 import { ValidationError } from "@/lib/validation";
 import { api } from "@/services/api";
+import { session } from "@/services/session";
 import { seedAsAdmin } from "./helpers";
 
 async function rejectsWith(p: Promise<unknown>, key: string) {
@@ -72,14 +73,19 @@ describe("demo fixtures (SPEC Section 5)", () => {
 });
 
 describe("chanda", () => {
-  it("numbers receipts per collector and starts local-first as pending", async () => {
-    const { pay } = await demo();
+  it("numbers receipts per writer and starts local-first as pending", async () => {
+    const { pay, collector } = await demo();
+    // The admin writes the receipt for the collector's cash: the admin's own sequence.
     const a = await pay(501);
     const b = await pay(251);
-    expect(a.receipt_no).toBe("PK-2026-C01-0011");
-    expect(b.receipt_no).toBe("PK-2026-C01-0012");
+    expect(a.receipt_no).toMatch(/^PK-2026-A01-\d{4}$/);
+    expect(Number(b.receipt_no.slice(-4))).toBe(Number(a.receipt_no.slice(-4)) + 1);
+    expect(a.collector_id).toBe(collector.id);
     expect(a.sync_status).toBe("pending");
     expect((await api.getSummary()).pending_sync_count).toBe(2);
+    // The collector writing their own receipt continues the collector's sequence.
+    session.set({ mode: "demo", member_id: collector.id });
+    expect((await pay(101)).receipt_no).toBe("PK-2026-C01-0011");
   });
 
   it("treats the id as an idempotency key", async () => {

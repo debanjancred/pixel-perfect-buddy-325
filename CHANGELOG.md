@@ -6,6 +6,58 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Added
+- "See why" on the sync banner lists each entry that didn't sync with the server's reason
+  (e.g. a cash handover refused as more than the collector holds because the chanda behind
+  it hasn't synced), instead of only a count. Refused updates now say "no permission";
+  a missing dependency says so.
+- Devices (cloud mode): up to 3 logged-in devices per person, one of them the collecting
+  device. Settings → Devices lists them (collecting device and this device marked), switches
+  the collecting device and removes a device, which sends anything it still has and logs out
+  when it next opens. A 4th login asks to remove one first. The collect screen on any other
+  device explains which device collects and offers to collect here instead (online). Admins
+  can reset a member's collecting device (Settings → Members). Chanda from a non-collecting
+  device is accepted but flagged on the home feed. Server: `user_devices`, `touch_device`,
+  `set_collect_device`, `remove_device`, `reset_collect_device`, and the `device_id` /
+  `off_device` chanda columns (`supabase/migrations/20261019000002_devices.sql`).
+- Branded loading states: a gold-ring spinner with a sindoor tip inside the button that is
+  saving, uploading or sharing (`aria-busy`, stays full strength), and a gold strip along
+  the top while any save runs (background sync excluded; slower with reduced motion).
+
+### Changed
+- Settings → Members redesigned for 360px: rows show a role-toned avatar (vermilion admin,
+  gold treasurer), the full name with "You", the phone as 98300 12345 and the member code —
+  no more cut-off names or overflowing numbers. Admins tap a member to open a sheet with role
+  cards (each with what the role can do, saved explicitly), call and reset-collecting-device;
+  adding a member moved into its own sheet. Both sheets live in the URL, so back closes them.
+- Receipt numbers use the code of whoever writes the receipt, not the collector the cash is
+  for (`PK-2026-A01-0007` when the admin records a collector's cash), so two people never
+  share a sequence.
+
+### Fixed
+- Sheets (add member, expense, handover, void…) no longer hide behind the phone's keyboard:
+  they sit in the visible area above it, and the field being typed in stays in view.
+- A cash handover could stay "didn't sync — can't receive more than the cash outstanding"
+  forever although the server had it: re-sending it (a retry, or the overlapping syncs fixed
+  below) ran the cash check before the duplicate was noticed and counted the handover against
+  itself. Re-sends now pass through, and a voided handover is not checked against the cash
+  held, so a genuinely refused one can be voided and synced
+  (`supabase/migrations/20261019000003_handover_resend.sql`).
+- Cash handovers (and the chanda behind them) never synced when two phones issued the same
+  receipt number for a collector, e.g. an admin recording cash for a collector who was also
+  collecting. The later entry failed the server's unique receipt number on every retry, so
+  the server never saw that cash and refused handovers as more than the collector held. The
+  server now gives a clashing entry the collector's next free number
+  (`supabase/migrations/20261019000001_receipt_renumber.sql`); the phone shows it after the
+  next pull.
+- A new club showed "1 entry not synced" in cloud mode: two overlapping syncs sent it twice
+  and the second copy failed as a duplicate. Syncs now run one at a time, and results are
+  recorded on a fresh read of the store, so entries saved during a push are no longer lost.
+- Nothing could be saved (e.g. creating a club did nothing) when the app was opened over
+  plain http on a LAN address such as `http://192.168.x.x`: `crypto.randomUUID` only exists
+  in secure contexts. IDs now come from `newId()` (`src/lib/id.ts`), which falls back to
+  `crypto.getRandomValues`.
+
 ## [0.9.0] - 2026-10-17
 
 Release candidate. Covers the planned v0.3–v0.5 phases in one release: receipts, expenses,

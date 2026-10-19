@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
+import { z } from "zod";
 import { Sparkles, Smartphone, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { session, useSeedDemo } from "@/hooks/use-data";
@@ -13,10 +14,17 @@ import {
   phoneSchema,
   type ErrKey,
 } from "@/lib/validation";
-import { AlponaStrip, FieldError, Label, LangToggle } from "@/components/pk/ui";
+import { AlponaStrip, FieldError, Label, LangToggle, Spinner } from "@/components/pk/ui";
 import { ClubPicker } from "@/components/pk/ClubPicker";
+import { DeviceLimitStep } from "@/features/devices";
+
+// Why this device was signed out (cloud mode), shown until the next login.
+const searchSchema = z.object({
+  signedOut: z.enum(["removed", "limit"]).optional().catch(undefined),
+});
 
 export const Route = createFileRoute("/")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "Pujo Khata — Durga Puja chanda & expense app" },
@@ -41,12 +49,13 @@ function Onboarding() {
   const { t, n } = useI18n();
   const navigate = useNavigate();
   const seedDemo = useSeedDemo();
-  const [step, setStep] = useState<"phone" | "otp" | "club">("phone");
+  const [step, setStep] = useState<"phone" | "otp" | "devices" | "club">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<ErrKey | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"submit" | "demo" | null>(null);
   const [resendIn, setResendIn] = useState(0);
+  const { signedOut } = Route.useSearch();
 
   useEffect(() => {
     if (session.get()) navigate({ to: "/home", replace: true });
@@ -58,8 +67,8 @@ function Onboarding() {
     return () => clearTimeout(id);
   }, [resendIn]);
 
-  const run = async (fn: () => Promise<void>) => {
-    setBusy(true);
+  const run = async (fn: () => Promise<void>, action: "submit" | "demo" = "submit") => {
+    setBusy(action);
     setError(null);
     try {
       await fn();
@@ -67,7 +76,7 @@ function Onboarding() {
       if (!(e instanceof ValidationError)) throw e;
       setError(e.key);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -87,10 +96,22 @@ function Onboarding() {
     const err = check(otpSchemaFor(otpLength()), otp);
     if (err) return setError(err);
     run(async () => {
-      await api.verifyOtp(phone, otp);
+      try {
+        await api.verifyOtp(phone, otp);
+      } catch (ex) {
+        // Already on 3 devices (cloud mode): remove one, then login continues.
+        if (ex instanceof ValidationError && ex.key === "err_deviceLimit")
+          return setStep("devices");
+        throw ex;
+      }
       setStep("club");
     });
   };
+  const afterDeviceRemoved = () =>
+    run(async () => {
+      await api.completeLogin(phone);
+      setStep("club");
+    });
   const changeNumber = () => {
     setStep("phone");
     setOtp("");
@@ -105,7 +126,7 @@ function Onboarding() {
     run(async () => {
       await seedDemo.mutateAsync(); // also signs the visitor into the demo
       navigate({ to: "/home" });
-    });
+    }, "demo");
 
   const pretty = `${phone.slice(0, 5)} ${phone.slice(5)}`;
 
@@ -129,13 +150,27 @@ function Onboarding() {
       </div>
 
       <div className="flex-1 space-y-5 px-5 py-6">
-        {step === "club" ? (
+        {step === "devices" ? (
+          <>
+            <DeviceLimitStep onRemoved={afterDeviceRemoved} />
+            {busy === "submit" && <Spinner className="mx-auto h-8 w-8 text-primary" />}
+            <FieldError id="devices-error" error={error} />
+          </>
+        ) : step === "club" ? (
           <>
             <h2 className="text-xl font-bold">{t("chooseClub")}</h2>
             <ClubPicker phone={phone} onDone={finish} />
           </>
         ) : (
           <>
+            {signedOut && step === "phone" && (
+              <p
+                role="status"
+                className="rounded-2xl bg-gold-soft p-3 text-sm font-semibold text-gold-ink"
+              >
+                {t(signedOut === "removed" ? "deviceRemoved" : "err_deviceLimit")}
+              </p>
+            )}
             {step === "phone" ? (
               <form className="space-y-5" onSubmit={sendOtp} noValidate>
                 <div>
@@ -165,7 +200,13 @@ function Onboarding() {
                   </div>
                   <FieldError id="phone-error" error={error} />
                 </div>
-                <button type="submit" className="btn btn-primary w-full text-lg" disabled={busy}>
+                <button
+                  type="submit"
+                  className="btn btn-primary w-full text-lg"
+                  disabled={!!busy}
+                  aria-busy={busy === "submit"}
+                >
+                  {busy === "submit" && <Spinner />}
                   {t("sendOtp")}
                 </button>
               </form>
@@ -215,13 +256,19 @@ function Onboarding() {
                     <Sparkles className="h-5 w-5" /> {t("autofill")}
                   </button>
                 )}
-                <button type="submit" className="btn btn-primary w-full text-lg" disabled={busy}>
+                <button
+                  type="submit"
+                  className="btn btn-primary w-full text-lg"
+                  disabled={!!busy}
+                  aria-busy={busy === "submit"}
+                >
+                  {busy === "submit" && <Spinner />}
                   {t("verify")}
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline w-full"
-                  disabled={busy || resendIn > 0}
+                  disabled={!!busy || resendIn > 0}
                   onClick={() => sendOtp()}
                 >
                   {resendIn > 0
@@ -238,9 +285,11 @@ function Onboarding() {
             <button
               type="button"
               className="btn w-full flex-wrap border-2 border-primary bg-primary-soft py-4 text-lg text-primary"
-              disabled={busy}
+              disabled={!!busy}
+              aria-busy={busy === "demo"}
               onClick={demo}
             >
+              {busy === "demo" && <Spinner />}
               {t("exploreDemo")}
               <span className="font-normal">({t("demoClub")})</span>
             </button>

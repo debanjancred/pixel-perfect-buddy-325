@@ -23,6 +23,8 @@ export const queryKeys = {
   events: ["events"],
   handovers: ["handovers"],
   voucher: (id: string) => ["voucher", id],
+  devices: ["devices"],
+  collectStanding: ["devices", "standing"],
 } as const;
 
 export const useClub = () => useQuery({ queryKey: queryKeys.club, queryFn: api.getClub });
@@ -30,6 +32,13 @@ export const useClubs = () => useQuery({ queryKey: queryKeys.clubs, queryFn: api
 export const useSummary = () => useQuery({ queryKey: queryKeys.summary, queryFn: api.getSummary });
 export const useSyncStatus = () =>
   useQuery({ queryKey: queryKeys.syncStatus, queryFn: api.getSyncStatus });
+/** Failed records and why; under syncStatus so a sync refreshes it. */
+export const useSyncFailures = (enabled: boolean) =>
+  useQuery({
+    queryKey: [...queryKeys.syncStatus, "failures"],
+    queryFn: api.listSyncFailures,
+    enabled,
+  });
 export const useClubAccounts = (slug: string) =>
   useQuery({ queryKey: queryKeys.accounts(slug), queryFn: () => api.getClubAccounts(slug) });
 export const useMembers = () => useQuery({ queryKey: queryKeys.members, queryFn: api.listMembers });
@@ -249,11 +258,15 @@ export function useUpdateMemberRole() {
   });
 }
 
+/** Background sync has its own banner, so the top loading strip leaves it out. */
+export const SYNC_KEY = ["sync"] as const;
+
 /** Marks pending records synced; refetches only when something changed. */
 export function useSync() {
   const qc = useQueryClient();
   const invalidate = useInvalidate();
   return useMutation({
+    mutationKey: SYNC_KEY,
     // Send this device's changes, then bring down other devices' (cloud mode only).
     mutationFn: async () => {
       const pushed = await api.sync();
@@ -317,3 +330,38 @@ export function useInvalidateAll() {
 
 // Session storage lives in the service layer; re-exported for existing imports.
 export { session } from "@/services/session";
+
+// --- Devices (cloud mode): up to 3 per person, chanda collected on one of them ---
+
+/** Whether chanda can be collected on this device (answers offline from the last check-in). */
+export const useCollectStanding = () =>
+  useQuery({ queryKey: queryKeys.collectStanding, queryFn: api.getCollectStanding });
+
+/** The signed-in person's devices; needs the network, so only fetched when `enabled`. */
+export const useDevices = (enabled: boolean) =>
+  useQuery({ queryKey: queryKeys.devices, queryFn: api.listDevices, enabled, retry: false });
+
+function useDeviceMutation<V>(fn: (v: V) => Promise<unknown>) {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: fn, onSuccess: () => invalidate(queryKeys.devices) });
+}
+export const useSetCollectDevice = () => useDeviceMutation(api.setCollectDevice);
+export const useRemoveDevice = () => useDeviceMutation(api.removeDevice);
+export const useResetCollectDevice = () => useDeviceMutation(api.resetCollectDevice);
+
+/**
+ * Checks this device in after a sync. Resolves "removed" or "limit" when it has been signed
+ * out (removed from another device, or a 4th device from before the limit existed).
+ */
+export function useDeviceCheck() {
+  const qc = useQueryClient();
+  return async () => {
+    const status = await api.checkDevice().catch(() => "skipped" as const);
+    if (status === "removed" || status === "limit") {
+      await api.signOut();
+      return status;
+    }
+    await qc.invalidateQueries({ queryKey: queryKeys.devices });
+    return status;
+  };
+}

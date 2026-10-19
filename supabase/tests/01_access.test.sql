@@ -93,11 +93,6 @@ insert into public.chanda_transactions (id, receipt_no, club_id, household_id, a
   (:tx1, 'PK-2026-C01-0001', :club, :hh, 1001, 'cash', 'collected', :coll),
   (:tx2, 'PK-2026-C01-0002', :club, :hh, 501, 'cash', 'collected', :coll);
 select test.ok((select count(*) from public.chanda_transactions) = 2, 'collector records chanda');
-select test.expect_error($$insert into public.chanda_transactions (id, receipt_no, club_id,
-  household_id, amount, payment_method, status, collector_id) values (gen_random_uuid(),
-  'PK-2026-C01-0001', '11111111-1111-4111-8111-111111111111',
-  'bbbbbbbb-0000-4000-8000-000000000001', 5, 'cash', 'collected',
-  'aaaaaaaa-0000-4000-8000-000000000003')$$, 'duplicate key');
 select test.expect_error($$insert into public.expense_records (id, club_id, category, title,
   amount, paid_to, authorized_by_id, date) values (gen_random_uuid(),
   '11111111-1111-4111-8111-111111111111', 'misc', 't', 10, 'p',
@@ -143,8 +138,20 @@ select test.expect_error($$insert into public.expense_records (id, club_id, cate
   'aaaaaaaa-0000-4000-8000-000000000002', current_date + 3)$$, 'err_dateFuture');
 
 -- 8. Cash handovers: receiver is the caller; never more than outstanding; not to oneself.
+\set ho1 '''99999999-0000-4000-8000-000000000001'''
 insert into public.cash_handovers (id, club_id, collector_id, received_by_id, amount)
-  values (gen_random_uuid(), :club, :coll, :treas, 600);
+  values (:ho1, :club, :coll, :treas, 600);
+-- A phone re-sending a handover the server already has (a retry, or two overlapping syncs)
+-- must not be refused as more than the cash held: ON CONFLICT drops it.
+insert into public.cash_handovers (id, club_id, collector_id, received_by_id, amount)
+  values (:ho1, :club, :coll, :treas, 600) on conflict (id) do nothing;
+select test.ok((select count(*) from public.cash_handovers where id = :ho1) = 1,
+  'a re-sent handover is accepted as a no-op');
+-- A voided handover takes no cash, so a refused one can be voided and still sync.
+insert into public.cash_handovers (id, club_id, collector_id, received_by_id, amount,
+  voided_at, void_reason) values (gen_random_uuid(), :club, :coll, :treas, 5000, now(), 'দুবার লেখা');
+select test.ok((select count(*) from public.cash_handovers where voided_at is not null) = 1,
+  'a voided handover syncs without the cash check');
 select test.expect_error($$insert into public.cash_handovers (id, club_id, collector_id,
   received_by_id, amount) values (gen_random_uuid(), '11111111-1111-4111-8111-111111111111',
   'aaaaaaaa-0000-4000-8000-000000000003', 'aaaaaaaa-0000-4000-8000-000000000002', 402)$$,
@@ -183,6 +190,80 @@ select test.ok(public.public_accounts('test-club-2026')::text not like '%9000000
   and public.public_accounts('test-club-2026')::text not like '%আবাসিক%', 'no phones or names');
 select test.ok(public.public_accounts('no-such-club') is null, 'unknown slug returns null');
 select test.expect_error('select * from public.chanda_transactions', 'permission denied');
+
+-- 11. Two phones that issued the same receipt number both sync: the later entry is renumbered
+-- to the collector's next free number instead of failing on every retry. Last, so the extra
+-- entry doesn't change the totals checked above.
+select test.act_as('9000000003');
+\set tx3 '''cccccccc-0000-4000-8000-000000000003'''
+insert into public.chanda_transactions (id, receipt_no, club_id, household_id, amount,
+  payment_method, status, collector_id) values
+  (:tx3, 'PK-2026-C01-0001', :club, :hh, 5, 'cash', 'collected', :coll)
+  on conflict (id) do nothing;
+select test.ok((select receipt_no from public.chanda_transactions where id = :tx3)
+  = 'PK-2026-C01-0003', 'a clashing receipt number gets the next free one');
+insert into public.chanda_transactions (id, receipt_no, club_id, household_id, amount,
+  payment_method, status, collector_id) values
+  (:tx3, 'PK-2026-C01-0001', :club, :hh, 5, 'cash', 'collected', :coll)
+  on conflict (id) do nothing;
+select test.ok((select count(*) from public.chanda_transactions where id = :tx3) = 1
+  and (select receipt_no from public.chanda_transactions where id = :tx3) = 'PK-2026-C01-0003',
+  'a re-sent entry is ignored, not renumbered again');
+
+-- 12. Devices: up to 3 per person, one of them the collect device.
+\set d1 '''f0000000-0000-4000-8000-000000000001'''
+\set d2 '''f0000000-0000-4000-8000-000000000002'''
+\set d3 '''f0000000-0000-4000-8000-000000000003'''
+\set d4 '''f0000000-0000-4000-8000-000000000004'''
+select test.act_as('9000000003');
+select test.ok((public.touch_device(:d1, 'Android · Chrome', true) ->> 'is_collect')::boolean,
+  'a first device becomes the collect device');
+select test.ok(public.touch_device(:d2, 'Mac · Chrome', true) @>
+  '{"is_collect": false, "collect_label": "Android · Chrome"}', 'a second one does not');
+select public.touch_device(:d3, 'iPhone · Safari', true);
+select test.expect_error($$select public.touch_device('f0000000-0000-4000-8000-000000000004',
+  'Tablet', true)$$, 'err_deviceLimit');
+select test.ok(public.touch_device(:d4, 'Tablet', false) ->> 'status' = 'limit',
+  'an unknown device checking in over the limit is told so');
+select public.remove_device(:d3);
+select test.ok(public.touch_device(:d3, 'iPhone · Safari', false) ->> 'status' = 'removed',
+  'a removed device learns it was removed');
+select test.ok(public.touch_device(:d4, 'Tablet', true) ->> 'status' = 'active',
+  'removing a device makes room for another');
+select test.ok((select count(*) from public.user_devices) = 3, 'a person sees their own 3 devices');
+select test.ok((public.set_collect_device(:d2) ->> 'is_collect')::boolean,
+  'a person switches their collect device');
+select test.ok((select array_agg(id) from public.user_devices where is_collect) = array[:d2]::uuid[],
+  'only the new one collects');
+select test.expect_error($$select public.set_collect_device('f0000000-0000-4000-8000-000000000003')$$,
+  'err_notFound');
+
+-- Chanda keeps the device it came from; only the collect device's entries are unflagged.
+insert into public.chanda_transactions (id, receipt_no, club_id, household_id, amount,
+  payment_method, status, collector_id, device_id, off_device) values
+  ('cccccccc-0000-4000-8000-000000000010', 'PK-2026-C01-0010', :club, :hh, 5, 'cash',
+   'collected', :coll, :d2, true),
+  ('cccccccc-0000-4000-8000-000000000011', 'PK-2026-C01-0011', :club, :hh, 5, 'cash',
+   'collected', :coll, :d1, false);
+select test.ok(not (select off_device from public.chanda_transactions
+  where id = 'cccccccc-0000-4000-8000-000000000010'), 'collect-device chanda is not flagged');
+select test.ok((select off_device from public.chanda_transactions
+  where id = 'cccccccc-0000-4000-8000-000000000011'),
+  'chanda from another device is accepted but flagged (the client cannot unflag it)');
+
+-- Only an admin resets someone's collect device; others' devices stay private.
+select test.expect_error($$select public.reset_collect_device('aaaaaaaa-0000-4000-8000-000000000003')$$,
+  'err_forbidden');
+select test.act_as('9000000001');
+select test.ok((select count(*) from public.user_devices) = 0, 'devices are visible only to their owner');
+select public.reset_collect_device(:coll);
+select test.act_as('9000000003');
+select test.ok(not exists (select 1 from public.user_devices where is_collect),
+  'an admin reset clears the collect device');
+select test.act_as(null);
+select test.expect_error('select * from public.user_devices', 'permission denied');
+select test.expect_error($$select public.touch_device(gen_random_uuid(), 'x', true)$$,
+  'permission denied');
 
 reset role;
 select test.ok(true, 'all access tests passed');

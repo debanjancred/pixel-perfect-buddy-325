@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ROLE_PERMISSIONS, type Permission } from "@/lib/permissions";
 import { api } from "@/services/api";
 import { createCloudAdapter, voucherPath } from "@/services/cloud/adapter";
-import { cloudErrorKey } from "@/services/cloud/errors";
+import { cloudErrorKey, errorKey } from "@/services/cloud/errors";
+import { ValidationError } from "@/lib/validation";
 import { mergeSnapshot, snapshotCursor, type Snapshot } from "@/services/cloud/merge";
 import { localAdapter, setSyncAdapter, type SyncAdapter, type SyncRecord } from "@/services/sync";
 import type { ChandaTransaction, ClubMember, ExpenseRecord, UserRole } from "@/types/domain";
@@ -150,13 +151,21 @@ describe("cloud adapter", () => {
       { kind: "chanda", record: tx({ id: "t2", receipt_no: "PK-2026-C01-0002" }) },
     ]);
     expect(results).toEqual([
-      { id: "t1", ok: false },
+      { id: "t1", ok: false, error: "err_forbidden" },
       { id: "t2", ok: true },
     ]);
   });
 });
 
 describe("cloud error keys", () => {
+  it("names a missing dependency and passes the app's own validation errors through", () => {
+    expect(cloudErrorKey({ code: "23503", message: "violates foreign key constraint" })).toBe(
+      "err_syncDependency",
+    );
+    expect(errorKey(new ValidationError("device", "err_deviceLimit"))).toBe("err_deviceLimit");
+    expect(errorKey(new TypeError("Failed to fetch"))).toBe("err_syncFailed");
+  });
+
   it("passes the server's own i18n keys through and maps RLS refusals", () => {
     expect(cloudErrorKey({ message: "err_handoverTooMuch" })).toBe("err_handoverTooMuch");
     expect(cloudErrorKey({ code: "42501", message: "permission denied" })).toBe("err_forbidden");
@@ -336,6 +345,6 @@ describe("cloud adapter: refused updates", () => {
       { kind: "chanda", record: voided },
     ]);
     expect(calls).toEqual(["update"]);
-    expect(results).toEqual([{ id: "t1", ok: false }]);
+    expect(results).toEqual([{ id: "t1", ok: false, error: "err_forbidden" }]);
   });
 });

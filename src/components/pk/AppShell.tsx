@@ -18,6 +18,7 @@ import {
   useAccess,
   useClub,
   useCurrentMember,
+  useDeviceCheck,
   useInvalidateAll,
   useOnline,
   useSync,
@@ -49,6 +50,7 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
   const me = useCurrentMember();
   const membership = useAccess("chanda.add");
   const sync = useSync();
+  const checkDevice = useDeviceCheck();
   const [authed, setAuthed] = useState(false);
   const [clubOpen, setClubOpen] = useState(false);
   // Read on render: the picker only mounts client-side, once the modal is opened.
@@ -72,9 +74,18 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
 
   useEffect(() => {
     if (!online) return;
-    sync.mutateAsync().then(({ synced }) => {
-      if (synced > 0) toast.success(`${n(String(synced))} ✓ ${t("synced")}`);
-    });
+    sync
+      .mutateAsync()
+      .then(({ synced }) => {
+        if (synced > 0) toast.success(`${n(String(synced))} ✓ ${t("synced")}`);
+      })
+      // After the push, so a device removed elsewhere has sent what it had before logging out.
+      .then(checkDevice)
+      .then((status) => {
+        if (status !== "removed" && status !== "limit") return;
+        // A lasting notice on the login screen, not a toast: they may look away.
+        navigate({ to: "/", search: { signedOut: status }, replace: true });
+      });
   }, [online]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onStart = (e: React.TouchEvent) => {

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useIsMutating } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -16,6 +16,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider, themeBootScript, useI18n } from "../lib/i18n";
 import { registerServiceWorker } from "../lib/pwa";
 import { initCloud } from "../services/cloud";
+import { LoadingBar } from "../components/pk/ui";
+import { SYNC_KEY } from "../hooks/use-data";
 
 function NotFoundComponent() {
   const { t } = useI18n();
@@ -122,8 +124,15 @@ function RootComponent() {
   }, []);
   return (
     <QueryClientProvider client={queryClient}>
+      <SavingBar />
       <Outlet />
       <Toaster position="top-center" richColors />
     </QueryClientProvider>
   );
+}
+
+/** Shows the branded strip while anything is being saved (background sync excluded). */
+function SavingBar() {
+  const saving = useIsMutating({ predicate: (m) => m.options.mutationKey !== SYNC_KEY });
+  return <LoadingBar active={saving > 0} />;
 }

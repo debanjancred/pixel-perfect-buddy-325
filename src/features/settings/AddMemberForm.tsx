@@ -3,7 +3,7 @@ import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useCreateMember } from "@/hooks/use-data";
-import { TextField } from "@/components/pk/ui";
+import { Spinner, TextField } from "@/components/pk/ui";
 import {
   ValidationError,
   fieldErrors,
@@ -17,8 +17,8 @@ import { ROLES } from "./model";
 const FIELDS = ["name", "phone"] as const;
 const blank = { name: "", phone: "", role: "collector" as UserRole };
 
-/** Add a committee member with inline, field-level validation. */
-export function AddMemberForm() {
+/** Add a committee member with inline, field-level validation (shown in a sheet). */
+export function AddMemberForm({ onAdded }: { onAdded?: () => void }) {
   const { t } = useI18n();
   const create = useCreateMember();
   const [v, setV] = useState(blank);
@@ -43,6 +43,7 @@ export function AddMemberForm() {
       toast.success(t("memberAdded"));
       setV(blank);
       setSubmitted(false);
+      onAdded?.();
     } catch (ex) {
       if (!(ex instanceof ValidationError)) throw ex;
       setServerErr({ field: ex.field, key: ex.key });
@@ -50,8 +51,7 @@ export function AddMemberForm() {
   };
 
   return (
-    <form className="mt-4 space-y-3 border-t pt-4" onSubmit={submit} noValidate>
-      <h3 className="font-semibold">{t("addMember")}</h3>
+    <form className="space-y-3" onSubmit={submit} noValidate>
       <TextField
         id="member-name"
         label={t("name")}
@@ -91,8 +91,14 @@ export function AddMemberForm() {
           ))}
         </div>
       </fieldset>
-      <button type="submit" className="btn btn-gold w-full" disabled={create.isPending}>
-        <UserPlus className="h-5 w-5" aria-hidden /> {t("addMember")}
+      <button
+        type="submit"
+        className="btn btn-gold w-full"
+        disabled={create.isPending}
+        aria-busy={create.isPending}
+      >
+        {create.isPending ? <Spinner /> : <UserPlus className="h-5 w-5" aria-hidden />}{" "}
+        {t("addMember")}
       </button>
     </form>
   );

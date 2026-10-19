@@ -3,12 +3,14 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Search, UserPlus, Banknote, QrCode, Check } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { newId } from "@/lib/id";
 import { useI18n } from "@/lib/i18n";
 import {
   useAddHousehold,
   useAddTransaction,
   useClub,
   useAccess,
+  useCollectStanding,
   useCurrentMember,
   useHouseholds,
   useMembers,
@@ -16,7 +18,7 @@ import {
 } from "@/hooks/use-data";
 import type { Household, PaymentMethod } from "@/types/domain";
 import { AppShell } from "@/components/pk/AppShell";
-import { FieldError, Label, StatusBadge, TextField } from "@/components/pk/ui";
+import { FieldError, Label, Spinner, StatusBadge, TextField } from "@/components/pk/ui";
 import { byRecentActivity, householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
 import {
   ValidationError,
@@ -29,6 +31,7 @@ import {
 } from "@/lib/validation";
 import { ReceiptModal } from "@/features/receipt";
 import { NoAccess } from "@/components/pk/NoAccess";
+import { CollectDeviceGate } from "@/features/devices";
 
 export const Route = createFileRoute("/collect")({
   validateSearch: z.object({ household: z.string().optional() }),
@@ -69,6 +72,7 @@ function CollectPage() {
   const { data: members = [] } = useMembers();
   const me = useCurrentMember();
   const access = useAccess("chanda.add");
+  const { data: standing } = useCollectStanding();
   const addHousehold = useAddHousehold();
   const addTransaction = useAddTransaction();
 
@@ -187,7 +191,7 @@ function CollectPage() {
         setHh(target);
         setAdding(false);
       }
-      txId.current ??= crypto.randomUUID();
+      txId.current ??= newId();
       const c = await addTransaction.mutateAsync({
         id: txId.current,
         household_id: target.id,
@@ -211,6 +215,15 @@ function CollectPage() {
       <AppShell>
         <h1 className="text-2xl font-extrabold">{t("collectTitle")}</h1>
         <NoAccess />
+      </AppShell>
+    );
+
+  // Cloud mode: chanda is collected on one of the person's devices (features/devices).
+  if (standing?.applies && !standing.is_collect)
+    return (
+      <AppShell>
+        <h1 className="text-2xl font-extrabold">{t("collectTitle")}</h1>
+        <CollectDeviceGate collectLabel={standing.collect_label} />
       </AppShell>
     );
 
@@ -469,7 +482,9 @@ function CollectPage() {
           type="submit"
           className="btn btn-primary shadow-fab mt-8 w-full py-4 text-lg"
           disabled={saving}
+          aria-busy={saving}
         >
+          {saving && <Spinner />}
           {t("saveReceipt")} {!errors.amount && <span className="num">· {money(finalAmount)}</span>}
         </button>
       </form>

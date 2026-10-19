@@ -40,6 +40,19 @@ disappears) and Settings → sync works across devices.
   merged — unsent local changes always win until they are sent.
 - **Permissions** are enforced by the database (row-level security + triggers), matching
   `src/lib/permissions.ts`. A refused change shows as "didn't sync" with Retry.
+- **Devices:** each person can be logged in on up to 3 devices (a 4th login asks them to
+  remove one) and collects chanda on exactly one — their *collecting device* — so their
+  receipt numbers come from one sequence on one phone. Everything else works on every
+  device. Settings → Devices lists them, switches the collecting device and removes a device
+  (it sends what it still has and logs out the next time it opens). An admin can reset a
+  member's collecting device from Settings → Members (lost phone). Chanda that reaches the
+  server from any other device is still accepted, but flagged ("collected on another
+  device") on the home feed for the committee to check. A device is an id kept in the
+  browser, so clearing site data or a private tab counts as a new device. Removal is
+  enforced by the app, not by revoking the Supabase session.
+- **Receipt numbers** use the code of whoever writes the receipt (`PK-2026-A01-0007` when the
+  admin records a collector's cash). If two devices still issue the same number, the server
+  gives the later entry the next free one; the phone shows it after the next pull.
 - **Public accounts:** `/club/<slug>/accounts` works on any device via `public_accounts`,
   which returns totals only — no names or phone numbers.
 

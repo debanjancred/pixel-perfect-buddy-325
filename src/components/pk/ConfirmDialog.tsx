@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useI18n } from "@/lib/i18n";
-import { Modal } from "./ui";
+import { Modal, Spinner } from "./ui";
 
 /** Asks before a destructive or hard-to-undo action. */
 export function ConfirmDialog({
@@ -26,7 +26,14 @@ export function ConfirmDialog({
         <button type="button" className="btn btn-outline" onClick={onCancel}>
           {t("cancel")}
         </button>
-        <button type="button" className="btn btn-primary" onClick={onConfirm} disabled={busy}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={onConfirm}
+          disabled={busy}
+          aria-busy={busy}
+        >
+          {busy && <Spinner />}
           {confirmLabel ?? t("confirm")}
         </button>
       </div>

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useI18n } from "@/lib/i18n";
 import { ValidationError, check, voidReasonSchema, type ErrKey } from "@/lib/validation";
-import { FieldError, Label, Modal } from "./ui";
+import { FieldError, Label, Modal, Spinner } from "./ui";
 
 /**
  * SPEC Story 2.3: voiding needs a reason and never deletes — the entry stays in the
@@ -65,7 +65,8 @@ export function VoidDialog({
           <button type="button" className="btn btn-outline" onClick={onClose}>
             {t("cancel")}
           </button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
+          <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
+            {busy && <Spinner />}
             {t("void")}
           </button>
         </div>
