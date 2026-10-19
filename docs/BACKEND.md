@@ -23,6 +23,15 @@ npx supabase@2.119.0 migration list -p "$SUPABASE_DB_PASSWORD"      # local = re
 This creates the tables, row-level security, guard triggers, server functions and the
 private `vouchers` storage bucket. The link state lives in `supabase/.temp/` (not committed).
 
+**Two projects.** *Staging* (Seoul, test data) is the linked project and what `.env`'s
+`VITE_SUPABASE_*` point at. *Production* (Mumbai, `ap-south-1`, real committees) is never
+linked; push to it explicitly, after staging, with its own `PROD_SUPABASE_*` values:
+```bash
+ENC=$(python3 -c "import urllib.parse,os;print(urllib.parse.quote(os.environ['PROD_SUPABASE_DB_PASSWORD'],safe=''))")
+PROD_DB="postgresql://postgres.$PROD_SUPABASE_REF:$ENC@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+npx supabase@2.119.0 db push --dry-run --db-url "$PROD_DB"   # then without --dry-run
+```
+
 Every schema change is a new file in `supabase/migrations/` (`YYYYMMDDHHMMSS_name.sql`), tested
 with `supabase/tests/run.sh`, then applied with `db push`. Don't paste SQL into the editor: the
 CLI records each applied migration, and a pasted one is invisible to it. If that happens,
@@ -62,8 +71,15 @@ disappears) and Settings → sync works across devices.
   member's collecting device from Settings → Members (lost phone). Chanda that reaches the
   server from any other device is still accepted, but flagged ("collected on another
   device") on the home feed for the committee to check. A device is an id kept in the
-  browser, so clearing site data or a private tab counts as a new device. Removal is
-  enforced by the app, not by revoking the Supabase session.
+  browser, so clearing site data or a private tab counts as a new device.
+- **Removed devices on the server:** each device records the login session it checks in
+  with. Once removed, that session reads no club data and can't void, manage members or
+  events, create clubs or change devices; chanda, expenses and handovers it still sends are
+  accepted (the cash was really taken) and flagged `off_device`. A session is covered from
+  the device's first check-in after `…_removed_device_sessions.sql`.
+- **Grants:** every table and function is granted explicitly in its migration; Supabase's
+  automatic grants on new objects are switched off (`…_security_hardening.sql`), so a new
+  migration must `grant` what the app needs.
 - **Receipt numbers** use the code of whoever writes the receipt (`PK-2026-A01-0007` when the
   admin records a collector's cash). If two devices still issue the same number, the server
   gives the later entry the next free one; the phone shows it after the next pull.

@@ -27,8 +27,7 @@ function fakeClient(fail: (call: Call) => boolean = () => false) {
   };
   const client = {
     from: (table: string) => ({
-      upsert: (args: unknown, opts: unknown) =>
-        result({ op: "upsert", table, args: { args, opts } }),
+      insert: (args: unknown) => result({ op: "insert", table, args: { args } }),
       update: (args: unknown) => ({
         eq: (_col: string, id: string) => ({
           select: () =>
@@ -77,14 +76,34 @@ describe("cloud adapter", () => {
       { id: "t1", ok: true },
       { id: "t2", ok: true },
     ]);
-    const insert = calls[0]!.args as { args: Record<string, unknown>; opts: unknown };
-    expect(insert.opts).toEqual({ onConflict: "id", ignoreDuplicates: true });
+    const insert = calls[0]!.args as { args: Record<string, unknown> };
     expect(insert.args).not.toHaveProperty("sync_status"); // device-only field
-    expect(calls.map((c) => c.op)).toEqual(["upsert", "upsert", "update"]);
+    expect(calls.map((c) => c.op)).toEqual(["insert", "insert", "update"]);
     expect(calls[2]!.args).toEqual({
       args: { voided_at: "x", void_reason: "ভুল", status: "void" },
       id: "t2",
     });
+  });
+
+  it("counts an already-sent row (duplicate id) as synced, but not other duplicates", async () => {
+    const dup = (constraint: string) => ({
+      code: "23505",
+      message: `duplicate key value violates unique constraint "${constraint}"`,
+    });
+    const client = {
+      from: () => ({
+        insert: (args: { id: string }) =>
+          Promise.resolve({
+            data: null,
+            error: args.id === "t1" ? dup("chanda_transactions_pkey") : dup("households_phone_key"),
+          }),
+      }),
+    } as unknown as SupabaseClient;
+    const results = await createCloudAdapter(client, { loadVoucher: async () => null }).push([
+      { kind: "chanda", record: tx() },
+      { kind: "chanda", record: tx({ id: "t2" }) },
+    ]);
+    expect(results.map((r) => r.ok)).toEqual([true, false]);
   });
 
   it("creates clubs through create_club with the creator as admin", async () => {
@@ -144,7 +163,7 @@ describe("cloud adapter", () => {
 
   it("isolates failures: a rejected record doesn't stop the rest", async () => {
     const { client } = fakeClient(
-      (c) => c.op === "upsert" && (c.args as { args: { id: string } }).args.id === "t1",
+      (c) => c.op === "insert" && (c.args as { args: { id: string } }).args.id === "t1",
     );
     const results = await createCloudAdapter(client, { loadVoucher: async () => null }).push([
       { kind: "chanda", record: tx() },
@@ -329,7 +348,7 @@ describe("cloud adapter: refused updates", () => {
     const calls: string[] = [];
     const client = {
       from: () => ({
-        upsert: () => Promise.resolve({ data: null, error: null }),
+        insert: () => Promise.resolve({ data: null, error: null }),
         update: () => ({
           eq: () => ({
             select: () => {

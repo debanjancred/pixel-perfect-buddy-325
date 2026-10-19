@@ -15,6 +15,17 @@ All notable changes to Pujo Khata. Format follows
 - Builds with a Sentry organization token (`SENTRY_AUTH_TOKEN`) upload source maps for
   readable stack traces and delete them before publishing; the build fails if one is left.
 
+### Security
+- Database: signed-in users no longer hold TRUNCATE/TRIGGER/REFERENCES on tables, logged-out
+  visitors can call only the public accounts function, internal and trigger functions can't
+  be called directly, every function has a fixed search path, and new tables and functions
+  get no automatic grants. Apply `20261019000004_security_hardening.sql`.
+- A removed device loses access on the server too: it reads nothing and changes nothing,
+  while the chanda, expenses and handovers it still sends are accepted and flagged for
+  review. Entries are now sent as plain inserts (a duplicate id counts as sent), because an
+  ignore-duplicates insert also needs read access. Apply
+  `20261019000005_removed_device_sessions.sql`.
+
 ## [0.10.0] - 2026-10-19
 
 Cloud-mode hardening after the first real use on Supabase: entries no longer fail to sync
