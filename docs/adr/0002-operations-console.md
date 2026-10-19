@@ -23,27 +23,37 @@ must be narrow, strong and recorded. Committee phones are often offline and low-
 **1. Error monitoring — Sentry (free Developer plan for the pilot).**
 - `@sentry/react` in the app, initialised only when `VITE_SENTRY_DSN` is set (like cloud
   mode); without it nothing is sent.
-- No personal data: `sendDefaultPii: false`, `beforeSend` strips phone numbers, names,
-  amounts and URL search params; tags carry only `club_id`, role, app version, locale,
+- No personal data: the SDK's `dataCollection` collects no user info, cookies, bodies or
+  query strings, and `beforeSend` masks phone numbers, Bengali text and amounts; tags carry only `club_id`, role, app version, locale,
   cloud/device mode. Session replay off.
-- Offline transport queues errors until the phone is back online; duplicate and known-noise
-  errors (offline fetches, extensions) are dropped so one bug can't exhaust the monthly
-  quota (5,000 errors).
+- Offline transport queues errors until the phone is back online. Weak-signal failures are
+  not errors to us: network errors are ignored, and failed syncs are handled by the app
+  (and logged to `client_events`, below), never sent to Sentry.
+- Quota (5,000 errors a month, with Puja's five peak days the risk): duplicates are
+  dropped, and each device sends at most **5 errors a day**, counted on the device, not per
+  page load (shipped first as 25 per page load). No random sampling: a crash that hits
+  only a few phones must still be seen, and the per-device cap already bounds the total.
 - Releases are tagged with the `package.json` version so a regression maps to a release.
 
 **2. Product telemetry stays in our Postgres (Mumbai).**
 - Sync failures are also written to a server table `client_events` (kind, error key,
   entity type, app version, device id, club id) when the device next reaches the server —
   the "see why" reasons, visible to us.
+- Retention: a daily pg_cron job deletes `client_events` (and later `support_tickets`
+  diagnostics) older than **90 days**; Sentry keeps events for its plan's 30 days.
 - Registration and usage figures are SQL views over existing tables (users, clubs, members,
   devices, entries per day, active clubs); totals only, no household names or phones.
 - No third-party product analytics for now.
 
-**3. App control — `app_config` read on every app open.**
+**3. App control — `app_config` checked on every app open, never waited for.**
 - One public, read-only row: `maintenance` (message, on/off), `min_version` (older apps
   must update), `flags` (feature switches), `announcement` (bilingual text, optional link).
-- The app caches the last copy so it still starts offline; a maintenance flag blocks
-  writes to the cloud, never reading what is already on the phone.
+- Fetched in the background with a short timeout; the UI never waits for it. The last
+  copy is kept in `localStorage` and used until a fresh one arrives.
+- No copy yet and offline (first open in a dead zone): fail open — everything on the phone
+  works as normal, and syncing simply waits until a config has been read.
+- A maintenance flag pauses sending to the cloud, never reading or recording on the phone;
+  a too-old version is asked to update, and its entries stay queued on the phone.
 - `clubs.suspended_at`: row-level security refuses new writes for a suspended club; members
   see why.
 
@@ -66,7 +76,18 @@ must be narrow, strong and recorded. Committee phones are often offline and low-
   migrations in `supabase/migrations/` with SQL tests, like everything else.
 - Until the console exists, owners use the same `ops_*` functions from the SQL editor.
 
-**6. In-app help and notifications.**
+**6. Data protection (DPDP Act 2023).**
+- Retention as above; the audit log is kept for the life of the service (it holds ids and
+  actions, not personal details).
+- Erasure on request: a committee admin can ask to close the club. Its members' and
+  donors' phone numbers and names are then removed or masked, while the money records
+  (amounts, dates, receipt numbers) stay for the accounts. A person can ask to be removed
+  from a club the same way. Carried out with an audited `ops_*` function.
+- After a season: the app reminds admins after Lakshmi Puja that they can export the
+  accounts and close or archive the club; a club inactive for 12 months is asked to
+  confirm before its personal data is masked.
+
+**7. In-app help and notifications.**
 - Settings → Help: a short form (category, message, optional device diagnostics: app
   version, mode, pending/failed sync counts) saved to `support_tickets`, plus the support
   WhatsApp number.
@@ -78,7 +99,9 @@ must be narrow, strong and recorded. Committee phones are often offline and low-
 - **Phase 1, before the pilot (M13):**
   - Sentry.
   - `client_events`.
-  - `app_config` with maintenance, minimum version and announcement.
+  - `app_config` with maintenance, minimum version and announcement (non-blocking,
+    cached).
+  - 90-day `client_events` retention job.
   - `ops.staff`, MFA and `ops.audit_log`.
   - Support functions.
   - Usage views.
@@ -88,6 +111,7 @@ must be narrow, strong and recorded. Committee phones are often offline and low-
   - Ticket inbox.
   - Feature flags in the app.
   - Club suspension.
+  - Club closure and personal-data erasure on request; the post-season reminder.
   - Web Push.
 - **Phase 3, with paid plans:**
   - Subscriptions and billing.
