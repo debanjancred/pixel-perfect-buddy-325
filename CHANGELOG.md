@@ -12,6 +12,13 @@ All notable changes to Pujo Khata. Format follows
   the top while any save runs (background sync excluded; slower with reduced motion).
 
 ### Fixed
+- Cash handovers (and the chanda behind them) never synced when two phones issued the same
+  receipt number for a collector, e.g. an admin recording cash for a collector who was also
+  collecting. The later entry failed the server's unique receipt number on every retry, so
+  the server never saw that cash and refused handovers as more than the collector held. The
+  server now gives a clashing entry the collector's next free number
+  (`supabase/migrations/20261019000001_receipt_renumber.sql`); the phone shows it after the
+  next pull.
 - A new club showed "1 entry not synced" in cloud mode: two overlapping syncs sent it twice
   and the second copy failed as a duplicate. Syncs now run one at a time, and results are
   recorded on a fresh read of the store, so entries saved during a push are no longer lost.

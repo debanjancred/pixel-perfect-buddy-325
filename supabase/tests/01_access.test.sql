@@ -93,11 +93,6 @@ insert into public.chanda_transactions (id, receipt_no, club_id, household_id, a
   (:tx1, 'PK-2026-C01-0001', :club, :hh, 1001, 'cash', 'collected', :coll),
   (:tx2, 'PK-2026-C01-0002', :club, :hh, 501, 'cash', 'collected', :coll);
 select test.ok((select count(*) from public.chanda_transactions) = 2, 'collector records chanda');
-select test.expect_error($$insert into public.chanda_transactions (id, receipt_no, club_id,
-  household_id, amount, payment_method, status, collector_id) values (gen_random_uuid(),
-  'PK-2026-C01-0001', '11111111-1111-4111-8111-111111111111',
-  'bbbbbbbb-0000-4000-8000-000000000001', 5, 'cash', 'collected',
-  'aaaaaaaa-0000-4000-8000-000000000003')$$, 'duplicate key');
 select test.expect_error($$insert into public.expense_records (id, club_id, category, title,
   amount, paid_to, authorized_by_id, date) values (gen_random_uuid(),
   '11111111-1111-4111-8111-111111111111', 'misc', 't', 10, 'p',
@@ -183,6 +178,25 @@ select test.ok(public.public_accounts('test-club-2026')::text not like '%9000000
   and public.public_accounts('test-club-2026')::text not like '%আবাসিক%', 'no phones or names');
 select test.ok(public.public_accounts('no-such-club') is null, 'unknown slug returns null');
 select test.expect_error('select * from public.chanda_transactions', 'permission denied');
+
+-- 11. Two phones that issued the same receipt number both sync: the later entry is renumbered
+-- to the collector's next free number instead of failing on every retry. Last, so the extra
+-- entry doesn't change the totals checked above.
+select test.act_as('9000000003');
+\set tx3 '''cccccccc-0000-4000-8000-000000000003'''
+insert into public.chanda_transactions (id, receipt_no, club_id, household_id, amount,
+  payment_method, status, collector_id) values
+  (:tx3, 'PK-2026-C01-0001', :club, :hh, 5, 'cash', 'collected', :coll)
+  on conflict (id) do nothing;
+select test.ok((select receipt_no from public.chanda_transactions where id = :tx3)
+  = 'PK-2026-C01-0003', 'a clashing receipt number gets the next free one');
+insert into public.chanda_transactions (id, receipt_no, club_id, household_id, amount,
+  payment_method, status, collector_id) values
+  (:tx3, 'PK-2026-C01-0001', :club, :hh, 5, 'cash', 'collected', :coll)
+  on conflict (id) do nothing;
+select test.ok((select count(*) from public.chanda_transactions where id = :tx3) = 1
+  and (select receipt_no from public.chanda_transactions where id = :tx3) = 'PK-2026-C01-0003',
+  'a re-sent entry is ignored, not renumbered again');
 
 reset role;
 select test.ok(true, 'all access tests passed');
