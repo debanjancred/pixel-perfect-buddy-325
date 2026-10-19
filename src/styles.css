@@ -370,3 +370,25 @@
     animation-duration: 2.5s;
   }
 }
+
+/* Toasts (sonner): brand tokens instead of the library's own palette, whose success/error
+   text falls below 4.5:1 and which stays light in dark mode. Set on the toast itself, so they
+   override the toaster's variables by inheritance, whatever order the styles load in. */
+[data-sonner-toast] {
+  --normal-bg: var(--card);
+  --normal-border: var(--border);
+  --normal-text: var(--foreground);
+  --success-bg: var(--success-soft);
+  --success-border: color-mix(in oklab, var(--success) 35%, transparent);
+  --success-text: var(--success);
+  --error-bg: var(--primary-soft);
+  --error-border: color-mix(in oklab, var(--primary-ink) 35%, transparent);
+  --error-text: var(--primary-ink);
+  --warning-bg: var(--warning-soft);
+  --warning-border: color-mix(in oklab, var(--warning) 35%, transparent);
+  --warning-text: var(--warning);
+  --info-bg: var(--gold-soft);
+  --info-border: color-mix(in oklab, var(--gold) 45%, transparent);
+  --info-text: var(--gold-ink);
+  font-family: inherit;
+}

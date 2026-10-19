@@ -35,6 +35,9 @@ All notable changes to Pujo Khata. Format follows
   share a sequence.
 
 ### Fixed
+- Toasts use the brand's success, error, warning and gold colours and follow dark mode; the
+  library's own success and error text was below WCAG AA contrast (now ≥ 4.5:1 for every
+  type in both themes).
 - Sheets (add member, expense, handover, void…) no longer hide behind the phone's keyboard:
   they sit in the visible area above it, and the field being typed in stays in view.
 - A cash handover could stay "didn't sync — can't receive more than the cash outstanding"
