@@ -16,6 +16,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider, themeBootScript, useI18n } from "../lib/i18n";
 import { registerServiceWorker } from "../lib/pwa";
 import { initCloud } from "../services/cloud";
+import { captureError, initMonitoring } from "../services/monitoring";
 import { LoadingBar } from "../components/pk/ui";
 import { SYNC_KEY } from "../hooks/use-data";
 
@@ -42,6 +43,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    captureError(error, "root");
   }, [error]);
 
   return (
@@ -119,6 +121,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
+    void initMonitoring();
     initCloud();
     void registerServiceWorker();
   }, []);

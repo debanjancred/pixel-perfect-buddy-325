@@ -78,3 +78,25 @@ POSTGREST_BIN=/path/to/postgrest supabase/tests/integration.sh
 # ↑ the app's real sync code via supabase-js against PostgREST (Supabase's data API)
 ```
 PostgREST binaries: https://github.com/PostgREST/postgrest/releases.
+
+## Error monitoring (Sentry)
+Production builds report crashes and unhandled errors to Sentry when `VITE_SENTRY_DSN` is
+set (`.env` locally, the hosting/Lovable environment for the published site); without it
+nothing is sent. Development builds never send. Decision and limits: ADR 0002.
+- **What is sent:** the error and stack trace, the page path (no query string), browser
+  name, app release (`pujo-khata@<version>`), and tags `club_id`, `role`, `mode`, `locale`,
+  `cloud`. The user is this browser's random device id, so Sentry can count affected devices.
+- **What is not:** phone numbers, rupee amounts, long numbers and Bengali text are masked in
+  messages; query strings, cookies, request bodies, console output and IP-derived data are
+  dropped (`src/services/monitoring.ts`, tested in `src/test/monitoring.test.ts`).
+- **Quota:** at most 25 events per page load; offline fetch errors, browser quirks and
+  extension errors are ignored. Errors recorded offline are sent when the phone reconnects.
+- **Environment:** `local` for localhost and LAN addresses, `production` everywhere else.
+- **Readable stack traces:** with an organization token as `SENTRY_AUTH_TOKEN` in the build
+  environment (Sentry → Settings → Organization Tokens; never `VITE_`-prefixed), `vite build`
+  uploads source maps to the `pujo-khata` project and deletes them from `.output/public`; the
+  build fails if any map would be published. Maps must come from the build that is deployed,
+  so set the token where the published site is built. Without it, builds are unchanged and
+  traces show minified code.
+- **In Sentry** (Project → Settings → Security & Privacy) also turn on *Data Scrubber*,
+  *Use Default Scrubbers* and *Prevent Storing of IP Addresses*, as a second line of defence.
