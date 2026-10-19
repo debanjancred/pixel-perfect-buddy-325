@@ -17,8 +17,8 @@ import { ROLES } from "./model";
 const FIELDS = ["name", "phone"] as const;
 const blank = { name: "", phone: "", role: "collector" as UserRole };
 
-/** Add a committee member with inline, field-level validation. */
-export function AddMemberForm() {
+/** Add a committee member with inline, field-level validation (shown in a sheet). */
+export function AddMemberForm({ onAdded }: { onAdded?: () => void }) {
   const { t } = useI18n();
   const create = useCreateMember();
   const [v, setV] = useState(blank);
@@ -43,6 +43,7 @@ export function AddMemberForm() {
       toast.success(t("memberAdded"));
       setV(blank);
       setSubmitted(false);
+      onAdded?.();
     } catch (ex) {
       if (!(ex instanceof ValidationError)) throw ex;
       setServerErr({ field: ex.field, key: ex.key });
@@ -50,8 +51,7 @@ export function AddMemberForm() {
   };
 
   return (
-    <form className="mt-4 space-y-3 border-t pt-4" onSubmit={submit} noValidate>
-      <h3 className="font-semibold">{t("addMember")}</h3>
+    <form className="space-y-3" onSubmit={submit} noValidate>
       <TextField
         id="member-name"
         label={t("name")}

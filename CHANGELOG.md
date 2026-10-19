@@ -25,6 +25,11 @@ All notable changes to Pujo Khata. Format follows
   the top while any save runs (background sync excluded; slower with reduced motion).
 
 ### Changed
+- Settings → Members redesigned for 360px: rows show a role-toned avatar (vermilion admin,
+  gold treasurer), the full name with "You", the phone as 98300 12345 and the member code —
+  no more cut-off names or overflowing numbers. Admins tap a member to open a sheet with role
+  cards (each with what the role can do, saved explicitly), call and reset-collecting-device;
+  adding a member moved into its own sheet. Both sheets live in the URL, so back closes them.
 - Receipt numbers use the code of whoever writes the receipt, not the collector the cash is
   for (`PK-2026-A01-0007` when the admin records a collector's cash), so two people never
   share a sequence.

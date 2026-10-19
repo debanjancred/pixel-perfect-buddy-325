@@ -7,7 +7,10 @@ import { useCollectStanding, useOnline, useResetCollectDevice } from "@/hooks/us
 import { ConfirmDialog } from "@/components/pk/ConfirmDialog";
 import type { ClubMember } from "@/types/domain";
 
-/** Admin, per member: clear their collecting device (a lost phone); they choose again. */
+/**
+ * Admin, in a member's sheet: clear their collecting device (a lost phone); they choose
+ * again. Cloud mode only; needs the network.
+ */
 export function ResetCollectDevice({ member }: { member: ClubMember }) {
   const { t } = useI18n();
   const online = useOnline();
@@ -17,17 +20,18 @@ export function ResetCollectDevice({ member }: { member: ClubMember }) {
   if (!standing?.applies) return null;
 
   return (
-    <>
+    <div className="mt-5 border-t pt-4">
+      <p className="font-semibold">{t("collectDevice")}</p>
+      <p className="mt-0.5 text-sm text-muted-foreground">{t("collectDeviceRowHint")}</p>
       <button
         type="button"
-        className="tap flex h-12 w-12 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground"
-        aria-label={`${t("resetCollectDevice")}: ${member.name}`}
-        title={t("resetCollectDevice")}
+        className="btn btn-outline mt-3 w-full"
         disabled={!online}
         onClick={() => setAsk(true)}
       >
-        <RotateCcw className="h-5 w-5" aria-hidden />
+        <RotateCcw className="h-5 w-5" aria-hidden /> {t("resetCollectDevice")}
       </button>
+      {!online && <p className="mt-1 text-xs text-muted-foreground">{t("collectGateOffline")}</p>}
       {ask && (
         <ConfirmDialog
           title={t("resetCollectDevice")}
@@ -47,6 +51,6 @@ export function ResetCollectDevice({ member }: { member: ClubMember }) {
           <p>{t("resetCollectDeviceConfirm", { name: member.name })}</p>
         </ConfirmDialog>
       )}
-    </>
+    </div>
   );
 }

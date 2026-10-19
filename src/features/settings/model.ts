@@ -19,6 +19,27 @@ export const membersByRole = (members: ClubMember[]) =>
     members: members.filter((m) => m.role === role).sort((a, b) => a.name.localeCompare(b.name)),
   }));
 
+/** Brand tone per role: vermilion for admins, gold for treasurers, neutral for collectors. */
+export const ROLE_TONE: Record<UserRole, string> = {
+  admin: "bg-primary-soft text-primary",
+  treasurer: "bg-gold-soft text-gold-ink",
+  collector: "bg-muted text-foreground",
+};
+
+/** "9830012345" → "98300 12345", the way people read mobile numbers aloud. */
+export const phoneDisplay = (phone: string) =>
+  phone.length === 10 ? `${phone.slice(0, 5)} ${phone.slice(5)}` : phone;
+
+/**
+ * First letter for the avatar, keeping a Bengali conjunct or vowel sign together but dropping
+ * a dangling hasanta ("অ্যাডমিন" → "অ", not "অ্").
+ */
+export const initialOf = (name: string) =>
+  (
+    [...new Intl.Segmenter("bn", { granularity: "grapheme" }).segment(name.trim())][0]?.segment ??
+    "?"
+  ).replace(/\u09CD$/, "");
+
 type Format = Pick<I18n, "t">;
 
 const nameOf = (members: ClubMember[], id: string) => members.find((m) => m.id === id)?.name ?? "";
