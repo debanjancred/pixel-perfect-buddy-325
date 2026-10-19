@@ -42,6 +42,7 @@ first six migrations).
 Authentication → Providers → **Phone**: enable it and connect an SMS provider.
 - For Indian numbers a DLT-registered sender is required; MSG91 is a common choice (use
   Supabase's *Send SMS hook* if your provider isn't listed). Twilio and Vonage are built in.
+  Step-by-step: [SMS-SETUP.md](SMS-SETUP.md).
 - While testing, add **test phone numbers** with fixed codes (Auth → Phone → Test OTP),
   e.g. `919000000001 = 123456`, so no SMS is sent.
 - OTPs are 6 digits in cloud mode.
