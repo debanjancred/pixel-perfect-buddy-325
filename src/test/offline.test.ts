@@ -116,4 +116,46 @@ describe("sync adapter (SPEC 5.1)", () => {
     await api.sync();
     expect(new Set(seen)).toContain("chanda");
   });
+
+  it("runs overlapping syncs one after another, so nothing is sent twice", async () => {
+    await pendingDemo();
+    const sent: string[] = [];
+    setSyncAdapter({
+      push: async (recs) => {
+        recs.forEach((r) => sent.push(r.record.id));
+        await new Promise((done) => setTimeout(done, 300)); // a slow network
+        return recs.map((r) => ({ id: r.record.id, ok: true }));
+      },
+    });
+    const [a, b] = await Promise.all([api.sync(), api.sync()]);
+    expect(new Set(sent).size).toBe(sent.length);
+    expect(a.failed + b.failed).toBe(0);
+    expect(b.synced).toBe(0);
+    expect(await api.getSyncStatus()).toEqual({ pending: 0, failed: 0 });
+  });
+
+  it("keeps entries saved while a push is in flight", async () => {
+    const ids = await pendingDemo();
+    const admin = (await api.listMembers())[0]!;
+    const hh = (await api.listHouseholds())[0]!;
+    let later = "";
+    setSyncAdapter({
+      push: async (recs) => {
+        const c = await api.addTransaction({
+          id: crypto.randomUUID(),
+          household_id: hh.id,
+          amount: 501,
+          payment_method: "cash",
+          status: "collected",
+          collector_id: admin.id,
+        });
+        later = c.id;
+        return recs.map((r) => ({ id: r.record.id, ok: true }));
+      },
+    });
+    await api.sync();
+    const chanda = await api.listChanda();
+    expect(chanda.find((c) => c.id === ids[0])!.sync_status).toBe("synced");
+    expect(chanda.find((c) => c.id === later)!.sync_status).toBe("pending");
+  });
 });

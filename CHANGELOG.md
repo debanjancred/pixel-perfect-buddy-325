@@ -6,6 +6,11 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Fixed
+- A new club showed "1 entry not synced" in cloud mode: two overlapping syncs sent it twice
+  and the second copy failed as a duplicate. Syncs now run one at a time, and results are
+  recorded on a fresh read of the store, so entries saved during a push are no longer lost.
+
 ## [0.9.0] - 2026-10-17
 
 Release candidate. Covers the planned v0.3–v0.5 phases in one release: receipts, expenses,

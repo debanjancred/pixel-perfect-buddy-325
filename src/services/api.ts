@@ -380,6 +380,52 @@ export interface ClubAccounts {
   category_totals?: { category: ExpenseRecord["category"]; total: number }[];
 }
 
+/** The sync run in progress (or the last one), so api.sync() calls queue behind it. */
+let syncRun: Promise<unknown> = Promise.resolve();
+
+async function pushQueue(): Promise<{ synced: number; failed: number }> {
+  await delay();
+  if (!isOnline()) return { synced: 0, failed: 0 };
+  const db = read();
+  const queue = syncQueue(db);
+  if (!queue.length) return { synced: 0, failed: 0 };
+  const demo = db.clubs.find((c) => c.slug === DEMO_SLUG)?.id;
+  const isLocal = (item: SyncRecord) => clubOf(db, item) === demo;
+  const local = queue.filter(isLocal);
+  const remote = queue.filter((i) => !isLocal(i));
+  let results: SyncResult[] = local.map((i) => ({ id: i.record.id, ok: true }));
+  if (remote.length) {
+    try {
+      results = results.concat(await getSyncAdapter().push(remote));
+    } catch {
+      results = results.concat(remote.map((i) => ({ id: i.record.id, ok: false })));
+    }
+  }
+  const ok = new Map(results.map((r) => [r.id, r.ok]));
+  let synced = 0;
+  let failed = 0;
+  // The store may have changed during the push: record outcomes on a fresh copy, and leave
+  // alone any row whose status moved on meanwhile (e.g. voided again, so pending once more).
+  const fresh = read();
+  const rows = new Map<string, { sync_status: string }>(
+    [...fresh.chanda, ...fresh.expenses, ...fresh.handovers].map((r) => [r.id, r]),
+  );
+  for (const item of queue) {
+    const success = ok.get(item.record.id) === true;
+    if (success) synced++;
+    else failed++;
+    if (!("sync_status" in item.record)) continue;
+    const row = rows.get(item.record.id);
+    if (row && row.sync_status === item.record.sync_status)
+      row.sync_status = success ? "synced" : "failed";
+  }
+  fresh.outbox = (fresh.outbox ?? [])
+    .filter((o) => ok.get(o.id) !== true)
+    .map((o) => (ok.has(o.id) ? { ...o, failed: true } : o));
+  write(fresh);
+  return { synced, failed };
+}
+
 export const api = {
   // --- Auth (mock) ---
   async requestOtp(phone: string) {
@@ -776,38 +822,12 @@ export const api = {
    * (ledger rows that are pending/failed, plus the outbox) in dependency order, and record
    * each outcome. The sample club is settled locally and never sent. Offline: no-op.
    */
-  async sync(): Promise<{ synced: number; failed: number }> {
-    await delay();
-    if (!isOnline()) return { synced: 0, failed: 0 };
-    const db = read();
-    const queue = syncQueue(db);
-    if (!queue.length) return { synced: 0, failed: 0 };
-    const demo = db.clubs.find((c) => c.slug === DEMO_SLUG)?.id;
-    const isLocal = (item: SyncRecord) => clubOf(db, item) === demo;
-    const local = queue.filter(isLocal);
-    const remote = queue.filter((i) => !isLocal(i));
-    let results: SyncResult[] = local.map((i) => ({ id: i.record.id, ok: true }));
-    if (remote.length) {
-      try {
-        results = results.concat(await getSyncAdapter().push(remote));
-      } catch {
-        results = results.concat(remote.map((i) => ({ id: i.record.id, ok: false })));
-      }
-    }
-    const ok = new Map(results.map((r) => [r.id, r.ok]));
-    let synced = 0;
-    let failed = 0;
-    for (const item of queue) {
-      const success = ok.get(item.record.id) === true;
-      if (success) synced++;
-      else failed++;
-      if ("sync_status" in item.record) item.record.sync_status = success ? "synced" : "failed";
-    }
-    db.outbox = (db.outbox ?? [])
-      .filter((o) => ok.get(o.id) !== true)
-      .map((o) => (ok.has(o.id) ? { ...o, failed: true } : o));
-    write(db);
-    return { synced, failed };
+  sync(): Promise<{ synced: number; failed: number }> {
+    // One push at a time: overlapping runs would send the same records twice (a second
+    // create_club then fails on the duplicate id and the entry shows as not synced).
+    const run = syncRun.then(pushQueue, pushQueue);
+    syncRun = run.catch(() => undefined);
+    return run;
   },
   /** Counts for the sync banner: records waiting, and records whose last push failed. */
   async getSyncStatus(): Promise<{ pending: number; failed: number }> {
