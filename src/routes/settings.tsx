@@ -3,6 +3,7 @@ import { z } from "zod";
 import { useI18n } from "@/lib/i18n";
 import { AppShell } from "@/components/pk/AppShell";
 import { DevicesSection } from "@/features/devices";
+import { InstallApp } from "@/features/install";
 import {
   AccountSection,
   DemoActorSection,
@@ -43,6 +44,7 @@ function SettingsPage() {
         <DemoActorSection />
         <MembersSection memberId={member} adding={addMember} />
         <ExportSection />
+        <InstallApp variant="card" />
         <PreferencesSection />
         <DevicesSection />
         <AccountSection />

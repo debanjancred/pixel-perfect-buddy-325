@@ -51,3 +51,61 @@ export async function registerServiceWorker() {
     /* the app works without it; it just won't open offline */
   }
 }
+
+// --- Install prompt ------------------------------------------------------------------------
+// Chrome/Edge on Android offer installation through a `beforeinstallprompt` event, which can
+// fire before the screen with the install button is open. The root route starts listening as
+// the app loads (listenForInstallPrompt); src/features/install reads this store.
+
+interface InstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+export interface InstallState {
+  /** The browser offered installation and we haven't used the offer yet. */
+  canPrompt: boolean;
+  /** Installed during this visit (`appinstalled`). */
+  installed: boolean;
+}
+
+let deferred: InstallPromptEvent | null = null;
+let installState: InstallState = { canPrompt: false, installed: false };
+const listeners = new Set<() => void>();
+
+function setInstallState(next: InstallState) {
+  installState = next;
+  for (const l of listeners) l();
+}
+
+let listening = false;
+export function listenForInstallPrompt() {
+  if (typeof window === "undefined" || listening) return;
+  listening = true;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault(); // show our own button instead of the browser's mini-bar
+    deferred = e as InstallPromptEvent;
+    setInstallState({ ...installState, canPrompt: true });
+  });
+  window.addEventListener("appinstalled", () => {
+    deferred = null;
+    setInstallState({ canPrompt: false, installed: true });
+  });
+}
+
+export const installPrompt = {
+  subscribe(listener: () => void) {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+  get: () => installState,
+  /** Shows the browser's install dialog; true when the person accepted. */
+  async show(): Promise<boolean> {
+    const e = deferred;
+    if (!e) return false;
+    deferred = null; // an offer can be used once
+    setInstallState({ ...installState, canPrompt: false });
+    await e.prompt();
+    return (await e.userChoice).outcome === "accepted";
+  },
+};
