@@ -22,6 +22,15 @@ npx supabase@2.119.0 migration list -p "$SUPABASE_DB_PASSWORD"      # local = re
 This creates the tables, row-level security, guard triggers, server functions and the
 private `vouchers` storage bucket. The link state lives in `supabase/.temp/` (not committed).
 
+**Two projects.** *Staging* (Seoul, test data) is the linked project and what `.env`'s
+`VITE_SUPABASE_*` point at. *Production* (Mumbai, `ap-south-1`, real committees) is never
+linked; push to it explicitly, after staging, with its own `PROD_SUPABASE_*` values:
+```bash
+ENC=$(python3 -c "import urllib.parse,os;print(urllib.parse.quote(os.environ['PROD_SUPABASE_DB_PASSWORD'],safe=''))")
+PROD_DB="postgresql://postgres.$PROD_SUPABASE_REF:$ENC@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+npx supabase@2.119.0 db push --dry-run --db-url "$PROD_DB"   # then without --dry-run
+```
+
 Every schema change is a new file in `supabase/migrations/` (`YYYYMMDDHHMMSS_name.sql`), tested
 with `supabase/tests/run.sh`, then applied with `db push`. Don't paste SQL into the editor: the
 CLI records each applied migration, and a pasted one is invisible to it. If that happens,
