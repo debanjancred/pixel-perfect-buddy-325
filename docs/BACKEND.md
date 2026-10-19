@@ -3,7 +3,8 @@
 The app runs fully on the device until cloud mode is configured. With a Supabase project
 connected, signed-in committees share one ledger across phones, voucher photos are stored
 online, and the accounts page gets a public link anyone can open. The sample club always
-stays on the device. Why Supabase: [ADR 0001](adr/0001-backend-supabase.md).
+stays on the device. Why Supabase: [ADR 0001](adr/0001-backend-supabase.md); monitoring
+and the owner console: [ADR 0002](adr/0002-operations-console.md).
 
 ## 1. Create the project
 1. On supabase.com create a project in the **Mumbai (ap-south-1)** region.
