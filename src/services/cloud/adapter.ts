@@ -5,6 +5,8 @@
 // the batch; a record that depends on a failed one simply fails too and is retried.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SyncAdapter, SyncRecord, SyncResult } from "../sync";
+import { ValidationError } from "@/lib/validation";
+import { errorKey } from "./errors";
 
 export interface CloudAdapterDeps {
   /** Reads a voucher photo saved on this device (IndexedDB), for upload. */
@@ -39,7 +41,8 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
   const updateOne = async (table: string, id: string, patch: object) => {
     const { data, error } = await client.from(table).update(patch).eq("id", id).select("id");
     if (error) throw error;
-    if (!data?.length) throw new Error(`update refused or row missing: ${table}/${id}`);
+    // Row-level security hid the row (or it is missing): the server refused the change.
+    if (!data?.length) throw new ValidationError("permission", "err_forbidden");
   };
 
   const insertIgnore = async (table: string, value: object) => {
@@ -140,8 +143,8 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
         try {
           await send(item);
           results.push({ id: item.record.id, ok: true });
-        } catch {
-          results.push({ id: item.record.id, ok: false });
+        } catch (e) {
+          results.push({ id: item.record.id, ok: false, error: errorKey(e) });
         }
       }
       return results;

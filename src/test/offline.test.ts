@@ -96,6 +96,25 @@ describe("sync adapter (SPEC 5.1)", () => {
     expect(await api.getSyncStatus()).toEqual({ pending: 0, failed: 0 });
   });
 
+  it("keeps the server's reason for each failed record, and clears it once it syncs", async () => {
+    const ids = await pendingDemo();
+    setSyncAdapter({
+      push: async (recs) =>
+        recs.map((r) =>
+          r.record.id === ids[0]
+            ? { id: r.record.id, ok: false, error: "err_forbidden" as const }
+            : { id: r.record.id, ok: true },
+        ),
+    });
+    await api.sync();
+    expect(await api.listSyncFailures()).toEqual([
+      expect.objectContaining({ id: ids[0], kind: "chanda", amount: 101, error: "err_forbidden" }),
+    ]);
+    setSyncAdapter(localAdapter);
+    await api.sync();
+    expect(await api.listSyncFailures()).toEqual([]);
+  });
+
   it("treats an adapter crash (e.g. network error) as every record failed", async () => {
     await pendingDemo();
     setSyncAdapter({ push: () => Promise.reject(new Error("timeout")) });

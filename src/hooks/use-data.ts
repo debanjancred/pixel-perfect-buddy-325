@@ -32,6 +32,13 @@ export const useClubs = () => useQuery({ queryKey: queryKeys.clubs, queryFn: api
 export const useSummary = () => useQuery({ queryKey: queryKeys.summary, queryFn: api.getSummary });
 export const useSyncStatus = () =>
   useQuery({ queryKey: queryKeys.syncStatus, queryFn: api.getSyncStatus });
+/** Failed records and why; under syncStatus so a sync refreshes it. */
+export const useSyncFailures = (enabled: boolean) =>
+  useQuery({
+    queryKey: [...queryKeys.syncStatus, "failures"],
+    queryFn: api.listSyncFailures,
+    enabled,
+  });
 export const useClubAccounts = (slug: string) =>
   useQuery({ queryKey: queryKeys.accounts(slug), queryFn: () => api.getClubAccounts(slug) });
 export const useMembers = () => useQuery({ queryKey: queryKeys.members, queryFn: api.listMembers });

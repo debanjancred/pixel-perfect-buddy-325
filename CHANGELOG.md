@@ -7,6 +7,10 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- "See why" on the sync banner lists each entry that didn't sync with the server's reason
+  (e.g. a cash handover refused as more than the collector holds because the chanda behind
+  it hasn't synced), instead of only a count. Refused updates now say "no permission";
+  a missing dependency says so.
 - Devices (cloud mode): up to 3 logged-in devices per person, one of them the collecting
   device. Settings → Devices lists them (collecting device and this device marked), switches
   the collecting device and removes a device, which sends anything it still has and logs out

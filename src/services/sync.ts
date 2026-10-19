@@ -11,6 +11,7 @@ import type {
   ExpenseRecord,
   Household,
 } from "@/types/domain";
+import type { ErrKey } from "@/lib/validation";
 
 /** A queued change to an event's registration tally (+1 register / −1 undo). */
 export interface EventDelta {
@@ -47,6 +48,8 @@ export const SYNC_ORDER: SyncRecord["kind"][] = [
 export interface SyncResult {
   id: string;
   ok: boolean;
+  /** Why the server refused it (an i18n key), so the app can say so. */
+  error?: ErrKey;
 }
 
 export interface SyncAdapter {

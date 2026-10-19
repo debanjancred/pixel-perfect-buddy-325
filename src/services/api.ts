@@ -46,6 +46,7 @@ import {
   sameName,
   voidReasonSchema,
   type ChandaInput,
+  type ErrKey,
   type ClubInput,
   type EventInput,
   type ExpenseInput,
@@ -66,6 +67,15 @@ import type {
   UserRole,
 } from "@/types/domain";
 
+/** A record that didn't sync, for the "why" list under the sync banner. */
+export interface SyncFailure {
+  id: string;
+  kind: SyncRecord["kind"];
+  title: string;
+  amount?: number;
+  error: ErrKey;
+}
+
 export interface Store {
   version: 2;
   active_club_id: string | null;
@@ -80,6 +90,8 @@ export interface Store {
   outbox?: OutboxOp[];
   /** Per club: latest server updated_at already merged (cloud mode). */
   pull_cursors?: Record<string, string>;
+  /** Why each failed record was refused, by record id (shown from the sync banner). */
+  sync_errors?: Record<string, ErrKey>;
 }
 
 const KEY = "pk_db_v2";
@@ -441,8 +453,12 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
   const rows = new Map<string, { sync_status: string }>(
     [...fresh.chanda, ...fresh.expenses, ...fresh.handovers].map((r) => [r.id, r]),
   );
+  const reasons = new Map(results.map((r) => [r.id, r.error]));
+  const errors = { ...fresh.sync_errors };
   for (const item of queue) {
     const success = ok.get(item.record.id) === true;
+    if (success) delete errors[item.record.id];
+    else errors[item.record.id] = reasons.get(item.record.id) ?? "err_syncFailed";
     if (success) synced++;
     else failed++;
     if (!("sync_status" in item.record)) continue;
@@ -453,6 +469,7 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
   fresh.outbox = (fresh.outbox ?? [])
     .filter((o) => ok.get(o.id) !== true)
     .map((o) => (ok.has(o.id) ? { ...o, failed: true } : o));
+  fresh.sync_errors = errors;
   write(fresh);
   return { synced, failed };
 }
@@ -869,6 +886,47 @@ export const api = {
       failed:
         rows.filter((r) => r.sync_status === "failed").length + ops.filter((o) => o.failed).length,
     };
+  },
+  /** The active club's records that failed to sync: what each is, and the server's reason. */
+  async listSyncFailures(): Promise<SyncFailure[]> {
+    await delay();
+    const db = read();
+    const name = (id: string) => db.members.find((m) => m.id === id)?.name ?? "—";
+    const resident = (id: string) => db.households.find((h) => h.id === id)?.resident_name ?? "—";
+    const failedOps = new Set((db.outbox ?? []).filter((o) => o.failed).map((o) => o.id));
+    return syncQueue(db)
+      .filter((i) => clubOf(db, i) === db.active_club_id)
+      .filter((i) =>
+        "sync_status" in i.record ? i.record.sync_status === "failed" : failedOps.has(i.record.id),
+      )
+      .map((i): SyncFailure => {
+        const base = {
+          id: i.record.id,
+          kind: i.kind,
+          error: db.sync_errors?.[i.record.id] ?? "err_syncFailed",
+        };
+        switch (i.kind) {
+          case "chanda":
+            return { ...base, title: resident(i.record.household_id), amount: i.record.amount };
+          case "handover":
+            return { ...base, title: name(i.record.collector_id), amount: i.record.amount };
+          case "expense":
+            return { ...base, title: i.record.title, amount: i.record.amount };
+          case "member":
+            return { ...base, title: i.record.name };
+          case "household":
+            return { ...base, title: i.record.resident_name };
+          case "club":
+            return { ...base, title: i.record.name_bn };
+          case "event":
+            return { ...base, title: i.record.title_bn };
+          case "event_delta":
+            return {
+              ...base,
+              title: db.events.find((e) => e.id === i.record.event_id)?.title_bn ?? "—",
+            };
+        }
+      });
   },
   /**
    * Cloud mode: bring down other devices' changes — the user's clubs, then everything in
