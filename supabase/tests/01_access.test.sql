@@ -298,11 +298,14 @@ insert into public.chanda_transactions (id, receipt_no, club_id, household_id, a
   payment_method, status, collector_id, device_id) values
   ('cccccccc-0000-4000-8000-000000000014', 'PK-2026-T01-0014', :club, :hh, 7, 'upi',
    'collected', :treas, :t2);
--- The app sends with "insert, ignore duplicates" (PostgREST upsert): re-sending works too.
-insert into public.expense_records (id, club_id, category, title, amount, paid_to,
-  authorized_by_id, date) values
-  ('dddddddd-0000-4000-8000-000000000016', :club, 'misc', 'offline 2', 5, 'p', :treas, current_date)
-  on conflict (id) do nothing;
+-- The app sends a plain insert and counts a duplicate primary key as already sent
+-- (src/services/cloud/adapter.ts); an ON CONFLICT insert can need read access, which a
+-- removed device doesn't have.
+select test.expect_error($$insert into public.expense_records (id, club_id, category, title,
+  amount, paid_to, authorized_by_id, date) values ('dddddddd-0000-4000-8000-000000000014',
+  '11111111-1111-4111-8111-111111111111', 'misc', 'offline', 40, 'p',
+  'aaaaaaaa-0000-4000-8000-000000000002', current_date)$$, 'expense_records_pkey');
+select test.ok(true, 'a re-send from a removed device is a duplicate key, which the app counts as sent');
 update public.expense_records set voided_at = now(), void_reason = 'x' where id = :exp1;
 select test.expect_error($$select public.set_collect_device('f1000000-0000-4000-8000-000000000002')$$,
   'err_forbidden');
@@ -313,9 +316,6 @@ select test.act_in_session('9000000002', :s2);
 select test.ok((select off_device from public.expense_records
   where id = 'dddddddd-0000-4000-8000-000000000014'),
   'an expense from a removed device is accepted and flagged');
-select test.ok((select off_device from public.expense_records
-  where id = 'dddddddd-0000-4000-8000-000000000016'),
-  'a re-send with ignore-duplicates from a removed device is accepted too');
 select test.ok((select off_device from public.chanda_transactions
   where id = 'cccccccc-0000-4000-8000-000000000014'),
   'chanda from a removed device is flagged even when it names the collect device');
