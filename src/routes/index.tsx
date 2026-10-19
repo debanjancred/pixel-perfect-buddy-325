@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
+import { z } from "zod";
 import { Sparkles, Smartphone, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { session, useSeedDemo } from "@/hooks/use-data";
@@ -17,7 +18,13 @@ import { AlponaStrip, FieldError, Label, LangToggle, Spinner } from "@/component
 import { ClubPicker } from "@/components/pk/ClubPicker";
 import { DeviceLimitStep } from "@/features/devices";
 
+// Why this device was signed out (cloud mode), shown until the next login.
+const searchSchema = z.object({
+  signedOut: z.enum(["removed", "limit"]).optional().catch(undefined),
+});
+
 export const Route = createFileRoute("/")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "Pujo Khata — Durga Puja chanda & expense app" },
@@ -48,6 +55,7 @@ function Onboarding() {
   const [error, setError] = useState<ErrKey | null>(null);
   const [busy, setBusy] = useState<"submit" | "demo" | null>(null);
   const [resendIn, setResendIn] = useState(0);
+  const { signedOut } = Route.useSearch();
 
   useEffect(() => {
     if (session.get()) navigate({ to: "/home", replace: true });
@@ -155,6 +163,14 @@ function Onboarding() {
           </>
         ) : (
           <>
+            {signedOut && step === "phone" && (
+              <p
+                role="status"
+                className="rounded-2xl bg-gold-soft p-3 text-sm font-semibold text-gold-ink"
+              >
+                {t(signedOut === "removed" ? "deviceRemoved" : "err_deviceLimit")}
+              </p>
+            )}
             {step === "phone" ? (
               <form className="space-y-5" onSubmit={sendOtp} noValidate>
                 <div>

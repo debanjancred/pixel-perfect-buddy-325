@@ -83,8 +83,8 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
       .then(checkDevice)
       .then((status) => {
         if (status !== "removed" && status !== "limit") return;
-        toast.error(t(status === "removed" ? "deviceRemoved" : "err_deviceLimit"));
-        navigate({ to: "/", replace: true });
+        // A lasting notice on the login screen, not a toast: they may look away.
+        navigate({ to: "/", search: { signedOut: status }, replace: true });
       });
   }, [online]); // eslint-disable-line react-hooks/exhaustive-deps
 
