@@ -35,6 +35,8 @@ the model and OS version. Use the sample club unless a step says otherwise.
 ## Touch & layout
 - [ ] Every button is easy to hit with a thumb; nothing overlaps the bottom bar or the
       "add" buttons.
+- [ ] Open Add member / Add expense / Collect a sheet field: the keyboard never covers the field
+      being typed in or the Save button (Android Chrome and iPhone Safari).
 - [ ] With the phone's text size set to large, screens still fit (no text cut off).
 - [ ] Rotate to landscape and back: nothing breaks.
 

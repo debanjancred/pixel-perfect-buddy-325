@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type InputHTMLAttributes, type ReactNode } from "react";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
+import { useVisibleArea } from "@/hooks/use-visual-viewport";
 import { createPortal } from "react-dom";
 import { X, CloudOff, CircleAlert } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -133,6 +134,8 @@ export function Modal({
   const id = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, open);
+  // Sized to the area above the on-screen keyboard, so a sheet with inputs stays visible.
+  const area = useVisibleArea(open);
   useEffect(() => {
     if (!open) return;
     openModals.push(id);
@@ -151,6 +154,7 @@ export function Modal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/50 animate-in fade-in sm:items-center"
+      style={area ? { top: area.top, height: area.height, bottom: "auto" } : undefined}
       onClick={onClose}
     >
       <div
@@ -159,7 +163,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 pb-8 outline-none animate-in slide-in-from-bottom-8 sm:rounded-3xl"
+        className="max-h-[92%] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 pb-8 outline-none animate-in slide-in-from-bottom-8 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">

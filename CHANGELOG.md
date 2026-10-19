@@ -35,6 +35,8 @@ All notable changes to Pujo Khata. Format follows
   share a sequence.
 
 ### Fixed
+- Sheets (add member, expense, handover, void…) no longer hide behind the phone's keyboard:
+  they sit in the visible area above it, and the field being typed in stays in view.
 - A cash handover could stay "didn't sync — can't receive more than the cash outstanding"
   forever although the server had it: re-sending it (a retry, or the overlapping syncs fixed
   below) ran the cash check before the duplicate was noticed and counted the handover against
