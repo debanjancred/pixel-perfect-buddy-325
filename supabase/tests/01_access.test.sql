@@ -308,6 +308,38 @@ select test.expect_error('select * from public.user_devices', 'permission denied
 select test.expect_error($$select public.touch_device(gen_random_uuid(), 'x', true)$$,
   'permission denied');
 
+-- 15. Promises (…_chanda_promises.sql): no money and no receipt number; payments count against
+--     them; only a treasurer/admin cancels one.
+\set pr1 '''cccccccc-0000-4000-8000-000000000020'''
+select test.act_as('9000000003');
+insert into public.chanda_transactions (id, receipt_no, club_id, household_id, amount,
+  payment_method, status, collector_id) values
+  (:pr1, null, :club, :hh, 2001, 'cash', 'promised', :coll);
+select test.ok((select receipt_no is null from public.chanda_transactions where id = :pr1),
+  'a collector records a promise, with no receipt number');
+select test.expect_error($$insert into public.chanda_transactions (id, receipt_no, club_id,
+  household_id, amount, payment_method, status, collector_id) values (gen_random_uuid(),
+  'PK-2026-C01-0099', '11111111-1111-4111-8111-111111111111',
+  'bbbbbbbb-0000-4000-8000-000000000001', 5, 'cash', 'promised',
+  'aaaaaaaa-0000-4000-8000-000000000003')$$, 'chanda_receipt_for_money');
+select test.expect_error($$insert into public.chanda_transactions (id, receipt_no, club_id,
+  household_id, amount, payment_method, status, collector_id) values (gen_random_uuid(),
+  null, '11111111-1111-4111-8111-111111111111', 'bbbbbbbb-0000-4000-8000-000000000001', 5,
+  'cash', 'collected', 'aaaaaaaa-0000-4000-8000-000000000003')$$, 'chanda_receipt_for_money');
+select test.ok(true, 'a promise never takes a receipt number, and money received always has one');
+update public.chanda_transactions set status = 'void', voided_at = now(), void_reason = 'ভুল'
+  where id = :pr1;
+select test.ok((select status = 'promised' from public.chanda_transactions where id = :pr1),
+  'a collector cannot cancel a promise');
+select test.act_as('9000000002');
+update public.chanda_transactions set status = 'void', voided_at = now(),
+  void_reason = 'পরিবার মত বদলেছে' where id = :pr1;
+select test.ok((select status = 'void' and receipt_no is null from public.chanda_transactions
+  where id = :pr1), 'a treasurer cancels a promise; it stays without a receipt number');
+select test.act_as('9000000001');
+select test.ok((public.public_accounts('test-club-2026') -> 'summary' ->> 'total_promised')::int = 0,
+  'a cancelled promise no longer counts in the public accounts');
+
 -- 14. A removed device's login session reads and changes nothing, but its cash entries
 --     are still accepted, flagged for review (…_removed_device_sessions.sql).
 \set t1 '''f1000000-0000-4000-8000-000000000001'''

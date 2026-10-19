@@ -90,6 +90,7 @@ export function StatusBadge({ status }: { status: HouseholdStatus }) {
   const { t } = useI18n();
   const cls = {
     paid: "bg-success-soft text-success",
+    partial: "bg-gold-soft text-gold-ink",
     pending: "bg-warning-soft text-warning",
     promised: "bg-info-soft text-info",
   }[status];

@@ -68,7 +68,7 @@ export function chandaCsv(
     .map((c) => {
       const h = households.find((x) => x.id === c.household_id);
       return [
-        c.receipt_no,
+        c.receipt_no ?? "",
         c.created_at.slice(0, 10),
         h?.resident_name,
         h?.house_flat_no,

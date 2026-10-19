@@ -79,7 +79,7 @@ describe("chanda", () => {
     const a = await pay(501);
     const b = await pay(251);
     expect(a.receipt_no).toMatch(/^PK-2026-A01-\d{4}$/);
-    expect(Number(b.receipt_no.slice(-4))).toBe(Number(a.receipt_no.slice(-4)) + 1);
+    expect(Number(b.receipt_no!.slice(-4))).toBe(Number(a.receipt_no!.slice(-4)) + 1);
     expect(a.collector_id).toBe(collector.id);
     expect(a.sync_status).toBe("pending");
     expect((await api.getSummary()).pending_sync_count).toBe(2);
@@ -138,12 +138,46 @@ describe("household ledger", () => {
     });
     await pay(501);
     expect(ledgerOf(householdLedgers(await api.listChanda()), id)).toMatchObject({
-      status: "pending",
+      status: "partial",
       due: 500,
       collected: 501,
     });
     await pay(500);
     expect(ledgerOf(householdLedgers(await api.listChanda()), id).status).toBe("paid");
+  });
+
+  it("records a promise without a receipt number, and receipts stay gap-free", async () => {
+    const { pay } = await demo();
+    const a = await pay(501);
+    const promise = await pay(2001, { status: "promised" });
+    const b = await pay(251);
+    expect(promise.receipt_no).toBeNull();
+    expect(Number(b.receipt_no!.slice(-4))).toBe(Number(a.receipt_no!.slice(-4)) + 1);
+  });
+
+  it("counts what households promised and haven't paid yet in the accounts", async () => {
+    const { pay } = await demo();
+    const before = (await api.getSummary()).total_due ?? 0;
+    const collectedBefore = (await api.getSummary()).total_collected;
+    await pay(1001, { status: "promised" });
+    await pay(400);
+    const s = await api.getSummary();
+    expect(s.total_due).toBe(before + 601);
+    expect(s.total_collected).toBe(collectedBefore + 400); // a promise is never money received
+  });
+
+  it("only a treasurer or admin cancels a promise; it then stops counting", async () => {
+    const { pay, households, collector } = await demo();
+    const id = households[14]!.id;
+    const promise = await pay(1001, { status: "promised" });
+    const admin = session.get();
+    session.set({ mode: "demo", member_id: collector.id });
+    await rejectsWith(api.voidChanda(promise.id, "ভুল এন্ট্রি"), "err_forbidden");
+    session.set(admin!);
+    await api.voidChanda(promise.id, "পরিবার মত বদলেছে");
+    const ledger = ledgerOf(householdLedgers(await api.listChanda()), id);
+    expect(ledger.due).toBe(0);
+    expect(ledger.openPromise).toBeUndefined();
   });
 
   it("validates new households and blocks duplicates", async () => {

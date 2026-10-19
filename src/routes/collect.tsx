@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Search, UserPlus, Banknote, QrCode, Check } from "lucide-react";
+import { Search, UserPlus, Banknote, QrCode, Check, Handshake } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { newId } from "@/lib/id";
@@ -83,7 +83,8 @@ function CollectPage() {
   const [amount, setAmount] = useState<number | null>(null);
   const [other, setOther] = useState(false);
   const [otherVal, setOtherVal] = useState("");
-  const [mode, setMode] = useState<PaymentMethod>("cash");
+  // Cash or UPI received now, or a promise to pay later (no money, no receipt).
+  const [mode, setMode] = useState<PaymentMethod | "promise">("cash");
   const [collector, setCollector] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [serverErr, setServerErr] = useState<{ field: Field; key: ErrKey } | null>(null);
@@ -192,16 +193,21 @@ function CollectPage() {
         setAdding(false);
       }
       txId.current ??= newId();
+      const promise = mode === "promise";
       const c = await addTransaction.mutateAsync({
         id: txId.current,
         household_id: target.id,
         amount: finalAmount,
-        payment_method: mode,
-        status: "collected",
+        // A promise has no payment yet; the payment entry records the real method later.
+        payment_method: promise ? "cash" : mode,
+        status: promise ? "promised" : "collected",
         collector_id: collector,
       });
       if (!navigator.onLine) toast(t("offlineSaved"));
-      setReceiptId(c.id);
+      if (promise) {
+        toast.success(t("promiseSaved", { name: target.resident_name, amount: money(c.amount) }));
+        reset();
+      } else setReceiptId(c.id);
     } catch (ex) {
       if (!(ex instanceof ValidationError)) throw ex;
       setServerErr({ field: FIELD_OF[ex.field] ?? (ex.field as Field), key: ex.key });
@@ -435,11 +441,12 @@ function CollectPage() {
 
         <section className="mt-6">
           <Label>{t("mode")}</Label>
-          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1.5" role="group">
+          <div className="grid grid-cols-3 gap-1.5 rounded-2xl bg-muted p-1.5" role="group">
             {(
               [
                 ["cash", Banknote, t("cash")],
                 ["upi", QrCode, t("upi")],
+                ["promise", Handshake, t("promiseMode")],
               ] as const
             ).map(([m, Icon, l]) => (
               <button
@@ -448,12 +455,17 @@ function CollectPage() {
                 onClick={() => setMode(m)}
                 data-active={mode === m}
                 aria-pressed={mode === m}
-                className="flex min-h-14 items-center justify-center gap-2 rounded-xl font-bold text-muted-foreground transition data-[active=true]:bg-card data-[active=true]:text-primary-ink data-[active=true]:shadow-card"
+                className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-sm font-bold text-muted-foreground transition data-[active=true]:bg-card data-[active=true]:text-primary-ink data-[active=true]:shadow-card"
               >
-                <Icon className="h-5 w-5" /> {l}
+                <Icon className="h-5 w-5" aria-hidden /> {l}
               </button>
             ))}
           </div>
+          {mode === "promise" && (
+            <p className="mt-2 rounded-2xl bg-info-soft p-3 text-sm text-info">
+              {t("promiseHint")}
+            </p>
+          )}
         </section>
 
         <section className="mt-6">
@@ -485,7 +497,8 @@ function CollectPage() {
           aria-busy={saving}
         >
           {saving && <Spinner />}
-          {t("saveReceipt")} {!errors.amount && <span className="num">· {money(finalAmount)}</span>}
+          {t(mode === "promise" ? "savePromise" : "saveReceipt")}{" "}
+          {!errors.amount && <span className="num">· {money(finalAmount)}</span>}
         </button>
       </form>
       <div className="h-6" />

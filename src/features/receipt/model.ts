@@ -40,7 +40,8 @@ export function toReceipt(
   tx: ChandaTransaction | undefined,
   { club, households, members }: ReceiptSources,
 ): Receipt | null {
-  if (!tx || !club || tx.status === "promised") return null;
+  // A promise (or a cancelled one) has no receipt number: it was never money received.
+  if (!tx || !club || tx.status === "promised" || !tx.receipt_no) return null;
   const household = households.find((h) => h.id === tx.household_id);
   return {
     id: tx.id,

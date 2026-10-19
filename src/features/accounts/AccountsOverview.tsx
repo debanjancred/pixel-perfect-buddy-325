@@ -28,9 +28,11 @@ export function AccountsOverview({ summary: s }: { summary: AccountsSummary }) {
           <dd className="num text-xl font-bold">{money(s.total_expenses)}</dd>
         </div>
       </dl>
-      {s.total_promised > 0 && (
+      {/* What households promised and haven't paid yet (public accounts: total promised). */}
+      {(s.total_due ?? s.total_promised) > 0 && (
         <p className="mt-3 text-sm text-muted-foreground">
-          {t("promised")}: <span className="num font-semibold">{money(s.total_promised)}</span>
+          {t(s.total_due === undefined ? "promised" : "promisedDue")}:{" "}
+          <span className="num font-semibold">{money(s.total_due ?? s.total_promised)}</span>
         </p>
       )}
 

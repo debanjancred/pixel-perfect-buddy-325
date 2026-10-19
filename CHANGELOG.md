@@ -6,6 +6,14 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Added
+- Promises (pledges): on the collect screen, "Promise" next to Cash and UPI records an amount
+  a household will pay later — no receipt and no receipt number, so receipt sequences stay
+  gap-free. Payments count against it: households show Promised, Part paid (with what's
+  paid and what's due) or Paid. The register's Promised filter lists everything still due,
+  the accounts show "Promised, still due", and a treasurer or admin can cancel a promise
+  recorded by mistake. Apply `20261020000001_chanda_promises.sql`.
+
 ### Fixed
 - Offline saving: react-query paused every save and read while the phone was offline, so
   "Save & make receipt" spun forever and nothing was stored. The app's query client now

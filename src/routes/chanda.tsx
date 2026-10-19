@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { useMemo, useState } from "react";
-import { Search, MessageCircle, MapPin, ReceiptText } from "lucide-react";
+import { Search, MessageCircle, MapPin, ReceiptText, Ban } from "lucide-react";
+import { toast } from "sonner";
 import { useI18n, type TKey } from "@/lib/i18n";
 import {
   useClub,
@@ -9,7 +10,10 @@ import {
   useMembers,
   usePermission,
   useTransactions,
+  useVoidTransaction,
 } from "@/hooks/use-data";
+import { VoidDialog } from "@/components/pk/VoidDialog";
+import type { ChandaTransaction } from "@/types/domain";
 import { AppShell, Fab } from "@/components/pk/AppShell";
 import { StatusBadge, SyncBadge } from "@/components/pk/ui";
 import { reminderText, waLink } from "@/lib/share";
@@ -69,6 +73,12 @@ function ChandaPage() {
   const setLane = (l: string) =>
     navigate({ search: (s) => ({ ...s, lane: l || undefined }), replace: true });
   const canCollect = usePermission("chanda.add");
+  // Treasurers and admins cancel a promise recorded by mistake (it is voided, never deleted).
+  const canVoid = usePermission("entry.void");
+  const voidTx = useVoidTransaction();
+  const [cancelling, setCancelling] = useState<{ tx: ChandaTransaction; name: string } | null>(
+    null,
+  );
   const [q, setQ] = useState("");
 
   const rows = useMemo(() => {
@@ -97,7 +107,8 @@ function ChandaPage() {
     () => ({
       all: rows.length,
       pending: rows.filter((r) => r.status === "pending").length,
-      promised: rows.filter((r) => r.status === "promised").length,
+      // Promised = anything still due: promised and nothing paid, or partly paid.
+      promised: rows.filter((r) => r.due > 0).length,
       today: rows.filter((r) => r.today).length,
     }),
     [rows],
@@ -106,7 +117,12 @@ function ChandaPage() {
   const groups = useMemo(() => {
     const visible = rows.filter(
       (r) =>
-        (filter === "all" || (filter === "today" ? r.today : r.status === filter)) &&
+        (filter === "all" ||
+          (filter === "today"
+            ? r.today
+            : filter === "promised"
+              ? r.due > 0
+              : r.status === filter)) &&
         householdMatches(r.h, q),
     );
     const map = new Map<string, typeof visible>();
@@ -192,88 +208,110 @@ function ChandaPage() {
             </span>
           </h2>
           <ul className="space-y-2">
-            {rows.map(({ h, collected, due, status, last, lastCollected, collector }) => {
-              const msg = reminderText(
-                lang,
-                h.resident_name,
-                clubName,
-                due > 0 ? money(due) : undefined,
-              );
-              return (
-                <li key={h.id} className="rounded-2xl border bg-card p-3 shadow-card">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-muted px-1 text-sm font-extrabold">
-                      {n(h.house_flat_no)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold leading-snug">{h.resident_name}</div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                        <StatusBadge status={status} />
-                        {collector && (
-                          <span>
-                            {t("collector")}: {collector.name}
-                          </span>
-                        )}
-                        {last && <SyncBadge status={last.sync_status} />}
+            {rows.map(
+              ({ h, collected, due, status, last, lastCollected, openPromise, collector }) => {
+                const msg = reminderText(
+                  lang,
+                  h.resident_name,
+                  clubName,
+                  due > 0 ? money(due) : undefined,
+                );
+                return (
+                  <li key={h.id} className="rounded-2xl border bg-card p-3 shadow-card">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-muted px-1 text-sm font-extrabold">
+                        {n(h.house_flat_no)}
                       </div>
-                      {due > 0 && collected > 0 && (
-                        <div className="mt-1 text-xs font-semibold text-success">
-                          {t("paidSoFar")} <span className="num">{money(collected)}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold leading-snug">{h.resident_name}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <StatusBadge status={status} />
+                          {collector && (
+                            <span>
+                              {t("collector")}: {collector.name}
+                            </span>
+                          )}
+                          {last && <SyncBadge status={last.sync_status} />}
                         </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className="num font-extrabold">{money(due > 0 ? due : collected)}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {due > 0
-                          ? collected > 0
-                            ? t("dueAmount")
-                            : t("pledged")
-                          : collected > 0
-                            ? t("collected")
-                            : t("pending")}
+                        {due > 0 && collected > 0 && (
+                          <div className="mt-1 text-xs font-semibold text-success">
+                            {t("paidSoFar")} <span className="num">{money(collected)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="num font-extrabold">{money(due > 0 ? due : collected)}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {due > 0
+                            ? collected > 0
+                              ? t("dueAmount")
+                              : t("pledged")
+                            : collected > 0
+                              ? t("collected")
+                              : t("pending")}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {(status !== "paid" || lastCollected) && (
-                    <div className="mt-3 flex gap-2 [&>*]:flex-1">
-                      {status !== "paid" && (
-                        <a
-                          href={waLink(h.phone_number, msg)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn btn-whatsapp min-h-12 px-2 text-sm"
-                        >
-                          <MessageCircle className="h-4 w-4" /> {t("remind")}
-                        </a>
-                      )}
-                      {status !== "paid" && canCollect && (
-                        <Link
-                          to="/collect"
-                          search={{ household: h.id }}
-                          className="btn btn-outline min-h-12 px-2 text-sm"
-                        >
-                          {t("collect")}
-                        </Link>
-                      )}
-                      {lastCollected && (
-                        <Link
-                          to="/receipt/$id"
-                          params={{ id: lastCollected.id }}
-                          className="btn btn-outline min-h-12 px-2 text-sm"
-                        >
-                          <ReceiptText className="h-4 w-4" /> {t("viewReceipt")}
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
+                    {(status !== "paid" || lastCollected) && (
+                      <div className="mt-3 flex gap-2 [&>*]:flex-1">
+                        {status !== "paid" && (
+                          <a
+                            href={waLink(h.phone_number, msg)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-whatsapp min-h-12 px-2 text-sm"
+                          >
+                            <MessageCircle className="h-4 w-4" /> {t("remind")}
+                          </a>
+                        )}
+                        {status !== "paid" && canCollect && (
+                          <Link
+                            to="/collect"
+                            search={{ household: h.id }}
+                            className="btn btn-outline min-h-12 px-2 text-sm"
+                          >
+                            {t("collect")}
+                          </Link>
+                        )}
+                        {lastCollected && (
+                          <Link
+                            to="/receipt/$id"
+                            params={{ id: lastCollected.id }}
+                            className="btn btn-outline min-h-12 px-2 text-sm"
+                          >
+                            <ReceiptText className="h-4 w-4" /> {t("viewReceipt")}
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                    {canVoid && openPromise && (
+                      <button
+                        type="button"
+                        className="tap mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-destructive"
+                        onClick={() => setCancelling({ tx: openPromise, name: h.resident_name })}
+                      >
+                        <Ban className="h-4 w-4" aria-hidden /> {t("cancelPromise")}
+                      </button>
+                    )}
+                  </li>
+                );
+              },
+            )}
           </ul>
         </section>
       ))}
       <div className="h-16" />
+
+      {cancelling && (
+        <VoidDialog
+          summary={`${cancelling.name} · ${t("promised")} ${money(cancelling.tx.amount)}`}
+          onClose={() => setCancelling(null)}
+          onVoid={async (reason) => {
+            await voidTx.mutateAsync({ id: cancelling.tx.id, reason });
+            toast.success(t("voided"));
+          }}
+        />
+      )}
     </AppShell>
   );
 }
