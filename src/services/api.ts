@@ -232,8 +232,9 @@ async function voucherTx<T>(
 function nextReceiptNo(db: Store, club: Club, code: string) {
   const prefix = `PK-${club.puja_year}-${code}-`;
   const used = mine(db, db.chanda)
-    .filter((c) => c.receipt_no.startsWith(prefix))
-    .map((c) => Number(c.receipt_no.slice(prefix.length)) || 0);
+    .map((c) => c.receipt_no)
+    .filter((no): no is string => !!no?.startsWith(prefix))
+    .map((no) => Number(no.slice(prefix.length)) || 0);
   return prefix + String(Math.max(0, ...used) + 1).padStart(4, "0");
 }
 
@@ -294,7 +295,8 @@ async function createChanda(raw: ChandaInput): Promise<ChandaTransaction> {
   const at = now();
   const tx: ChandaTransaction = {
     ...input,
-    receipt_no: nextReceiptNo(db, club, writer.collector_code),
+    // A promise is not money received: no receipt, no number.
+    receipt_no: input.status === "promised" ? null : nextReceiptNo(db, club, writer.collector_code),
     ...(devices && { device_id: device.id() }),
     club_id: club.id,
     created_at: at,

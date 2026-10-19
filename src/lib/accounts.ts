@@ -15,6 +15,16 @@ export const isVoid = (r: { status?: string; voided_at?: string | undefined }) =
 
 const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
 
+/** What households promised and haven't paid yet: per household promised − collected, ≥ 0. */
+function dueByHousehold(live: ChandaTransaction[]) {
+  const by = new Map<string, number>();
+  for (const c of live) {
+    const delta = c.status === "promised" ? c.amount : c.status === "collected" ? -c.amount : 0;
+    by.set(c.household_id, (by.get(c.household_id) ?? 0) + delta);
+  }
+  return [...by.values()].reduce((s, v) => s + Math.max(0, v), 0);
+}
+
 export function computeSummary(
   club: Club | null,
   chanda: ChandaTransaction[],
@@ -31,6 +41,7 @@ export function computeSummary(
     collected_cash: sum(collected.filter((c) => c.payment_method === "cash")),
     collected_upi: sum(collected.filter((c) => c.payment_method === "upi")),
     total_promised: sum(live.filter((c) => c.status === "promised")),
+    total_due: dueByHousehold(live),
     total_expenses,
     net_balance: total_collected - total_expenses,
     collection_target,

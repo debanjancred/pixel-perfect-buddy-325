@@ -2,7 +2,11 @@ import { asciiDigits } from "./format";
 import { isVoid } from "./accounts";
 import type { ChandaTransaction, Household } from "@/types/domain";
 
-export type HouseholdStatus = "paid" | "pending" | "promised";
+/**
+ * pending: nothing collected and nothing promised · promised: a promise, nothing paid yet ·
+ * partial: paid part of a promise · paid: collected, nothing promised left to pay.
+ */
+export type HouseholdStatus = "paid" | "partial" | "pending" | "promised";
 
 export interface HouseholdLedger {
   collected: number;
@@ -14,6 +18,8 @@ export interface HouseholdLedger {
   last?: ChandaTransaction;
   /** Newest non-void collected entry — the receipt to re-share. */
   lastCollected?: ChandaTransaction;
+  /** Newest open (non-void) promise — what a treasurer/admin cancels if it was a mistake. */
+  openPromise?: ChandaTransaction;
 }
 
 /** Search by name, flat no., lane/block or phone; Bengali digits match ASCII ones. */
@@ -26,9 +32,10 @@ export function householdMatches(h: Household, query: string) {
 }
 
 /**
- * Per-household totals from the chanda ledger, ignoring voided entries.
- * Status: paid once something was collected and nothing promised is outstanding;
- * promised while a pledge is open and nothing was collected; otherwise pending.
+ * Per-household totals from the chanda ledger, ignoring voided entries. Payments count
+ * against promises: due = promised − collected. Status: paid once something was collected
+ * and nothing is due; partial when part of a promise is paid; promised while a promise is
+ * open and nothing is paid; otherwise pending.
  */
 export function householdLedgers(chanda: ChandaTransaction[]) {
   const map = new Map<string, HouseholdLedger>();
@@ -42,17 +49,16 @@ export function householdLedgers(chanda: ChandaTransaction[]) {
       l.collected += c.amount;
       l.lastCollected ??= c;
     }
-    if (c.status === "promised") l.promised += c.amount;
+    if (c.status === "promised") {
+      l.promised += c.amount;
+      l.openPromise ??= c;
+    }
     map.set(c.household_id, l);
   }
   for (const l of map.values()) {
     l.due = Math.max(0, l.promised - l.collected);
     l.status =
-      l.collected > 0 && l.due === 0
-        ? "paid"
-        : l.collected === 0 && l.due > 0
-          ? "promised"
-          : "pending";
+      l.due > 0 ? (l.collected > 0 ? "partial" : "promised") : l.collected > 0 ? "paid" : "pending";
   }
   return map;
 }

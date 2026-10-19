@@ -51,7 +51,9 @@ export interface Household {
 
 export interface ChandaTransaction {
   id: string; // doubles as idempotency key
-  receipt_no: string; // "PK-{puja_year}-{writer's collector_code}-{seq:4}", e.g. "PK-2026-C01-0001"
+  // "PK-{puja_year}-{writer's collector_code}-{seq:4}", e.g. "PK-2026-C01-0001". Money
+  // received only: a promise (status 'promised') has none, so receipt sequences have no gaps.
+  receipt_no: string | null;
   club_id: string;
   household_id: string;
   amount: number; // integer rupees, >= 1
@@ -121,6 +123,8 @@ export interface AccountsSummary {
   collected_cash: number;
   collected_upi: number;
   total_promised: number;
+  /** Promised but not yet paid, summed per household (promised − collected, never below 0). */
+  total_due?: number;
   total_expenses: number;
   net_balance: number;
   collection_target: number;

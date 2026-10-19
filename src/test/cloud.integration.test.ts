@@ -337,4 +337,31 @@ describe.skipIf(!PGRST)("cloud sync against PostgreSQL + PostgREST", () => {
       key: "err_forbidden",
     });
   });
+
+  // Last: it adds entries that the counts in the tests above would otherwise include.
+  it("a promise syncs without a receipt number; a payment against it gets one", async () => {
+    const coll = as(PHONE.coll);
+    const promise = chanda({ receipt_no: null, status: "promised", amount: 2001 });
+    const paid = chanda({ receipt_no: "PK-2026-C01-0050", amount: 1001 });
+    const results = await push(coll, [
+      { kind: "chanda", record: promise },
+      { kind: "chanda", record: paid },
+    ]);
+    expect(results.every((r) => r.ok)).toBe(true);
+    const { data } = await coll
+      .from("chanda_transactions")
+      .select("id, receipt_no, status")
+      .in("id", [promise.id, paid.id]);
+    expect(data).toEqual(
+      expect.arrayContaining([
+        { id: promise.id, receipt_no: null, status: "promised" },
+        { id: paid.id, receipt_no: "PK-2026-C01-0050", status: "collected" },
+      ]),
+    );
+    // A promise carrying a receipt number is refused (and so is money without one).
+    const [bad] = await push(coll, [
+      { kind: "chanda", record: chanda({ receipt_no: "PK-2026-C01-0051", status: "promised" }) },
+    ]);
+    expect(bad!.ok).toBe(false);
+  });
 });
