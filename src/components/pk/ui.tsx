@@ -8,6 +8,41 @@ import type { ErrKey } from "@/lib/validation";
 import type { HouseholdStatus } from "@/lib/households";
 import type { SyncStatus } from "@/types/domain";
 
+/**
+ * Busy indicator for buttons: a gold ring with a turning arc in the button's own text colour,
+ * tipped with a sindoor dot. Pair it with aria-busy on the button.
+ */
+export function Spinner({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className={cn("pk-spinner h-5 w-5 shrink-0", className)}>
+      <circle cx="12" cy="12" r="9" fill="none" stroke="var(--gold)" strokeWidth="3" opacity=".5" />
+      <g className="pk-spinner-arc">
+        <path
+          d="M12 3a9 9 0 0 1 0 18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <circle
+          cx="12"
+          cy="21"
+          r="2.2"
+          fill="var(--primary)"
+          stroke="var(--gold)"
+          strokeWidth="1"
+        />
+      </g>
+    </svg>
+  );
+}
+
+/** Branded strip along the very top while any save, upload or delete is running. */
+export function LoadingBar({ active }: { active: boolean }) {
+  if (!active) return null;
+  return <div aria-hidden className="pk-loading-bar" />;
+}
+
 /** Thin alpona motif strip — used only along the top header. */
 export function AlponaStrip() {
   return (

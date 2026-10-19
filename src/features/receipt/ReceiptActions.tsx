@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ImageDown, MessageCircle, Printer, Share2 } from "lucide-react";
+import { Spinner } from "@/components/pk/ui";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { canShareNatively, shareFileOrDownload, shareNatively, waLink } from "@/lib/share";
@@ -56,8 +57,14 @@ export function ReceiptActions({ receipt }: { receipt: Receipt }) {
           </button>
         )}
         {sendable && (
-          <button type="button" className="btn btn-outline" onClick={shareImage} disabled={busy}>
-            <ImageDown className="h-5 w-5" /> {t("receiptImage")}
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={shareImage}
+            disabled={busy}
+            aria-busy={busy}
+          >
+            {busy ? <Spinner /> : <ImageDown className="h-5 w-5" />} {t("receiptImage")}
           </button>
         )}
         <button

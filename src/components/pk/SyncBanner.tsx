@@ -1,4 +1,5 @@
 import { useI18n } from "@/lib/i18n";
+import { Spinner } from "./ui";
 
 /**
  * Story 5.1 status strip under the header: the offline notice, or failed records with a
@@ -35,10 +36,12 @@ export function SyncBanner({
       <span>{t("syncFailedCount", { count: n(String(failed)) })}</span>
       <button
         type="button"
-        className="tap rounded-full px-3 font-bold underline"
+        className="tap inline-flex items-center gap-1.5 rounded-full px-3 font-bold underline"
         disabled={retrying}
+        aria-busy={retrying}
         onClick={onRetry}
       >
+        {retrying && <Spinner className="h-4 w-4" />}
         {t("retry")}
       </button>
     </div>

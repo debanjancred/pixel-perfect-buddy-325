@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Download, Share2 } from "lucide-react";
+import { Spinner } from "@/components/pk/ui";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { shareFileOrDownload, shareOrWhatsApp } from "@/lib/share";
@@ -34,8 +35,14 @@ export function AccountsActions({ club, summary }: { club: Club; summary: Accoun
       >
         <Share2 className="h-5 w-5" aria-hidden /> {t("share")}
       </button>
-      <button type="button" className="btn btn-gold px-3" onClick={storyCard} disabled={busy}>
-        <Download className="h-5 w-5" aria-hidden /> {t("storyCard")}
+      <button
+        type="button"
+        className="btn btn-gold px-3"
+        onClick={storyCard}
+        disabled={busy}
+        aria-busy={busy}
+      >
+        {busy ? <Spinner /> : <Download className="h-5 w-5" aria-hidden />} {t("storyCard")}
       </button>
     </div>
   );

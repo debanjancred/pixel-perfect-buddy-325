@@ -13,7 +13,7 @@ import {
   phoneSchema,
   type ErrKey,
 } from "@/lib/validation";
-import { AlponaStrip, FieldError, Label, LangToggle } from "@/components/pk/ui";
+import { AlponaStrip, FieldError, Label, LangToggle, Spinner } from "@/components/pk/ui";
 import { ClubPicker } from "@/components/pk/ClubPicker";
 
 export const Route = createFileRoute("/")({
@@ -45,7 +45,7 @@ function Onboarding() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<ErrKey | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"submit" | "demo" | null>(null);
   const [resendIn, setResendIn] = useState(0);
 
   useEffect(() => {
@@ -58,8 +58,8 @@ function Onboarding() {
     return () => clearTimeout(id);
   }, [resendIn]);
 
-  const run = async (fn: () => Promise<void>) => {
-    setBusy(true);
+  const run = async (fn: () => Promise<void>, action: "submit" | "demo" = "submit") => {
+    setBusy(action);
     setError(null);
     try {
       await fn();
@@ -67,7 +67,7 @@ function Onboarding() {
       if (!(e instanceof ValidationError)) throw e;
       setError(e.key);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -105,7 +105,7 @@ function Onboarding() {
     run(async () => {
       await seedDemo.mutateAsync(); // also signs the visitor into the demo
       navigate({ to: "/home" });
-    });
+    }, "demo");
 
   const pretty = `${phone.slice(0, 5)} ${phone.slice(5)}`;
 
@@ -165,7 +165,13 @@ function Onboarding() {
                   </div>
                   <FieldError id="phone-error" error={error} />
                 </div>
-                <button type="submit" className="btn btn-primary w-full text-lg" disabled={busy}>
+                <button
+                  type="submit"
+                  className="btn btn-primary w-full text-lg"
+                  disabled={!!busy}
+                  aria-busy={busy === "submit"}
+                >
+                  {busy === "submit" && <Spinner />}
                   {t("sendOtp")}
                 </button>
               </form>
@@ -215,13 +221,19 @@ function Onboarding() {
                     <Sparkles className="h-5 w-5" /> {t("autofill")}
                   </button>
                 )}
-                <button type="submit" className="btn btn-primary w-full text-lg" disabled={busy}>
+                <button
+                  type="submit"
+                  className="btn btn-primary w-full text-lg"
+                  disabled={!!busy}
+                  aria-busy={busy === "submit"}
+                >
+                  {busy === "submit" && <Spinner />}
                   {t("verify")}
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline w-full"
-                  disabled={busy || resendIn > 0}
+                  disabled={!!busy || resendIn > 0}
                   onClick={() => sendOtp()}
                 >
                   {resendIn > 0
@@ -238,9 +250,11 @@ function Onboarding() {
             <button
               type="button"
               className="btn w-full flex-wrap border-2 border-primary bg-primary-soft py-4 text-lg text-primary"
-              disabled={busy}
+              disabled={!!busy}
+              aria-busy={busy === "demo"}
               onClick={demo}
             >
+              {busy === "demo" && <Spinner />}
               {t("exploreDemo")}
               <span className="font-normal">({t("demoClub")})</span>
             </button>

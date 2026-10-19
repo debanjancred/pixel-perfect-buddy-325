@@ -3,7 +3,7 @@ import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useCreateMember } from "@/hooks/use-data";
-import { TextField } from "@/components/pk/ui";
+import { Spinner, TextField } from "@/components/pk/ui";
 import {
   ValidationError,
   fieldErrors,
@@ -91,8 +91,14 @@ export function AddMemberForm() {
           ))}
         </div>
       </fieldset>
-      <button type="submit" className="btn btn-gold w-full" disabled={create.isPending}>
-        <UserPlus className="h-5 w-5" aria-hidden /> {t("addMember")}
+      <button
+        type="submit"
+        className="btn btn-gold w-full"
+        disabled={create.isPending}
+        aria-busy={create.isPending}
+      >
+        {create.isPending ? <Spinner /> : <UserPlus className="h-5 w-5" aria-hidden />}{" "}
+        {t("addMember")}
       </button>
     </form>
   );

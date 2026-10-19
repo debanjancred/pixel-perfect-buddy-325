@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useI18n } from "@/lib/i18n";
 import { isoDate } from "@/lib/format";
-import { Modal, TextField } from "@/components/pk/ui";
+import { Modal, Spinner, TextField } from "@/components/pk/ui";
 import { useCreateEvent } from "@/hooks/use-data";
 import { ValidationError, eventSchema, fieldErrors, type ErrKey } from "@/lib/validation";
 import type { ClubEvent } from "@/types/domain";
@@ -68,7 +68,9 @@ export function EventForm({
           type="submit"
           className="btn btn-primary w-full text-lg"
           disabled={create.isPending}
+          aria-busy={create.isPending}
         >
+          {create.isPending && <Spinner />}
           {t("save")}
         </button>
       </form>

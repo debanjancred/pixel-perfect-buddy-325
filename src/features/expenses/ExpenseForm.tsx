@@ -1,7 +1,7 @@
 import { useI18n } from "@/lib/i18n";
 import { CATEGORIES } from "@/lib/categories";
 import { isoDate } from "@/lib/format";
-import { FieldError, Label, Modal, TextField } from "@/components/pk/ui";
+import { FieldError, Label, Modal, Spinner, TextField } from "@/components/pk/ui";
 import type { ExpenseCategory, ExpenseRecord } from "@/types/domain";
 import { useExpenseForm } from "./use-expense-form";
 import { VoucherPicker } from "./VoucherPicker";
@@ -98,7 +98,13 @@ export function ExpenseForm({
           <FieldError id="expense-authorized_by_id-error" error={error("authorized_by_id")} />
         </div>
         <VoucherPicker value={form.voucher} onChange={form.setVoucher} error={form.voucherError} />
-        <button type="submit" className="btn btn-primary w-full text-lg" disabled={form.saving}>
+        <button
+          type="submit"
+          className="btn btn-primary w-full text-lg"
+          disabled={form.saving}
+          aria-busy={form.saving}
+        >
+          {form.saving && <Spinner />}
           {t("save")}
         </button>
       </form>

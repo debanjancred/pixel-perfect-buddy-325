@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from "react";
-import { Camera, Loader2, X } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { FieldError, Label } from "@/components/pk/ui";
+import { FieldError, Label, Spinner } from "@/components/pk/ui";
 import { compressImage, ImageError } from "@/lib/image";
 import type { ErrKey } from "@/lib/validation";
 
@@ -56,7 +56,7 @@ export function VoucherPicker({
         >
           {busy ? (
             <>
-              <Loader2 className="h-6 w-6 animate-spin" /> {t("compressing")}
+              <Spinner className="h-6 w-6 text-primary" /> {t("compressing")}
             </>
           ) : preview ? (
             <>

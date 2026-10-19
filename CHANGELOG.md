@@ -6,6 +6,11 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Added
+- Branded loading states: a gold-ring spinner with a sindoor tip inside the button that is
+  saving, uploading or sharing (`aria-busy`, stays full strength), and a gold strip along
+  the top while any save runs (background sync excluded; slower with reduced motion).
+
 ### Fixed
 - A new club showed "1 entry not synced" in cloud mode: two overlapping syncs sent it twice
   and the second copy failed as a duplicate. Syncs now run one at a time, and results are

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { newId } from "@/lib/id";
 import { useI18n } from "@/lib/i18n";
-import { Modal, TextField } from "@/components/pk/ui";
+import { Modal, Spinner, TextField } from "@/components/pk/ui";
 import { useCreateHandover } from "@/hooks/use-data";
 import { ValidationError, amountSchema, check, type ErrKey } from "@/lib/validation";
 import type { CashHandover, ClubMember } from "@/types/domain";
@@ -65,7 +65,9 @@ export function HandoverForm({
           type="submit"
           className="btn btn-primary w-full text-lg"
           disabled={create.isPending}
+          aria-busy={create.isPending}
         >
+          {create.isPending && <Spinner />}
           {t("receiveCash")}
         </button>
       </form>

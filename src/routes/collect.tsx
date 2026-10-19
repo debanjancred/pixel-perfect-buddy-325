@@ -17,7 +17,7 @@ import {
 } from "@/hooks/use-data";
 import type { Household, PaymentMethod } from "@/types/domain";
 import { AppShell } from "@/components/pk/AppShell";
-import { FieldError, Label, StatusBadge, TextField } from "@/components/pk/ui";
+import { FieldError, Label, Spinner, StatusBadge, TextField } from "@/components/pk/ui";
 import { byRecentActivity, householdLedgers, householdMatches, ledgerOf } from "@/lib/households";
 import {
   ValidationError,
@@ -470,7 +470,9 @@ function CollectPage() {
           type="submit"
           className="btn btn-primary shadow-fab mt-8 w-full py-4 text-lg"
           disabled={saving}
+          aria-busy={saving}
         >
+          {saving && <Spinner />}
           {t("saveReceipt")} {!errors.amount && <span className="num">· {money(finalAmount)}</span>}
         </button>
       </form>

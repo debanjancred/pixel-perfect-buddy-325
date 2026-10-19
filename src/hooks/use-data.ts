@@ -249,11 +249,15 @@ export function useUpdateMemberRole() {
   });
 }
 
+/** Background sync has its own banner, so the top loading strip leaves it out. */
+export const SYNC_KEY = ["sync"] as const;
+
 /** Marks pending records synced; refetches only when something changed. */
 export function useSync() {
   const qc = useQueryClient();
   const invalidate = useInvalidate();
   return useMutation({
+    mutationKey: SYNC_KEY,
     // Send this device's changes, then bring down other devices' (cloud mode only).
     mutationFn: async () => {
       const pushed = await api.sync();
