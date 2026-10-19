@@ -1,6 +1,6 @@
-// Cloud SyncAdapter: sends queued records to Supabase. Every insert is "insert unless it
-// already exists" (the client UUID is the idempotency key), so retries after a lost
-// connection are harmless; voids are a separate update that the server lets only
+// Cloud SyncAdapter: sends queued records to Supabase. Every insert is a plain insert where
+// "this id already exists" counts as sent (the client UUID is the idempotency key), so retries
+// after a lost connection are harmless; voids are a separate update that the server lets only
 // treasurers/admins make, once. Records are sent one by one so one rejection doesn't sink
 // the batch; a record that depends on a failed one simply fails too and is retried.
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -45,11 +45,15 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
     if (!data?.length) throw new ValidationError("permission", "err_forbidden");
   };
 
-  const insertIgnore = async (table: string, value: object) => {
-    const { error } = await client
-      .from(table)
-      .upsert(value, { onConflict: "id", ignoreDuplicates: true });
-    if (error) throw error;
+  /**
+   * Not an upsert: PostgreSQL checks an ON CONFLICT insert against the read policies too,
+   * and a removed device may still send its cash entries but read nothing
+   * (…_removed_device_sessions.sql). A duplicate primary key means an earlier attempt got
+   * through.
+   */
+  const insertOnce = async (table: string, value: object) => {
+    const { error } = await client.from(table).insert(value);
+    if (error && !(error.code === "23505" && /_pkey\b/.test(error.message))) throw error;
   };
 
   const voidIfNeeded = async (
@@ -88,7 +92,7 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
         return;
       }
       case "member": {
-        await insertIgnore(TABLE.member, item.record);
+        await insertOnce(TABLE.member, item.record);
         // Name/role may have changed since the member was first sent.
         await updateOne(TABLE.member, item.record.id, {
           name: item.record.name,
@@ -98,11 +102,11 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
       }
       case "household":
       case "event":
-        await insertIgnore(TABLE[item.kind], item.record);
+        await insertOnce(TABLE[item.kind], item.record);
         return;
       case "chanda":
       case "handover":
-        await insertIgnore(TABLE[item.kind], row(item.record));
+        await insertOnce(TABLE[item.kind], row(item.record));
         await voidIfNeeded(TABLE[item.kind], item.record);
         return;
       case "expense": {
@@ -121,7 +125,7 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
             voucher = path;
           }
         }
-        await insertIgnore(TABLE.expense, { ...row(e), voucher_image_id: voucher ?? null });
+        await insertOnce(TABLE.expense, { ...row(e), voucher_image_id: voucher ?? null });
         await voidIfNeeded(TABLE.expense, e);
         return;
       }

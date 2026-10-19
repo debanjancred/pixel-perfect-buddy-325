@@ -11,3 +11,9 @@ create or replace function auth.jwt() returns jsonb language sql stable as $$
 $$;
 grant usage on schema auth, public to anon, authenticated;
 grant execute on function auth.jwt() to anon, authenticated;
+-- Supabase's default privileges for objects the migrations create in public (as on a real
+-- project): extra table rights for anon/authenticated and EXECUTE on every new function.
+-- Migrations must take away what they don't mean to give (…_security_hardening.sql).
+alter default privileges in schema public
+  grant references, trigger, truncate, maintain on tables to anon, authenticated;
+alter default privileges in schema public grant execute on functions to anon, authenticated;

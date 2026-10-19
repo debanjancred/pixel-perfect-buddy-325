@@ -70,8 +70,15 @@ disappears) and Settings → sync works across devices.
   member's collecting device from Settings → Members (lost phone). Chanda that reaches the
   server from any other device is still accepted, but flagged ("collected on another
   device") on the home feed for the committee to check. A device is an id kept in the
-  browser, so clearing site data or a private tab counts as a new device. Removal is
-  enforced by the app, not by revoking the Supabase session.
+  browser, so clearing site data or a private tab counts as a new device.
+- **Removed devices on the server:** each device records the login session it checks in
+  with. Once removed, that session reads no club data and can't void, manage members or
+  events, create clubs or change devices; chanda, expenses and handovers it still sends are
+  accepted (the cash was really taken) and flagged `off_device`. A session is covered from
+  the device's first check-in after `…_removed_device_sessions.sql`.
+- **Grants:** every table and function is granted explicitly in its migration; Supabase's
+  automatic grants on new objects are switched off (`…_security_hardening.sql`), so a new
+  migration must `grant` what the app needs.
 - **Receipt numbers** use the code of whoever writes the receipt (`PK-2026-A01-0007` when the
   admin records a collector's cash). If two devices still issue the same number, the server
   gives the later entry the next free one; the phone shows it after the next pull.

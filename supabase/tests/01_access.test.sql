@@ -14,6 +14,13 @@ begin
     execute 'set role authenticated';
   end if;
 end $$;
+create or replace function test.act_in_session(p_phone text, p_session uuid) returns void
+language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims',
+    json_build_object('phone', '91' || p_phone, 'session_id', p_session)::text, false);
+  execute 'set role authenticated';
+end $$;
 create or replace function test.expect_error(p_sql text, p_message text) returns void
 language plpgsql as $$
 begin
@@ -265,5 +272,93 @@ select test.expect_error('select * from public.user_devices', 'permission denied
 select test.expect_error($$select public.touch_device(gen_random_uuid(), 'x', true)$$,
   'permission denied');
 
+-- 14. A removed device's login session reads and changes nothing, but its cash entries
+--     are still accepted, flagged for review (…_removed_device_sessions.sql).
+\set t1 '''f1000000-0000-4000-8000-000000000001'''
+\set t2 '''f1000000-0000-4000-8000-000000000002'''
+\set s1 '''5e551000-0000-4000-8000-000000000001'''
+\set s2 '''5e551000-0000-4000-8000-000000000002'''
+select test.act_in_session('9000000002', :s1);
+select public.touch_device(:t1, 'Old phone', true);
+select test.act_in_session('9000000002', :s2);
+select public.touch_device(:t2, 'New phone', true);
+select public.remove_device(:t1);
+select public.set_collect_device(:t2);
+
+select test.act_in_session('9000000002', :s1);
+select test.ok(public.touch_device(:t1, 'Old phone', false) ->> 'status' = 'removed',
+  'a removed device can still check in and learn it was removed');
+select test.ok((select count(*) from public.chanda_transactions) = 0
+  and (select count(*) from public.clubs) = 0 and (select count(*) from public.club_members) = 0,
+  'a removed device reads no club data');
+insert into public.expense_records (id, club_id, category, title, amount, paid_to,
+  authorized_by_id, date) values
+  ('dddddddd-0000-4000-8000-000000000014', :club, 'misc', 'offline', 40, 'p', :treas, current_date);
+insert into public.chanda_transactions (id, receipt_no, club_id, household_id, amount,
+  payment_method, status, collector_id, device_id) values
+  ('cccccccc-0000-4000-8000-000000000014', 'PK-2026-T01-0014', :club, :hh, 7, 'upi',
+   'collected', :treas, :t2);
+-- The app sends with "insert, ignore duplicates" (PostgREST upsert): re-sending works too.
+insert into public.expense_records (id, club_id, category, title, amount, paid_to,
+  authorized_by_id, date) values
+  ('dddddddd-0000-4000-8000-000000000016', :club, 'misc', 'offline 2', 5, 'p', :treas, current_date)
+  on conflict (id) do nothing;
+update public.expense_records set voided_at = now(), void_reason = 'x' where id = :exp1;
+select test.expect_error($$select public.set_collect_device('f1000000-0000-4000-8000-000000000002')$$,
+  'err_forbidden');
+select test.expect_error($$select public.create_club('33333333-3333-4333-8333-333333333333',
+  'removed-club', 'অন্য', '', 1000, 2026, gen_random_uuid(), 'x')$$, 'err_forbidden');
+
+select test.act_in_session('9000000002', :s2);
+select test.ok((select off_device from public.expense_records
+  where id = 'dddddddd-0000-4000-8000-000000000014'),
+  'an expense from a removed device is accepted and flagged');
+select test.ok((select off_device from public.expense_records
+  where id = 'dddddddd-0000-4000-8000-000000000016'),
+  'a re-send with ignore-duplicates from a removed device is accepted too');
+select test.ok((select off_device from public.chanda_transactions
+  where id = 'cccccccc-0000-4000-8000-000000000014'),
+  'chanda from a removed device is flagged even when it names the collect device');
+select test.ok((select voided_at is null from public.expense_records where id = :exp1),
+  'a removed device cannot void');
+insert into public.expense_records (id, club_id, category, title, amount, paid_to,
+  authorized_by_id, date) values
+  ('dddddddd-0000-4000-8000-000000000015', :club, 'misc', 'online', 40, 'p', :treas, current_date);
+select test.ok(not (select off_device from public.expense_records
+  where id = 'dddddddd-0000-4000-8000-000000000015'),
+  'entries from the active device are not flagged');
+select test.act_as('9000000002');
+select test.ok((select count(*) from public.clubs) = 1,
+  'a session the server has not seen yet keeps working (covered from its next check-in)');
+
 reset role;
+
+-- 13. Security hardening: no rights beyond what the policies were written for.
+select test.ok(not exists (
+  select 1 from information_schema.role_table_grants
+  where table_schema = 'public' and grantee in ('anon', 'authenticated')
+    and privilege_type not in ('SELECT', 'INSERT', 'UPDATE')),
+  'signed-in users have no TRUNCATE, TRIGGER or REFERENCES on any table');
+select test.ok((select coalesce(string_agg(p.proname, ',' order by p.proname), '')
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute'))
+  = 'public_accounts', 'logged-out visitors can call only public_accounts');
+select test.ok(not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
+    and (p.prorettype = 'trigger'::regtype or p.proname in ('require_phone', 'device_state'))),
+  'signed-in users cannot call trigger or internal functions');
+select test.ok(not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%')),
+  'every function has a fixed search_path');
+create table public.pk_default_grant_probe (id int);
+create function public.pk_default_grant_probe_fn() returns int language sql as 'select 1';
+select test.ok(not has_table_privilege('authenticated', 'public.pk_default_grant_probe', 'truncate')
+  and not has_function_privilege('anon', 'public.pk_default_grant_probe_fn()', 'execute'),
+  'new tables and functions get no automatic grants');
+drop table public.pk_default_grant_probe;
+drop function public.pk_default_grant_probe_fn();
+
 select test.ok(true, 'all access tests passed');

@@ -83,6 +83,8 @@ export interface ExpenseRecord {
   updated_at: IsoDateTime;
   voided_at?: IsoDateTime;
   void_reason?: string;
+  // Cloud mode only: the server's flag that it came from a removed device (accepted, for review).
+  off_device?: boolean;
   sync_status: SyncStatus;
 }
 
@@ -95,6 +97,8 @@ export interface CashHandover {
   created_at: IsoDateTime;
   voided_at?: IsoDateTime;
   void_reason?: string;
+  // Cloud mode only: the server's flag that it came from a removed device (accepted, for review).
+  off_device?: boolean;
   sync_status: SyncStatus;
 }
 
