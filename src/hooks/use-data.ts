@@ -25,7 +25,22 @@ export const queryKeys = {
   voucher: (id: string) => ["voucher", id],
   devices: ["devices"],
   collectStanding: ["devices", "standing"],
+  appConfig: ["appConfig"],
 } as const;
+
+/**
+ * The owner's app_config (ADR 0002 §3): the phone's last copy straight away, then a fresh one
+ * in the background on open and whenever the app comes back to the foreground.
+ */
+export const useAppConfig = () =>
+  useQuery({
+    queryKey: queryKeys.appConfig,
+    queryFn: api.getAppConfig,
+    initialData: () => api.cachedAppConfig(),
+    initialDataUpdatedAt: 0, // stale at once: refresh in the background on every open
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: true,
+  });
 
 export const useClub = () => useQuery({ queryKey: queryKeys.club, queryFn: api.getClub });
 export const useClubs = () => useQuery({ queryKey: queryKeys.clubs, queryFn: api.listClubs });

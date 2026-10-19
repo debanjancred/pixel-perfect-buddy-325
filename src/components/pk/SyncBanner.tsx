@@ -15,8 +15,11 @@ export function SyncBanner({
   failed,
   retrying,
   onRetry,
+  paused = false,
 }: {
   online: boolean;
+  /** Syncing is paused by the owner (maintenance, or this app is too old). */
+  paused?: boolean;
   /** Records saved on the phone and not yet sent (not counting failed ones). */
   pending?: number;
   failed: number;
@@ -35,6 +38,15 @@ export function SyncBanner({
         {pending + failed > 0 && (
           <span className="block">{t("pendingCount", { count: n(String(pending + failed)) })}</span>
         )}
+      </div>
+    );
+  if (pending && paused)
+    return (
+      <div
+        role="status"
+        className="bg-muted px-4 py-1.5 text-center text-xs font-semibold text-muted-foreground"
+      >
+        {t("syncPausedCount", { count: n(String(pending)) })}
       </div>
     );
   if (!failed && pending)

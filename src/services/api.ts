@@ -4,6 +4,7 @@
 import { cashByCollector, computeSummary } from "@/lib/accounts";
 import { newId } from "@/lib/id";
 import { can, type Permission } from "@/lib/permissions";
+import { cachedAppConfig, currentAppStatus, refreshAppConfig } from "./app-config";
 import { session } from "./session";
 import { device } from "./device";
 import { getSyncAdapter, SYNC_ORDER, type SyncRecord, type SyncResult } from "./sync";
@@ -436,10 +437,13 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
   await delay();
   if (!isOnline()) return { synced: 0, failed: 0 };
   const db = read();
-  const queue = syncQueue(db);
-  if (!queue.length) return { synced: 0, failed: 0 };
   const demo = db.clubs.find((c) => c.slug === DEMO_SLUG)?.id;
   const isLocal = (item: SyncRecord) => clubOf(db, item) === demo;
+  // Maintenance, or an app older than the owner allows (app_config): nothing goes to the
+  // server; entries stay pending on the phone until it clears.
+  const paused = currentAppStatus().syncPaused;
+  const queue = syncQueue(db).filter((i) => !paused || isLocal(i));
+  if (!queue.length) return { synced: 0, failed: 0 };
   const local = queue.filter(isLocal);
   const remote = queue.filter((i) => !isLocal(i));
   let results: SyncResult[] = local.map((i) => ({ id: i.record.id, ok: true }));
@@ -481,6 +485,12 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
 }
 
 export const api = {
+  // --- App control (ADR 0002 §3): the owner's app_config row ---
+  /** The last known config, instantly (null before the first successful read). */
+  cachedAppConfig,
+  /** A fresh copy when online (≤ 5 s), else the cached one; never throws. */
+  getAppConfig: refreshAppConfig,
+
   // --- Auth (mock) ---
   async requestOtp(phone: string) {
     await delay();
@@ -967,6 +977,7 @@ export const api = {
    */
   async pull(): Promise<{ pulled: number }> {
     if (!isCloud() || !isOnline() || session.get()?.mode !== "user") return { pulled: 0 };
+    if (currentAppStatus().syncPaused) return { pulled: 0 };
     const client = getCloudClient();
     const db = read();
     const mineSnap = await fetchMyClubs(client);

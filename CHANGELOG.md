@@ -7,6 +7,11 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- App control (`app_config`, ADR 0002 §3): one owner-edited row the app reads in the
+  background on every open (never waiting; the last copy is kept on the phone). Maintenance
+  pauses syncing with the owner's message while recording on the phone carries on; an app
+  older than `min_version` shows "Update required" with an Update now button and stops
+  syncing; an announcement shows until closed. Apply `20261020000002_app_config.sql`.
 - Promises (pledges): on the collect screen, "Promise" next to Cash and UPI records an amount
   a household will pay later — no receipt and no receipt number, so receipt sequences stay
   gap-free. Payments count against it: households show Promised, Part paid (with what's

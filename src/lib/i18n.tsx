@@ -40,6 +40,22 @@ const dict = {
   pendingCount: ["{count}টি এন্ট্রি সিঙ্কের অপেক্ষায়", "{count} waiting to sync"],
   syncingCount: ["{count}টি এন্ট্রি পাঠানো হচ্ছে…", "Sending {count}…"],
   syncNow: ["এখনই পাঠান", "Sync now"],
+  syncPausedCount: [
+    "{count}টি এন্ট্রি ফোনে রাখা আছে — সিঙ্ক আপাতত বন্ধ",
+    "{count} saved on this phone — syncing is paused",
+  ],
+  updateRequired: [
+    "অ্যাপের নতুন সংস্করণ দরকার। আপনার এন্ট্রি ফোনে নিরাপদ আছে।",
+    "A newer version of the app is needed. Your entries are safe on this phone.",
+  ],
+  updateNow: ["এখনই আপডেট", "Update now"],
+  maintenanceText: ["রক্ষণাবেক্ষণ চলছে।", "Maintenance in progress."],
+  maintenanceSafe: [
+    "সিঙ্ক আপাতত বন্ধ — কাজ চালিয়ে যান, এন্ট্রি ফোনে জমা থাকবে।",
+    "Syncing is paused — keep working; entries are saved on this phone.",
+  ],
+  announcementMore: ["বিস্তারিত", "Details"],
+  announcementClose: ["ঘোষণা বন্ধ করুন", "Close announcement"],
   synced: ["সব সিঙ্ক হয়েছে", "All changes synced"],
   refreshed: ["হালনাগাদ হয়েছে", "Refreshed"],
   chandaRegister: ["চাঁদার খাতা", "Chanda Register"],

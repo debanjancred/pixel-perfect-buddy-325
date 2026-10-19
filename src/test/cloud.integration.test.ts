@@ -17,6 +17,7 @@ import {
   setCollectDevice,
   touchDevice,
 } from "@/services/cloud/devices";
+import { fetchAppConfig } from "@/services/cloud/app-config";
 import { fetchClubSnapshot, fetchMyClubs, fetchPublicAccounts } from "@/services/cloud/pull";
 import type { SyncRecord } from "@/services/sync";
 import type { ChandaTransaction, ClubMember } from "@/types/domain";
@@ -363,5 +364,15 @@ describe.skipIf(!PGRST)("cloud sync against PostgreSQL + PostgREST", () => {
       { kind: "chanda", record: chanda({ receipt_no: "PK-2026-C01-0051", status: "promised" }) },
     ]);
     expect(bad!.ok).toBe(false);
+  });
+
+  it("anyone, logged out too, reads the owner's app_config; nobody can change it", async () => {
+    const config = await fetchAppConfig(as(null));
+    expect(config).toMatchObject({ maintenance: false, min_version: "0.0.0", flags: {} });
+    const { error } = await as(PHONE.admin)
+      .from("app_config")
+      .update({ maintenance: true })
+      .eq("id", true);
+    expect(error?.message).toMatch(/permission denied/);
   });
 });
