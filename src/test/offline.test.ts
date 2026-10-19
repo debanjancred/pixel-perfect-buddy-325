@@ -80,6 +80,28 @@ describe("sync adapter (SPEC 5.1)", () => {
     expect((await api.getSyncStatus()).pending).toBeGreaterThanOrEqual(3);
   });
 
+  it("sends nothing while the owner has paused syncing (app_config), and resumes after", async () => {
+    await pendingDemo();
+    const before = (await api.getSyncStatus()).pending;
+    const push = vi.fn<SyncAdapter["push"]>(async (recs) =>
+      recs.map((r) => ({ id: r.record.id, ok: true })),
+    );
+    setSyncAdapter({ push });
+    localStorage.setItem(
+      "pk_app_config_v1",
+      JSON.stringify({ maintenance: true, min_version: "0.0.0", updated_at: "x", flags: {} }),
+    );
+    expect(await api.sync()).toEqual({ synced: 0, failed: 0 });
+    expect(push).not.toHaveBeenCalled();
+    expect(await api.getSyncStatus()).toEqual({ pending: before, failed: 0 }); // nothing failed
+
+    localStorage.setItem(
+      "pk_app_config_v1",
+      JSON.stringify({ maintenance: false, min_version: "0.0.0", updated_at: "y", flags: {} }),
+    );
+    expect(await api.sync()).toEqual({ synced: before, failed: 0 });
+  });
+
   it("marks records the adapter rejects as failed, and a retry clears them", async () => {
     const ids = await pendingDemo();
     const before = (await api.getSyncStatus()).pending;

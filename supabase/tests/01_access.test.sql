@@ -308,6 +308,21 @@ select test.expect_error('select * from public.user_devices', 'permission denied
 select test.expect_error($$select public.touch_device(gen_random_uuid(), 'x', true)$$,
   'permission denied');
 
+-- 16. App config (…_app_config.sql): anyone reads the single row; nobody writes it via the API.
+select test.act_as(null);
+select test.ok((select count(*) from public.app_config) = 1
+  and (select min_version from public.app_config) = '0.0.0'
+  and not (select maintenance from public.app_config),
+  'anyone, even logged out, reads the one app_config row (defaults: no maintenance, 0.0.0)');
+select test.expect_error('update public.app_config set maintenance = true', 'permission denied');
+select test.act_as('9000000001');
+select test.expect_error('update public.app_config set maintenance = true', 'permission denied');
+select test.expect_error('insert into public.app_config (id) values (true)', 'permission denied');
+reset role;
+select test.expect_error($$update public.app_config set min_version = '1.2'$$, 'app_config_min_version_check');
+select test.expect_error('insert into public.app_config (id) values (false)', 'app_config_id_check');
+select test.ok(true, 'only the owner (dashboard) changes it; versions are x.y.z; one row only');
+
 -- 15. Promises (…_chanda_promises.sql): no money and no receipt number; payments count against
 --     them; only a treasurer/admin cancels one.
 \set pr1 '''cccccccc-0000-4000-8000-000000000020'''

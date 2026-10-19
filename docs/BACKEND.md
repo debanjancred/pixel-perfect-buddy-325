@@ -117,3 +117,19 @@ nothing is sent. Development builds never send. Decision and limits: ADR 0002.
   traces show minified code.
 - **In Sentry** (Project → Settings → Security & Privacy) also turn on *Data Scrubber*,
   *Use Default Scrubbers* and *Prevent Storing of IP Addresses*, as a second line of defence.
+
+## App control (`app_config`)
+One row the app reads on every open, in the background (ADR 0002 §3). It never waits for it:
+the last copy is kept on the phone, and with no copy and no signal the app works normally.
+Edit it in the Supabase dashboard (**Table Editor → app_config**, the single row) until the
+owner console exists; the API lets nobody change it.
+
+| Column | Effect on every phone |
+|---|---|
+| `maintenance` | `true` pauses syncing (pushing and pulling); members keep recording on the phone. Shows `maintenance_message_bn` / `_en`, or a default text. |
+| `min_version` | Apps older than this (e.g. `0.11.0`) show "Update required" with an **Update now** button and stop syncing until updated. Entries stay on the phone. |
+| `announcement_bn` / `_en` / `_url` | A notice everyone sees until they close it; editing the row shows it again. `_url` must be `https://`. Clear both texts to remove it. |
+| `flags` | Feature switches for later (JSON object). |
+
+**Releasing a version that old phones must not keep using:** publish it first, then raise
+`min_version` to it. Phones pick it up the next time they open the app.
