@@ -48,7 +48,7 @@ const SECTION_TITLE: Record<EventPhase, TKey> = {
 };
 
 function EventsPage() {
-  const { t, n, pick } = useI18n();
+  const { t, pick } = useI18n();
   const { add, edit } = Route.useSearch();
   const { data: events = [], isPending, isError, refetch } = useEvents();
   const actions = useEventActions();
@@ -117,7 +117,6 @@ function EventsPage() {
                   key={e.id}
                   event={e}
                   today={today}
-                  onRegister={() => actions.register(e)}
                   onShare={() => actions.share(e)}
                   onEdit={canManage ? () => editSheet.open(e.id) : undefined}
                   onDelete={canManage ? () => setDeleting(e) : undefined}
@@ -168,7 +167,7 @@ function EventsPage() {
             })
           }
         >
-          <p>{t("deleteEventHint", { count: n(String(deleting.registrations_count)) })}</p>
+          <p>{t("deleteEventHint")}</p>
         </ConfirmDialog>
       )}
     </AppShell>

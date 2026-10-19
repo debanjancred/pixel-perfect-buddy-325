@@ -6,6 +6,23 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Fixed
+- Offline saving: react-query paused every save and read while the phone was offline, so
+  "Save & make receipt" spun forever and nothing was stored. The app's query client now
+  always runs them (everything goes to the phone first); server calls check the connection
+  themselves.
+
+### Changed
+- "Waiting to sync" moved out of the header's online/offline line into the status strip
+  under the header: offline it is added to the offline notice; online it shows "sending…"
+  during a sync, or the count with a "Sync now" button. Failed entries still take priority.
+- Event cards redesigned: a calendar tile (month band, large day), the weekday and a
+  countdown chip (today highlighted), a Share button, and admin edit/delete in a ⋮ menu
+  sheet. Finished events are muted and show no buttons.
+- Event registration is switched off in the app for now (no Register button, tally or
+  count in the share text); it will return as its own feature. The server function and
+  stored tallies are unchanged.
+
 ### Added
 - Events (competitions): admins can edit an event's name and date, and delete it (with a
   confirmation showing how many are registered). Everyone else only views, registers and

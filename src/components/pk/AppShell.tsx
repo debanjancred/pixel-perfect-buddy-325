@@ -145,11 +145,6 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
                   <CloudOff className="h-3 w-3 text-warning" />
                 )}
                 {online ? t("online") : t("offline")}
-                {!!syncStatus?.pending && (
-                  <span className="font-semibold text-gold-ink">
-                    · {n(String(syncStatus.pending))} {t("pendingSync")}
-                  </span>
-                )}
                 <ChevronDown className="h-3 w-3" />
               </div>
             </div>
@@ -176,6 +171,7 @@ export function AppShell({ children, fab }: { children: ReactNode; fab?: ReactNo
         )}
         <SyncBanner
           online={online}
+          pending={syncStatus?.pending ?? 0}
           failed={syncStatus?.failed ?? 0}
           retrying={sync.isPending}
           onRetry={() => sync.mutate()}

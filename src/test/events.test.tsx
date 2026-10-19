@@ -7,6 +7,7 @@ import {
   canRegister,
   countdownLabel,
   daysUntil,
+  eventDateParts,
   eventPhase,
   eventShareText,
   groupEvents,
@@ -85,7 +86,8 @@ describe("events model", () => {
     expect(text).toContain("Sample Puja Committee 2026");
     expect(text).toContain("Sit & Draw");
     expect(text).toContain("18 October 2026");
-    expect(text).toContain("24 registered");
+    expect(text).toContain("Everyone's welcome");
+    expect(text).not.toContain("24"); // registration is switched off for now
     expect(text).not.toMatch(/https?:\/\//);
   });
 });
@@ -211,24 +213,57 @@ describe("useRegisterEvent", () => {
 });
 
 describe("EventCard", () => {
-  const props = { event: ev("2026-10-25"), today: TODAY, onRegister: () => {}, onShare: () => {} };
+  const props = { event: ev("2026-10-25"), today: TODAY, onShare: () => {} };
 
-  it("shows only register and share to members who can't manage events", () => {
+  it("shows a calendar tile, weekday and countdown", () => {
     render(<EventCard {...props} />, { wrapper: I18nProvider });
-    expect(screen.getByRole("button", { name: "নাম লেখান" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /সম্পাদনা/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /মুছে দিন/ })).toBeNull();
+    const card = screen.getByRole("article", { name: "বসে আঁকো" });
+    expect(card).toHaveTextContent("২৫"); // day on the tile
+    expect(card).toHaveTextContent("রবিবার");
+    expect(card).toHaveTextContent("৮ দিন বাকি");
   });
 
-  it("gives admins labelled edit and delete buttons", () => {
+  it("has no registration for now: no register button and no tally", () => {
+    const onShare = vi.fn();
+    render(<EventCard {...props} onShare={onShare} />, { wrapper: I18nProvider });
+    expect(screen.queryByRole("button", { name: "নাম লেখান" })).toBeNull();
+    expect(screen.getByRole("article")).not.toHaveTextContent("নাম লিখিয়েছেন");
+    fireEvent.click(screen.getByRole("button", { name: "বসে আঁকো শেয়ার করুন" }));
+    expect(onShare).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: /আরও বিকল্প/ })).toBeNull();
+  });
+
+  it("gives admins edit and delete behind a ⋮ menu", () => {
     const onEdit = vi.fn();
     const onDelete = vi.fn();
     render(<EventCard {...props} onEdit={onEdit} onDelete={onDelete} />, {
       wrapper: I18nProvider,
     });
-    fireEvent.click(screen.getByRole("button", { name: "বসে আঁকো সম্পাদনা" }));
-    fireEvent.click(screen.getByRole("button", { name: "বসে আঁকো মুছে দিন" }));
+    fireEvent.click(screen.getByRole("button", { name: "আরও বিকল্প: বসে আঁকো" }));
+    fireEvent.click(screen.getByRole("button", { name: "প্রতিযোগিতা সম্পাদনা" }));
     expect(onEdit).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "আরও বিকল্প: বসে আঁকো" }));
+    fireEvent.click(screen.getByRole("button", { name: "মুছে দিন" }));
     expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it("mutes a finished event: no buttons, and says so", () => {
+    render(<EventCard {...props} event={ev("2026-10-10")} />, { wrapper: I18nProvider });
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByRole("article")).toHaveTextContent("শেষ হয়েছে");
+  });
+});
+
+describe("eventDateParts", () => {
+  it("splits the date for the calendar tile in either language", () => {
+    expect(eventDateParts({ date: "2026-10-20" }, "en")).toEqual({
+      day: 20,
+      month: "Oct",
+      weekday: "Tuesday",
+    });
+    const bn = eventDateParts({ date: "2026-10-20" }, "bn");
+    expect(bn.day).toBe(20);
+    expect(bn.weekday).toBe("মঙ্গলবার");
+    expect(bn.month).not.toMatch(/(?:\.|\u0983)$/); // no abbreviation mark on the tile
   });
 });

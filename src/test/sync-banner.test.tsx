@@ -32,4 +32,29 @@ describe("SyncBanner (SPEC 5.1)", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
   });
+
+  it("shows entries waiting to sync under the header, with a sync-now button", () => {
+    const onRetry = vi.fn();
+    renderBanner({ pending: 3, onRetry });
+    expect(screen.getByRole("status")).toHaveTextContent("৩টি এন্ট্রি সিঙ্কের অপেক্ষায়");
+    fireEvent.click(screen.getByRole("button", { name: "এখনই পাঠান" }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it("says it is sending while a sync runs, without a button", () => {
+    renderBanner({ pending: 2, retrying: true });
+    expect(screen.getByRole("status")).toHaveTextContent("২টি এন্ট্রি পাঠানো হচ্ছে…");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("offline: adds how many entries are waiting to the offline notice", () => {
+    renderBanner({ online: false, pending: 2, failed: 1 });
+    expect(screen.getByRole("status")).toHaveTextContent("৩টি এন্ট্রি সিঙ্কের অপেক্ষায়");
+  });
+
+  it("failed entries take priority over waiting ones", () => {
+    renderBanner({ pending: 4, failed: 1 });
+    expect(screen.getByRole("alert")).toHaveTextContent("১টি এন্ট্রি সিঙ্ক হয়নি");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
 });
