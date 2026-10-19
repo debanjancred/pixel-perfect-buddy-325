@@ -6,6 +6,13 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-19
+
+Cloud-mode hardening after the first real use on Supabase: entries no longer fail to sync
+silently (clubs on a LAN phone, duplicate sends, receipt-number clashes, re-sent handovers),
+each person collects on one of up to 3 devices, and the members screen, popups and toasts
+are production-ready on a 360px phone. Database: apply the three `20261019…` migrations.
+
 ### Added
 - "See why" on the sync banner lists each entry that didn't sync with the server's reason
   (e.g. a cash handover refused as more than the collector holds because the chanda behind
@@ -35,6 +42,9 @@ All notable changes to Pujo Khata. Format follows
   share a sequence.
 
 ### Fixed
+- Toasts use the brand's success, error, warning and gold colours and follow dark mode; the
+  library's own success and error text was below WCAG AA contrast (now ≥ 4.5:1 for every
+  type in both themes).
 - Sheets (add member, expense, handover, void…) no longer hide behind the phone's keyboard:
   they sit in the visible area above it, and the field being typed in stays in view.
 - A cash handover could stay "didn't sync — can't receive more than the cash outstanding"
@@ -253,7 +263,8 @@ events, public accounts, settings, roles & permissions with void and cash handov
   receipts, expenses, events, public audit and club admin, backed by
   localStorage with Bengali/English UI.
 
-[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.2.0...v0.9.0
 [0.2.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/releases/tag/v0.1.0
