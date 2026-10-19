@@ -30,6 +30,12 @@ All notable changes to Pujo Khata. Format follows
   share a sequence.
 
 ### Fixed
+- A cash handover could stay "didn't sync — can't receive more than the cash outstanding"
+  forever although the server had it: re-sending it (a retry, or the overlapping syncs fixed
+  below) ran the cash check before the duplicate was noticed and counted the handover against
+  itself. Re-sends now pass through, and a voided handover is not checked against the cash
+  held, so a genuinely refused one can be voided and synced
+  (`supabase/migrations/20261019000003_handover_resend.sql`).
 - Cash handovers (and the chanda behind them) never synced when two phones issued the same
   receipt number for a collector, e.g. an admin recording cash for a collector who was also
   collecting. The later entry failed the server's unique receipt number on every retry, so

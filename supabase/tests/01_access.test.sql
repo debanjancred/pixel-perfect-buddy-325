@@ -138,8 +138,20 @@ select test.expect_error($$insert into public.expense_records (id, club_id, cate
   'aaaaaaaa-0000-4000-8000-000000000002', current_date + 3)$$, 'err_dateFuture');
 
 -- 8. Cash handovers: receiver is the caller; never more than outstanding; not to oneself.
+\set ho1 '''99999999-0000-4000-8000-000000000001'''
 insert into public.cash_handovers (id, club_id, collector_id, received_by_id, amount)
-  values (gen_random_uuid(), :club, :coll, :treas, 600);
+  values (:ho1, :club, :coll, :treas, 600);
+-- A phone re-sending a handover the server already has (a retry, or two overlapping syncs)
+-- must not be refused as more than the cash held: ON CONFLICT drops it.
+insert into public.cash_handovers (id, club_id, collector_id, received_by_id, amount)
+  values (:ho1, :club, :coll, :treas, 600) on conflict (id) do nothing;
+select test.ok((select count(*) from public.cash_handovers where id = :ho1) = 1,
+  'a re-sent handover is accepted as a no-op');
+-- A voided handover takes no cash, so a refused one can be voided and still sync.
+insert into public.cash_handovers (id, club_id, collector_id, received_by_id, amount,
+  voided_at, void_reason) values (gen_random_uuid(), :club, :coll, :treas, 5000, now(), 'দুবার লেখা');
+select test.ok((select count(*) from public.cash_handovers where voided_at is not null) = 1,
+  'a voided handover syncs without the cash check');
 select test.expect_error($$insert into public.cash_handovers (id, club_id, collector_id,
   received_by_id, amount) values (gen_random_uuid(), '11111111-1111-4111-8111-111111111111',
   'aaaaaaaa-0000-4000-8000-000000000003', 'aaaaaaaa-0000-4000-8000-000000000002', 402)$$,
