@@ -7,6 +7,11 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- Events (competitions): admins can edit an event's name and date, and delete it (with a
+  confirmation showing how many are registered). Everyone else only views, registers and
+  shares, and the server enforces the same. Deleting is soft, so other phones hide the event
+  on their next sync; a deleted event takes no registrations, and a registration tapped
+  offline for it is dropped quietly. Apply `20261019000006_event_edit_delete.sql`.
 - "Install app" (অ্যাপ ইনস্টল করুন) on the login screen and in Settings: on Android
   Chrome/Edge it opens the browser's install dialog; on iPhone it explains Share → Add to
   Home Screen; it disappears once the app is installed.

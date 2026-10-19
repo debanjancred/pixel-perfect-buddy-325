@@ -27,7 +27,7 @@ export interface Snapshot {
 }
 
 export interface OutboxOp {
-  kind: "club" | "member" | "household" | "event" | "event_delta";
+  kind: "club" | "member" | "household" | "event" | "event_update" | "event_delta";
   id: string;
   event_id?: string;
   delta?: 1 | -1;

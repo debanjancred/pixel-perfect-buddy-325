@@ -110,6 +110,10 @@ export interface ClubEvent {
   date: IsoDate;
   registrations_count: number;
   created_at: IsoDateTime;
+  updated_at?: IsoDateTime;
+  // Admins delete events softly so other phones learn of it on their next pull; deleted
+  // events are hidden everywhere and take no registrations.
+  deleted_at?: IsoDateTime | null;
 }
 
 export interface AccountsSummary {

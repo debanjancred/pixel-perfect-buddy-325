@@ -221,6 +221,34 @@ describe.skipIf(!PGRST)("cloud sync against PostgreSQL + PostgREST", () => {
     expect(data).toEqual({ registrations_count: 2 });
   });
 
+  it("only an admin edits or deletes an event; a delete reaches other devices", async () => {
+    const event = {
+      id: randomUUID(),
+      club_id: ids.club,
+      title_bn: "শঙ্খ বাজানো",
+      title_en: "শঙ্খ বাজানো",
+      date: "2026-10-21",
+      registrations_count: 0,
+      created_at: new Date().toISOString(),
+    };
+    expect((await push(as(PHONE.admin), [{ kind: "event", record: event }]))[0]!.ok).toBe(true);
+    const renamed = { ...event, title_bn: "শঙ্খধ্বনি", title_en: "শঙ্খধ্বনি" };
+    const [refused] = await push(as(PHONE.coll), [{ kind: "event_update", record: renamed }]);
+    expect(refused).toMatchObject({ ok: false, error: "err_forbidden" });
+    expect((await push(as(PHONE.admin), [{ kind: "event_update", record: renamed }]))[0]!.ok).toBe(
+      true,
+    );
+    const deleted = { ...renamed, deleted_at: new Date().toISOString() };
+    expect((await push(as(PHONE.admin), [{ kind: "event_update", record: deleted }]))[0]!.ok).toBe(
+      true,
+    );
+    // Another member's pull sees the change (soft delete), so their app hides it.
+    const snap = await fetchClubSnapshot(as(PHONE.treas), ids.club);
+    const pulled = snap.events.find((e) => e.id === event.id);
+    expect(pulled?.title_bn).toBe("শঙ্খধ্বনি");
+    expect(pulled?.deleted_at).toBeTruthy();
+  });
+
   it("another device pulls the club and merges it into an empty store", async () => {
     const coll = as(PHONE.coll);
     const db = {

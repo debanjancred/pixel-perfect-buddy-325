@@ -34,6 +34,7 @@ import {
   chandaSchema,
   check,
   clubSchema,
+  eventEditSchema,
   eventSchema,
   expenseSchema,
   handoverSchema,
@@ -169,6 +170,8 @@ function authorize(db: Store, p: Permission): ClubMember {
 
 const mine = <T extends { club_id: string }>(db: Store, list: T[]) =>
   list.filter((x) => x.club_id === db.active_club_id);
+/** The active club's events, without the ones an admin deleted. */
+const liveEvents = (db: Store) => mine(db, db.events).filter((e) => !e.deleted_at);
 /** Queues a change for the next sync. The sample club never leaves the device. */
 function enqueue(db: Store, clubId: string, op: OutboxOp) {
   if (db.clubs.find((c) => c.id === clubId)?.slug === DEMO_SLUG) return;
@@ -369,9 +372,10 @@ function outboxRecord(db: Store, op: OutboxOp): SyncRecord | null {
       const record = db.households.find((h) => h.id === op.id);
       return record ? { kind: "household", record } : null;
     }
-    case "event": {
+    case "event":
+    case "event_update": {
       const record = db.events.find((e) => e.id === op.id);
-      return record ? { kind: "event", record } : null;
+      return record ? { kind: op.kind, record } : null;
     }
     case "event_delta":
       return op.event_id && op.delta
@@ -741,12 +745,12 @@ export const api = {
   async listEvents(): Promise<ClubEvent[]> {
     await delay();
     const db = read();
-    return [...mine(db, db.events)].sort((a, b) => a.date.localeCompare(b.date));
+    return liveEvents(db).sort((a, b) => a.date.localeCompare(b.date));
   },
   async registerEvent(id: string): Promise<ClubEvent> {
     await delay();
     const db = read();
-    const ev = mine(db, db.events).find((e) => e.id === id);
+    const ev = liveEvents(db).find((e) => e.id === id);
     if (!ev) throw new ValidationError("event_id", "err_notFound");
     ev.registrations_count += 1;
     enqueue(db, ev.club_id, { kind: "event_delta", id: uuid(), event_id: ev.id, delta: 1 });
@@ -757,7 +761,7 @@ export const api = {
   async unregisterEvent(id: string): Promise<ClubEvent> {
     await delay();
     const db = read();
-    const ev = mine(db, db.events).find((e) => e.id === id);
+    const ev = liveEvents(db).find((e) => e.id === id);
     if (!ev) throw new ValidationError("event_id", "err_notFound");
     if (ev.registrations_count > 0)
       enqueue(db, ev.club_id, { kind: "event_delta", id: uuid(), event_id: ev.id, delta: -1 });
@@ -784,6 +788,32 @@ export const api = {
     enqueue(db, ev.club_id, { kind: "event", id: ev.id });
     write(db);
     return ev;
+  },
+  /** Admin only: renames or re-dates an event; its registrations stay. */
+  async updateEvent(id: string, raw: EventInput): Promise<ClubEvent> {
+    await delay();
+    const db = read();
+    authorize(db, "event.manage");
+    const ev = liveEvents(db).find((e) => e.id === id);
+    if (!ev) throw new ValidationError("event_id", "err_notFound");
+    const input = parseOrThrow(eventEditSchema(ev.date), raw);
+    ev.title_bn = input.title;
+    ev.title_en = input.title;
+    ev.date = input.date;
+    enqueue(db, ev.club_id, { kind: "event_update", id: ev.id });
+    write(db);
+    return ev;
+  },
+  /** Admin only: removes an event for everyone (kept as deleted, so other phones learn). */
+  async deleteEvent(id: string): Promise<void> {
+    await delay();
+    const db = read();
+    authorize(db, "event.manage");
+    const ev = liveEvents(db).find((e) => e.id === id);
+    if (!ev) throw new ValidationError("event_id", "err_notFound");
+    ev.deleted_at = now();
+    enqueue(db, ev.club_id, { kind: "event_update", id: ev.id });
+    write(db);
   },
 
   // --- Cash handovers (SPEC 6.3): never edited, only voided ---
@@ -919,6 +949,7 @@ export const api = {
           case "club":
             return { ...base, title: i.record.name_bn };
           case "event":
+          case "event_update":
             return { ...base, title: i.record.title_bn };
           case "event_delta":
             return {
