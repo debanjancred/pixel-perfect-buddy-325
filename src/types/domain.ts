@@ -63,6 +63,10 @@ export interface ChandaTransaction {
   voided_at?: IsoDateTime;
   void_reason?: string;
   sync_status: SyncStatus;
+  // Cloud mode only. The device it was written on (UserDevice.id), and the server's flag that
+  // it was not the writer's collect device when it synced (accepted, shown for review).
+  device_id?: string;
+  off_device?: boolean;
 }
 
 export interface ExpenseRecord {
@@ -114,4 +118,13 @@ export interface AccountsSummary {
   collection_target: number;
   progress_pct: number; // 0–100 integer
   pending_sync_count: number;
+}
+
+/** A device a person is signed in on (cloud mode); at most 3, one of them collects chanda. */
+export interface UserDevice {
+  id: string;
+  label: string; // e.g. "Android · Chrome"
+  is_collect: boolean;
+  created_at: IsoDateTime;
+  last_seen_at: IsoDateTime;
 }

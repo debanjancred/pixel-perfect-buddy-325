@@ -5,6 +5,7 @@ import { ValidationError } from "@/lib/validation";
 import type { ClubMember, UserRole } from "@/types/domain";
 import { ROLES, membersByRole } from "./model";
 import { AddMemberForm } from "./AddMemberForm";
+import { ResetCollectDevice } from "@/features/devices";
 
 /** Story 6.2: members grouped by role, with the role editable per member. */
 export function MembersSection() {
@@ -86,6 +87,7 @@ function MemberRow({ member: m, editable }: { member: ClubMember; editable: bool
           ))}
         </select>
       )}
+      {editable && <ResetCollectDevice member={m} />}
     </li>
   );
 }

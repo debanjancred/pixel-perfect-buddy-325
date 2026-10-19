@@ -10,6 +10,7 @@ import {
   useAddTransaction,
   useClub,
   useAccess,
+  useCollectStanding,
   useCurrentMember,
   useHouseholds,
   useMembers,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/validation";
 import { ReceiptModal } from "@/features/receipt";
 import { NoAccess } from "@/components/pk/NoAccess";
+import { CollectDeviceGate } from "@/features/devices";
 
 export const Route = createFileRoute("/collect")({
   validateSearch: z.object({ household: z.string().optional() }),
@@ -70,6 +72,7 @@ function CollectPage() {
   const { data: members = [] } = useMembers();
   const me = useCurrentMember();
   const access = useAccess("chanda.add");
+  const { data: standing } = useCollectStanding();
   const addHousehold = useAddHousehold();
   const addTransaction = useAddTransaction();
 
@@ -212,6 +215,15 @@ function CollectPage() {
       <AppShell>
         <h1 className="text-2xl font-extrabold">{t("collectTitle")}</h1>
         <NoAccess />
+      </AppShell>
+    );
+
+  // Cloud mode: chanda is collected on one of the person's devices (features/devices).
+  if (standing?.applies && !standing.is_collect)
+    return (
+      <AppShell>
+        <h1 className="text-2xl font-extrabold">{t("collectTitle")}</h1>
+        <CollectDeviceGate collectLabel={standing.collect_label} />
       </AppShell>
     );
 

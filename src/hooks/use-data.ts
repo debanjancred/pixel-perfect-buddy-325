@@ -23,6 +23,8 @@ export const queryKeys = {
   events: ["events"],
   handovers: ["handovers"],
   voucher: (id: string) => ["voucher", id],
+  devices: ["devices"],
+  collectStanding: ["devices", "standing"],
 } as const;
 
 export const useClub = () => useQuery({ queryKey: queryKeys.club, queryFn: api.getClub });
@@ -321,3 +323,38 @@ export function useInvalidateAll() {
 
 // Session storage lives in the service layer; re-exported for existing imports.
 export { session } from "@/services/session";
+
+// --- Devices (cloud mode): up to 3 per person, chanda collected on one of them ---
+
+/** Whether chanda can be collected on this device (answers offline from the last check-in). */
+export const useCollectStanding = () =>
+  useQuery({ queryKey: queryKeys.collectStanding, queryFn: api.getCollectStanding });
+
+/** The signed-in person's devices; needs the network, so only fetched when `enabled`. */
+export const useDevices = (enabled: boolean) =>
+  useQuery({ queryKey: queryKeys.devices, queryFn: api.listDevices, enabled, retry: false });
+
+function useDeviceMutation<V>(fn: (v: V) => Promise<unknown>) {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: fn, onSuccess: () => invalidate(queryKeys.devices) });
+}
+export const useSetCollectDevice = () => useDeviceMutation(api.setCollectDevice);
+export const useRemoveDevice = () => useDeviceMutation(api.removeDevice);
+export const useResetCollectDevice = () => useDeviceMutation(api.resetCollectDevice);
+
+/**
+ * Checks this device in after a sync. Resolves "removed" or "limit" when it has been signed
+ * out (removed from another device, or a 4th device from before the limit existed).
+ */
+export function useDeviceCheck() {
+  const qc = useQueryClient();
+  return async () => {
+    const status = await api.checkDevice().catch(() => "skipped" as const);
+    if (status === "removed" || status === "limit") {
+      await api.signOut();
+      return status;
+    }
+    await qc.invalidateQueries({ queryKey: queryKeys.devices });
+    return status;
+  };
+}

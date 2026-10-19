@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { AppShell } from "@/components/pk/AppShell";
+import { DevicesSection } from "@/features/devices";
 import {
   AccountSection,
   DemoActorSection,
@@ -34,6 +35,7 @@ function SettingsPage() {
         <MembersSection />
         <ExportSection />
         <PreferencesSection />
+        <DevicesSection />
         <AccountSection />
       </div>
       <div className="h-6" />

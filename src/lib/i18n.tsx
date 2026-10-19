@@ -278,6 +278,71 @@ const dict = {
   offlineReady: ["অফলাইনেও চলে", "Offline-ready"],
   demoClub: ["নমুনা পূজা কমিটি", "Sample Puja Committee"],
   paidTo: ["কাকে দেওয়া হয়েছে", "Paid to"],
+  // Devices (cloud mode): up to 3 per person, chanda collected on one of them.
+  err_deviceLimit: [
+    "আপনি ইতিমধ্যে ৩টি ডিভাইসে লগ ইন করেছেন",
+    "You're already logged in on 3 devices",
+  ],
+  err_notCollectDevice: [
+    "চাঁদা শুধু আপনার আদায়ের ডিভাইস থেকে নেওয়া যায়",
+    "Chanda can only be collected on your collecting device",
+  ],
+  devices: ["ডিভাইস", "Devices"],
+  devicesHint: [
+    "সর্বোচ্চ ৩টি ডিভাইসে লগ ইন রাখা যায়। চাঁদা আদায় হবে শুধু একটি থেকে — বাকিগুলোতে সব কাজ করা যাবে।",
+    "You can stay logged in on up to 3 devices. Chanda is collected on one of them; everything else works on all.",
+  ],
+  devicesOffline: [
+    "ডিভাইসের তালিকা দেখতে ইন্টারনেট দরকার",
+    "Connect to the internet to see your devices",
+  ],
+  thisDevice: ["এই ডিভাইস", "This device"],
+  collectDevice: ["আদায়ের ডিভাইস", "Collecting device"],
+  lastSeen: ["শেষ ব্যবহার {date}", "Last used {date}"],
+  useForCollecting: ["এটি থেকে আদায় করুন", "Collect on this one"],
+  removeDevice: ["সরিয়ে দিন", "Remove"],
+  removeDeviceConfirm: ["{name} সরিয়ে দেবেন?", "Remove {name}?"],
+  removeDeviceHint: [
+    "ওই ডিভাইসটি পরের বার খোলার সময় বাকি এন্ট্রিগুলো পাঠিয়ে লগ আউট হয়ে যাবে।",
+    "That device sends anything it still has and logs out the next time it opens.",
+  ],
+  deviceRemoved: [
+    "এই ডিভাইসটি অন্য ডিভাইস থেকে সরানো হয়েছে। আবার লগ ইন করুন।",
+    "This device was removed from another device. Log in again.",
+  ],
+  collectDeviceSet: [
+    "এখন থেকে এই ডিভাইসে চাঁদা আদায় হবে",
+    "Chanda is now collected on this device",
+  ],
+  collectGateTitle: ["এই ডিভাইসে চাঁদা আদায় বন্ধ", "This device doesn't collect chanda"],
+  collectGateOther: [
+    "আপনার আদায়ের ডিভাইস: {name}। একজনের রসিদ নম্বর যেন না মেলে, তাই চাঁদা একটি ডিভাইস থেকেই নেওয়া হয়।",
+    "Your collecting device is {name}. Chanda is taken on one device so your receipt numbers never clash.",
+  ],
+  collectGateNone: [
+    "আপনার কোনো আদায়ের ডিভাইস বাছা নেই। এই ডিভাইসটি বেছে নিন।",
+    "You haven't chosen a collecting device yet. Choose this one.",
+  ],
+  collectGateOffline: [
+    "আদায়ের ডিভাইস বদলাতে ইন্টারনেট দরকার",
+    "Connect to the internet to change your collecting device",
+  ],
+  deviceLimitTitle: ["একটি ডিভাইস সরিয়ে দিন", "Remove a device to continue"],
+  deviceLimitHint: [
+    "সর্বোচ্চ ৩টি ডিভাইসে লগ ইন রাখা যায়। এই ডিভাইসে লগ ইন করতে একটি সরিয়ে দিন।",
+    "You can be logged in on up to 3 devices. Remove one to log in here.",
+  ],
+  resetCollectDevice: ["আদায়ের ডিভাইস রিসেট", "Reset collecting device"],
+  resetCollectDeviceConfirm: [
+    "{name}-এর আদায়ের ডিভাইস রিসেট করবেন? তিনি যে ডিভাইস থেকে আদায় করবেন সেটি আবার বেছে নেবেন।",
+    "Reset {name}'s collecting device? They'll choose the device they collect on again.",
+  ],
+  collectDeviceReset: ["আদায়ের ডিভাইস রিসেট হয়েছে", "Collecting device reset"],
+  offDevice: ["অন্য ডিভাইসে আদায়", "Collected on another device"],
+  offDeviceHint: [
+    "এই এন্ট্রিটি সংগ্রাহকের আদায়ের ডিভাইস থেকে আসেনি। টাকা ঠিক আছে কি না দেখে নিন।",
+    "This entry didn't come from the writer's collecting device. Check the cash matches.",
+  ],
   err_noClub: ["কোনো ক্লাব বেছে নেওয়া হয়নি", "No club selected"],
   err_notFound: ["রেকর্ডটি পাওয়া যায়নি", "Record not found"],
   err_alreadyVoid: ["এই এন্ট্রি আগেই বাতিল হয়েছে", "This entry is already void"],

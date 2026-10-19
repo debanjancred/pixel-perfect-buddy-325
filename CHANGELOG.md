@@ -7,6 +7,15 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- Devices (cloud mode): up to 3 logged-in devices per person, one of them the collecting
+  device. Settings → Devices lists them (collecting device and this device marked), switches
+  the collecting device and removes a device, which sends anything it still has and logs out
+  when it next opens. A 4th login asks to remove one first. The collect screen on any other
+  device explains which device collects and offers to collect here instead (online). Admins
+  can reset a member's collecting device (Settings → Members). Chanda from a non-collecting
+  device is accepted but flagged on the home feed. Server: `user_devices`, `touch_device`,
+  `set_collect_device`, `remove_device`, `reset_collect_device`, and the `device_id` /
+  `off_device` chanda columns (`supabase/migrations/20261019000002_devices.sql`).
 - Branded loading states: a gold-ring spinner with a sindoor tip inside the button that is
   saving, uploading or sharing (`aria-busy`, stays full strength), and a gold strip along
   the top while any save runs (background sync excluded; slower with reduced motion).

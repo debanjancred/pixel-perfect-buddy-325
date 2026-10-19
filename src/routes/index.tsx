@@ -15,6 +15,7 @@ import {
 } from "@/lib/validation";
 import { AlponaStrip, FieldError, Label, LangToggle, Spinner } from "@/components/pk/ui";
 import { ClubPicker } from "@/components/pk/ClubPicker";
+import { DeviceLimitStep } from "@/features/devices";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,7 +42,7 @@ function Onboarding() {
   const { t, n } = useI18n();
   const navigate = useNavigate();
   const seedDemo = useSeedDemo();
-  const [step, setStep] = useState<"phone" | "otp" | "club">("phone");
+  const [step, setStep] = useState<"phone" | "otp" | "devices" | "club">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<ErrKey | null>(null);
@@ -87,10 +88,22 @@ function Onboarding() {
     const err = check(otpSchemaFor(otpLength()), otp);
     if (err) return setError(err);
     run(async () => {
-      await api.verifyOtp(phone, otp);
+      try {
+        await api.verifyOtp(phone, otp);
+      } catch (ex) {
+        // Already on 3 devices (cloud mode): remove one, then login continues.
+        if (ex instanceof ValidationError && ex.key === "err_deviceLimit")
+          return setStep("devices");
+        throw ex;
+      }
       setStep("club");
     });
   };
+  const afterDeviceRemoved = () =>
+    run(async () => {
+      await api.completeLogin(phone);
+      setStep("club");
+    });
   const changeNumber = () => {
     setStep("phone");
     setOtp("");
@@ -129,7 +142,13 @@ function Onboarding() {
       </div>
 
       <div className="flex-1 space-y-5 px-5 py-6">
-        {step === "club" ? (
+        {step === "devices" ? (
+          <>
+            <DeviceLimitStep onRemoved={afterDeviceRemoved} />
+            {busy === "submit" && <Spinner className="mx-auto h-8 w-8 text-primary" />}
+            <FieldError id="devices-error" error={error} />
+          </>
+        ) : step === "club" ? (
           <>
             <h2 className="text-xl font-bold">{t("chooseClub")}</h2>
             <ClubPicker phone={phone} onDone={finish} />

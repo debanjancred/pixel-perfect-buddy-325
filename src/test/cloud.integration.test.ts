@@ -10,6 +10,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createCloudAdapter } from "@/services/cloud/adapter";
 import { mergeSnapshot } from "@/services/cloud/merge";
+import {
+  listDevices,
+  removeDevice,
+  resetCollectDevice,
+  setCollectDevice,
+  touchDevice,
+} from "@/services/cloud/devices";
 import { fetchClubSnapshot, fetchMyClubs, fetchPublicAccounts } from "@/services/cloud/pull";
 import type { SyncRecord } from "@/services/sync";
 import type { ChandaTransaction, ClubMember } from "@/types/domain";
@@ -250,5 +257,56 @@ describe.skipIf(!PGRST)("cloud sync against PostgreSQL + PostgREST", () => {
       net_balance: 1001,
     });
     expect(JSON.stringify(pub)).not.toMatch(/9000000|আবাসিক/);
+  });
+
+  // Last: its chanda would change the totals checked above.
+  it("devices: 3 per person, one collects; chanda from another device is flagged", async () => {
+    const coll = as(PHONE.coll);
+    const [phone, laptop, tablet, fourth] = [
+      randomUUID(),
+      randomUUID(),
+      randomUUID(),
+      randomUUID(),
+    ];
+    expect(await touchDevice(coll, phone, "Android · Chrome", true)).toMatchObject({
+      status: "active",
+      is_collect: true,
+    });
+    await touchDevice(coll, laptop, "Mac · Chrome", true);
+    await touchDevice(coll, tablet, "iPad · Safari", true);
+    await expect(touchDevice(coll, fourth, "Windows · Edge", true)).rejects.toMatchObject({
+      key: "err_deviceLimit",
+    });
+    expect((await listDevices(coll)).map((d) => d.label)).toEqual([
+      "Android · Chrome",
+      "Mac · Chrome",
+      "iPad · Safari",
+    ]);
+
+    const [fromPhone, fromLaptop] = [
+      chanda({ receipt_no: "PK-2026-C01-0101", amount: 5, device_id: phone }),
+      chanda({ receipt_no: "PK-2026-C01-0102", amount: 5, device_id: laptop }),
+    ];
+    await push(coll, [
+      { kind: "chanda", record: fromPhone },
+      { kind: "chanda", record: fromLaptop },
+    ]);
+    const { data } = await coll
+      .from("chanda_transactions")
+      .select("id, off_device")
+      .in("id", [fromPhone.id, fromLaptop.id]);
+    expect(Object.fromEntries(data!.map((r) => [r.id, r.off_device]))).toEqual({
+      [fromPhone.id]: false,
+      [fromLaptop.id]: true,
+    });
+
+    expect(await setCollectDevice(coll, laptop)).toMatchObject({ is_collect: true });
+    await removeDevice(coll, tablet);
+    expect(await touchDevice(coll, tablet, "iPad · Safari", false)).toEqual({ status: "removed" });
+    await resetCollectDevice(as(PHONE.admin), ids.coll);
+    expect((await listDevices(coll)).some((d) => d.is_collect)).toBe(false);
+    await expect(resetCollectDevice(coll, ids.coll)).rejects.toMatchObject({
+      key: "err_forbidden",
+    });
   });
 });
