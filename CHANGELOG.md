@@ -7,6 +7,11 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- Usage figures (ADR 0002 §2): `ops.usage_totals` (people, clubs, roles, households, active
+  clubs and devices, entries, amount collected) and `ops.usage_daily` (sign-ups, new clubs,
+  members and devices, entries, amount, active clubs per day, India time), read by staff
+  through `ops_usage(days)`, which is logged. Totals only: no names, phones or per-club rows.
+  Apply `20261028000005_ops_usage.sql`.
 - Support functions (ADR 0002 §4), each checked and logged through the staff gate:
   `ops_find_club`, `ops_find_person` (clubs, roles, devices, last login), `ops_club_health`
   (totals, 14-day activity, devices, off-device entries, 7-day sync failures),
