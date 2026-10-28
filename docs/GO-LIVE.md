@@ -46,6 +46,8 @@ Supabase test numbers (fixed codes) can log in**. Choose one before going live:
 3. **Another way to log in** (for example email OTP or WhatsApp OTP): a new piece of work
    with its own plan; ask Claude to scope it.
 
+Options compared, with a recommendation: [LOGIN-OPTIONS.md](LOGIN-OPTIONS.md).
+
 Record the choice here: ______________________
 
 ---

@@ -22,8 +22,8 @@ check; it moves to **Done** when accepted.
 
 ### To do
 - Owner: run the UAT checklist (`docs/UAT-v0.11.0.md`) on staging
-- Decide how members log in on production (no SMS provider for now; options in
-  `docs/GO-LIVE.md` step 0) — blocks go-live
+- Decide how members log in on production (no SMS provider for now; options compared in
+  `docs/LOGIN-OPTIONS.md`) — blocks go-live
 - Go-live = v1.0.0, one planned session on the owner's word: follow `docs/GO-LIVE.md`
   (Pro plan, production migrations, login settings, Lovable env + publish, owner access,
   smoke test, real-device checklist)
