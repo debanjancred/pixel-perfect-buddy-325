@@ -234,3 +234,33 @@ export function TextField({
     </div>
   );
 }
+
+/** An on/off switch (48px target); `label` names it for screen readers. */
+export function Switch({
+  label,
+  on,
+  set,
+}: {
+  label: string;
+  on: boolean;
+  set: (b: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={() => set(!on)}
+      className="tap flex items-center justify-center"
+    >
+      <span
+        className={`relative h-8 w-14 rounded-full transition ${on ? "bg-primary" : "bg-input"}`}
+      >
+        <span
+          className={`absolute top-1 h-6 w-6 rounded-full bg-card shadow transition-all ${on ? "left-7" : "left-1"}`}
+        />
+      </span>
+    </button>
+  );
+}

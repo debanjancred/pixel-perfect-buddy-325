@@ -3,6 +3,7 @@ import { z } from "zod";
 import { useI18n } from "@/lib/i18n";
 import { AppShell } from "@/components/pk/AppShell";
 import { DevicesSection } from "@/features/devices";
+import { HelpSection } from "@/features/help";
 import { InstallApp } from "@/features/install";
 import {
   AccountSection,
@@ -16,6 +17,7 @@ import {
 const searchSchema = z.object({
   member: z.string().uuid().optional().catch(undefined),
   addMember: z.boolean().optional().catch(undefined),
+  help: z.boolean().optional().catch(undefined),
 });
 
 // SPEC Story 6.2: roles and settings live at /settings.
@@ -36,7 +38,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const { t } = useI18n();
-  const { member, addMember } = Route.useSearch();
+  const { member, addMember, help } = Route.useSearch();
   return (
     <AppShell>
       <h1 className="text-2xl font-extrabold">{t("settingsTitle")}</h1>
@@ -47,6 +49,7 @@ function SettingsPage() {
         <InstallApp variant="card" />
         <PreferencesSection />
         <DevicesSection />
+        <HelpSection open={help} />
         <AccountSection />
       </div>
       <div className="h-6" />

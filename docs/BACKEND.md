@@ -204,3 +204,15 @@ select * from ops.usage_daily order by day desc limit 14;    -- per day
 and 30 days), active devices (7 days), chanda / voided / expense / handover entries, amount
 collected (voided left out). `usage_daily`: sign-ups, new clubs / members / devices, chanda
 and expense entries, amount collected, active clubs.
+
+## Help requests (`support_tickets`)
+Settings → Help lets a member report a problem (category, message, and by default device
+details: app version, online or not, entries waiting / failed, device id — no entry contents).
+The phone saves it and sends it with the next sync through `submit_support_ticket` (a resend
+is stored once; at most 10 a day per person). Members see only their own requests and their
+status; nobody can edit or delete them through the API. Device details are cleared after 90
+days by the daily job `purge-ticket-diagnostics`.
+```sql
+select ops_tickets();                     -- open requests, newest first (or 'closed' / 'all')
+select ops_close_ticket('<id>', 'Fixed: reset the collect device');  -- the member sees the note
+```

@@ -10,6 +10,7 @@ import type {
   ClubMember,
   ExpenseRecord,
   Household,
+  SupportTicket,
 } from "@/types/domain";
 import type { ErrKey } from "@/lib/validation";
 
@@ -33,7 +34,8 @@ export type SyncRecord =
   | { kind: "chanda"; record: ChandaTransaction }
   | { kind: "expense"; record: ExpenseRecord }
   | { kind: "handover"; record: CashHandover }
-  | { kind: "event_delta"; record: EventDelta };
+  | { kind: "event_delta"; record: EventDelta }
+  | { kind: "ticket"; record: SupportTicket };
 
 export const SYNC_ORDER: SyncRecord["kind"][] = [
   "club",
@@ -45,6 +47,7 @@ export const SYNC_ORDER: SyncRecord["kind"][] = [
   "expense",
   "handover",
   "event_delta",
+  "ticket",
 ];
 
 export interface SyncResult {
