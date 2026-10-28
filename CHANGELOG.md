@@ -6,6 +6,8 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-28
+
 ### Added
 - Settings → Help (সাহায্য): members report a problem — what it's about (login, sync, lost or
   new phone, wrong entry, other), what happened, and device details unless switched off (app
@@ -51,25 +53,6 @@ All notable changes to Pujo Khata. Format follows
   the accounts show "Promised, still due", and a treasurer or admin can cancel a promise
   recorded by mistake. Apply `20261020000001_chanda_promises.sql`.
 
-### Fixed
-- Offline saving: react-query paused every save and read while the phone was offline, so
-  "Save & make receipt" spun forever and nothing was stored. The app's query client now
-  always runs them (everything goes to the phone first); server calls check the connection
-  themselves.
-
-### Changed
-- The on/off switch from Preferences is now a shared UI primitive (`Switch`), also used by Help.
-- "Waiting to sync" moved out of the header's online/offline line into the status strip
-  under the header: offline it is added to the offline notice; online it shows "sending…"
-  during a sync, or the count with a "Sync now" button. Failed entries still take priority.
-- Event cards redesigned: a calendar tile (month band, large day), the weekday and a
-  countdown chip (today highlighted), a Share button, and admin edit/delete in a ⋮ menu
-  sheet. Finished events are muted and show no buttons.
-- Event registration is switched off in the app for now (no Register button, tally or
-  count in the share text); it will return as its own feature. The server function and
-  stored tallies are unchanged.
-
-### Added
 - Events (competitions): admins can edit an event's name and date, and delete it (with a
   confirmation showing how many are registered). Everyone else only views, registers and
   shares, and the server enforces the same. Deleting is soft, so other phones hide the event
@@ -85,6 +68,24 @@ All notable changes to Pujo Khata. Format follows
   load sends at most 25. The SDK loads only when monitoring is on.
 - Builds with a Sentry organization token (`SENTRY_AUTH_TOKEN`) upload source maps for
   readable stack traces and delete them before publishing; the build fails if one is left.
+
+### Changed
+- The on/off switch from Preferences is now a shared UI primitive (`Switch`), also used by Help.
+- "Waiting to sync" moved out of the header's online/offline line into the status strip
+  under the header: offline it is added to the offline notice; online it shows "sending…"
+  during a sync, or the count with a "Sync now" button. Failed entries still take priority.
+- Event cards redesigned: a calendar tile (month band, large day), the weekday and a
+  countdown chip (today highlighted), a Share button, and admin edit/delete in a ⋮ menu
+  sheet. Finished events are muted and show no buttons.
+- Event registration is switched off in the app for now (no Register button, tally or
+  count in the share text); it will return as its own feature. The server function and
+  stored tallies are unchanged.
+
+### Fixed
+- Offline saving: react-query paused every save and read while the phone was offline, so
+  "Save & make receipt" spun forever and nothing was stored. The app's query client now
+  always runs them (everything goes to the phone first); server calls check the connection
+  themselves.
 
 ### Security
 - Database: signed-in users no longer hold TRUNCATE/TRIGGER/REFERENCES on tables, logged-out
@@ -354,7 +355,8 @@ events, public accounts, settings, roles & permissions with void and cash handov
   receipts, expenses, events, public audit and club admin, backed by
   localStorage with Bengali/English UI.
 
-[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.2.0...v0.9.0
 [0.2.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.1.0...v0.2.0
