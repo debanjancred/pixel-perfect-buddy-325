@@ -6,6 +6,10 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Changed
+- Export buttons say **Chanda Excel** / **Expenses Excel** and the card "Export data (Excel)";
+  they had kept the old "CSV" wording although the files are `.xlsx`.
+
 ## [0.12.0] - 2026-10-28
 
 UAT fixes for expenses, chanda, home and settings.

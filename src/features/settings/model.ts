@@ -1,4 +1,4 @@
-// Settings logic (SPEC Story 6.2 + Sprint 3 CSV export). Pure and unit-tested.
+// Settings logic (SPEC Story 6.2 + the Excel export). Pure and unit-tested.
 import type { I18n } from "@/lib/i18n";
 import type { Cell } from "@/lib/csv";
 import { categoryInfo, categoryKeyOf } from "@/lib/categories";
