@@ -13,6 +13,8 @@ All notable changes to Pujo Khata. Format follows
   sample club and repeats of the same failure are not reported; each device stores at most 50
   a day, and nobody can read the reports through the API. Apply
   `20261028000001_client_events.sql`.
+- Reports are deleted after 90 days by a daily pg_cron job (03:00 India time). Apply
+  `20261028000002_client_events_retention.sql`.
 - App control (`app_config`, ADR 0002 §3): one owner-edited row the app reads in the
   background on every open (never waiting; the last copy is kept on the phone). Maintenance
   pauses syncing with the owner's message while recording on the phone carries on; an app

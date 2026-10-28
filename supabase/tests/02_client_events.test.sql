@@ -85,4 +85,20 @@ select test.ok((select member_id = 'aaaaaaaa-0000-4000-8000-000000000701'::uuid
 select test.ok((select count(*) from public.client_events where club_id = :ce_club) = 50,
   'the device has exactly 50 stored');
 
+-- 7. Retention: older than 90 days is deleted; nobody but the job can run it.
+update public.client_events set created_at = now() - interval '91 days'
+ where id = 'e7000000-0000-4000-8000-000000000001';
+update public.client_events set created_at = now() - interval '89 days'
+ where id = 'e7000000-0000-4000-8000-000000000002';
+select test.ok(public.purge_client_events() = 1, 'the purge reports how many it deleted');
+select test.ok(not exists (select 1 from public.client_events
+                  where id = 'e7000000-0000-4000-8000-000000000001')
+  and exists (select 1 from public.client_events
+              where id = 'e7000000-0000-4000-8000-000000000002'),
+  'reports older than 90 days are deleted, newer ones kept');
+select test.act_as('9000000701');
+select test.expect_error('select public.purge_client_events()', 'permission denied');
+select test.ok(true, 'members cannot run the purge');
+reset role;
+
 select test.ok(true, 'all client event tests passed');
