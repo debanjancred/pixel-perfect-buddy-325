@@ -9,8 +9,12 @@ create schema if not exists auth;
 create or replace function auth.jwt() returns jsonb language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
 $$;
+create or replace function auth.uid() returns uuid language sql stable as $$
+  select nullif(auth.jwt() ->> 'sub', '')::uuid
+$$;
+create table if not exists auth.users (id uuid primary key);
 grant usage on schema auth, public to anon, authenticated;
-grant execute on function auth.jwt() to anon, authenticated;
+grant execute on function auth.jwt(), auth.uid() to anon, authenticated;
 -- Supabase's default privileges for objects the migrations create in public (as on a real
 -- project): extra table rights for anon/authenticated and EXECUTE on every new function.
 -- Migrations must take away what they don't mean to give (…_security_hardening.sql).

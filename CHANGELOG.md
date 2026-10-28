@@ -7,6 +7,12 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- Staff access (ADR 0002 §4): a private `ops` schema with `ops.staff` (owner or support) and
+  `ops.audit_log`, which can only be added to — no edits, deletes or truncation, even by the
+  owner. Every staff function goes through `ops.require_staff`, which checks the caller's
+  role (and a reason where needed) and logs the call; SQL editor calls count as the owner and
+  are logged as `dashboard`. `ops_whoami()` tells staff their role. App users can't see any
+  of it. Apply `20261028000003_ops_staff.sql`.
 - Sync failure reports (`client_events`, ADR 0002 §2): when the server refuses a record, the
   phone reports why on its next sync — the error key, the kind of record and its id, club,
   member, device and app version, never names, phones or amounts. Network failures, the
