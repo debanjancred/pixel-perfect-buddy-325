@@ -57,9 +57,13 @@ must be narrow, strong and recorded. Committee phones are often offline and low-
 - `clubs.suspended_at`: row-level security refuses new writes for a suspended club; members
   see why.
 
-**4. Owner and support access — server-checked, MFA, audited.**
-- `ops.staff (user_id, role: owner | support)`; staff sign in with Supabase Auth and must
-  pass TOTP MFA (`aal2`), checked in every staff function.
+**4. Owner and support access — server-checked, audited.**
+- `ops.staff (user_id, role: owner | support)`; staff sign in with Supabase Auth, and every
+  staff function checks the caller against `ops.staff` (`ops.require_staff`).
+- *Amended 2026-10-28:* no two-step verification (TOTP MFA was planned here; dropped by the
+  owner's decision). It can be added later as one more check in `ops.require_staff`. Calls
+  from the Supabase SQL editor (the database owner, no app login) count as the owner and are
+  audited as `dashboard`; access to the Supabase account guards them.
 - Staff act only through `ops_*` security-definer functions, never the service-role key in
   a browser and never Supabase Studio for routine work. Support can: look up a person by
   phone; see their clubs, roles, devices and last sync; see a club's totals and sync
@@ -102,7 +106,7 @@ must be narrow, strong and recorded. Committee phones are often offline and low-
   - `app_config` with maintenance, minimum version and announcement (non-blocking,
     cached).
   - 90-day `client_events` retention job.
-  - `ops.staff`, MFA and `ops.audit_log`.
+  - `ops.staff` and `ops.audit_log`.
   - Support functions.
   - Usage views.
   - Settings → Help with `support_tickets`.
@@ -134,7 +138,7 @@ must be narrow, strong and recorded. Committee phones are often offline and low-
 ## Consequences
 - We see crashes and sync failures within minutes, with the release that caused them.
 - Owner access is narrow and every action leaves a trail, which supports DPDP obligations
-  and committee trust; the cost is MFA setup and writing a function for each support action.
+  and committee trust; the cost is writing a function for each support action.
 - The free Sentry plan has one seat and 5,000 errors a month; move to the Team plan
   (about $26/month) when a second person needs access or usage approaches the quota.
 - Sentry stores data in the US or EU, so nothing personal may be sent — the scrubbing in

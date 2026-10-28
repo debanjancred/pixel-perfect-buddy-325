@@ -155,3 +155,20 @@ When the server refuses a record, the phone notes why and sends the note on its 
   `select * from cron.job_run_details order by start_time desc limit 5;`. If the migration
   couldn't turn pg_cron on, enable it under **Database → Extensions** and run the
   `cron.schedule(…)` line from `…_client_events_retention.sql` once.
+
+## Staff access (`ops` schema)
+Support and owner tools are `ops_*` functions (ADR 0002 §4). Each first calls
+`ops.require_staff`, which refuses anyone not listed in `ops.staff` (or below the role the
+action needs, or without a reason where one is required) and writes `ops.audit_log`.
+- **Until the owner console exists**, run them in the SQL editor: those calls count as the
+  owner and are logged as `dashboard`. Try `select ops_whoami();`.
+- **Adding staff** (they need a Supabase Auth login first; find their id under
+  Authentication → Users):
+  ```sql
+  insert into ops.staff (user_id, role, label) values ('<auth user id>', 'support', 'Name');
+  update ops.staff set removed_at = now() where user_id = '<auth user id>';  -- remove
+  ```
+  Both are audited automatically.
+- **Reading the log:** `select * from ops.audit_log order by at desc limit 50;` It can only be
+  added to; edits, deletes and truncation are refused.
+- App users have no access to the `ops` schema; it is not exposed through the API.
