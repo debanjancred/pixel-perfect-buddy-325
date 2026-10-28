@@ -2,13 +2,14 @@
 export { AccountSection } from "./AccountSection";
 export { AddMemberForm } from "./AddMemberForm";
 export { DemoActorSection } from "./DemoActorSection";
+export { ClubOptionsSection } from "./ClubOptionsSection";
 export { ExportSection } from "./ExportSection";
 export { MembersSection } from "./MembersSection";
 export { PreferencesSection } from "./PreferencesSection";
 export {
   ROLES,
-  chandaCsv,
-  expensesCsv,
+  chandaRows,
+  expenseRows,
   exportFileName,
   initialOf,
   membersByRole,

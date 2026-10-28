@@ -158,7 +158,12 @@ export const handoverSchema = z.object({
 export type HandoverInput = z.infer<typeof handoverSchema>;
 
 export const memberSchema = z.object({
-  name: z.string().trim().min(1, m("err_required")).max(80, m("err_tooLong")),
+  name: z
+    .string()
+    .trim()
+    .min(1, m("err_memberName"))
+    .min(2, m("err_nameShort"))
+    .max(80, m("err_tooLong")),
   phone: phoneSchema,
   role: z.enum(["admin", "treasurer", "collector"]),
 });

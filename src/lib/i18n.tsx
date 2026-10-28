@@ -240,7 +240,11 @@ const dict = {
     "অন্য দায়িত্বে অ্যাপটি কেমন দেখায়, পরখ করুন",
     "Try how the app looks for each role",
   ],
-  err_lastAdmin: ["ক্লাবে অন্তত একজন অ্যাডমিন থাকতে হবে", "The club must keep at least one admin"],
+  err_lastAdmin: [
+    "ক্লাবে অন্তত একজন অ্যাডমিন রাখতে হবে — আগে অন্য কাউকে অ্যাডমিন করুন",
+    "The club must keep at least one admin — make someone else admin first",
+  ],
+  err_memberName: ["অনুগ্রহ করে সদস্যের নাম লিখুন", "Please enter the member's name"],
   settingsTitle: ["সেটিংস", "Settings"],
   members: ["সদস্য", "Members"],
   noMembersInRole: ["কেউ নেই", "No one yet"],
@@ -291,6 +295,16 @@ const dict = {
   status_collected: ["আদায়", "Collected"],
   status_promised: ["প্রতিশ্রুত", "Promised"],
   status_void: ["বাতিল", "Cancelled"],
+  status_recorded: ["লেখা হয়েছে", "Recorded"],
+  export_remarks: ["মন্তব্য", "Remarks"],
+  clubOptions: ["ক্লাবের বিকল্প", "Club options"],
+  exportHint: [
+    "এক্সেল ফাইল (.xlsx) — বাতিল এন্ট্রি কারণসহ থাকে",
+    "Excel file (.xlsx) — cancelled entries are listed with their reason",
+  ],
+  export_na: ["প্রযোজ্য নয়", "N/A"],
+  export_sheet_chanda: ["চাঁদা", "Chanda"],
+  export_sheet_expenses: ["খরচ", "Expenses"],
   err_eventPast: ["আজ বা পরের কোনো তারিখ দিন", "Choose today or a later date"],
   role_admin: ["অ্যাডমিন", "Admin"],
   role_treasurer: ["কোষাধ্যক্ষ", "Treasurer"],
@@ -302,7 +316,6 @@ const dict = {
   exportExpense: ["খরচ CSV", "Expenses CSV"],
   preferences: ["পছন্দ", "Preferences"],
   darkMode: ["ডার্ক মোড", "Dark mode"],
-  bnDigits: ["বাংলা সংখ্যা (১২,৫০০)", "Bengali numerals (১২,৫০০)"],
   language: ["ভাষা", "Language"],
   logout: ["লগ আউট", "Log out"],
   resetDemo: ["ডেমো রিসেট", "Reset demo data"],
@@ -615,8 +628,6 @@ export type TKey = keyof typeof dict;
 interface Ctx {
   lang: Lang;
   setLang: (l: Lang) => void;
-  bnDigits: boolean;
-  setBnDigits: (b: boolean) => void;
   dark: boolean;
   setDark: (b: boolean) => void;
   /** Translates a key; `{name}` placeholders are filled from `vars`. */
@@ -626,7 +637,7 @@ interface Ctx {
   /** Whole number in words in the current language, e.g. 1001 → "এক হাজার এক". */
   words: (v: number) => string;
   ago: (iso: string) => string;
-  /** Calendar date in the current language; digits follow the Bengali-numerals setting. */
+  /** Calendar date in the current language (Bengali digits in Bengali). */
   date: (iso: string) => string;
   pick: (bn: string, en: string) => string;
 }
@@ -634,7 +645,7 @@ interface Ctx {
 export type I18n = Ctx;
 
 const I18nCtx = createContext<Ctx | null>(null);
-const PREF = "pk_prefs_v1"; // numerals + dark mode
+const PREF = "pk_prefs_v1"; // dark mode (numerals follow the language since UAT 2026-10-28)
 // SPEC Story 1.2: the language lives under `app_locale`, read and written only here.
 const LOCALE = "app_locale";
 const isLang = (v: unknown): v is Lang => v === "bn" || v === "en";
@@ -647,7 +658,6 @@ export const themeBootScript = `try{var p=JSON.parse(localStorage.getItem(${JSON
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>("bn");
-  const [bnDigits, setBnDigits] = useState(true);
   const [dark, setDark] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -657,7 +667,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       // Older builds kept the language inside the prefs object; honour it once.
       const stored = localStorage.getItem(LOCALE) ?? p.lang;
       if (isLang(stored)) setLang(stored);
-      if (typeof p.bnDigits === "boolean") setBnDigits(p.bnDigits);
       if (typeof p.dark === "boolean") setDark(p.dark);
     } catch {
       /* ignore */
@@ -670,16 +679,17 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", dark);
     if (loaded) {
       localStorage.setItem(LOCALE, lang);
-      localStorage.setItem(PREF, JSON.stringify({ bnDigits, dark }));
+      localStorage.setItem(PREF, JSON.stringify({ dark }));
     }
-  }, [lang, bnDigits, dark, loaded]);
+  }, [lang, dark, loaded]);
 
   const n = useCallback(
     (v: number | string) => {
       const s = typeof v === "number" ? indian(v) : v;
-      return lang === "bn" && bnDigits ? toBnDigits(s) : s;
+      // Numerals follow the language: ১২,৫০০ in Bengali, 12,500 in English.
+      return lang === "bn" ? toBnDigits(s) : s;
     },
-    [lang, bnDigits],
+    [lang],
   );
 
   const value = useMemo<Ctx>(() => {
@@ -690,8 +700,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return {
       lang,
       setLang,
-      bnDigits,
-      setBnDigits,
       dark,
       setDark,
       t,
@@ -717,7 +725,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
           }),
         ),
     };
-  }, [lang, bnDigits, dark, n]);
+  }, [lang, dark, n]);
 
   return <I18nCtx.Provider value={value}>{children}</I18nCtx.Provider>;
 }

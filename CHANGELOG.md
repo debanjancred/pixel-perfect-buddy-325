@@ -25,7 +25,22 @@ All notable changes to Pujo Khata. Format follows
   `20261028000008_household_optional_house.sql` (the lane joins a household's identity, as in
   the app).
 
+- Settings → **Club options** for every member: Share Accounts (moved from Home) and Cash
+  handover.
+- Excel export: Settings → Export downloads `.xlsx` files. Chanda columns: Date, Receipt No,
+  Resident, Lane/Block, Amount, Method, Collector, Status, Remarks; expenses likewise. A
+  cancelled entry shows Status "Cancelled" with its reason in Remarks; others show "N/A".
+  Uses `write-excel-file` (text cells are text, so nothing runs as a formula).
+
 ### Changed
+- Home: Share Accounts left the quick actions (now in Settings → Club options); Add Expense
+  has a rupee-receipt icon. Recent activity stays capped at 5.
+- Numerals follow the language: Bengali digits in Bengali, 12,500 in English. The separate
+  "Bengali numerals" switch is gone from Preferences.
+- Export is for admins and treasurers only (`data.export` in `src/lib/permissions.ts`, mirrored
+  in the server's `can()`); collectors no longer see it. Apply
+  `20261028000009_export_permission.sql`.
+- Member form: "Please enter the member's name"; the last-admin message says what to do.
 - Collecting chanda: household suggestions appear only after 2 typed letters (a hint shows
   until then), with the lane under each name.
 - Clearer, polite validation messages, e.g. "Please enter resident name", "Please enter a valid

@@ -2,8 +2,8 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
-  chandaCsv,
-  expensesCsv,
+  chandaRows,
+  expenseRows,
   exportFileName,
   initialOf,
   membersByRole,
@@ -71,27 +71,40 @@ describe("ledger exports", () => {
     return { chanda, households, members, expenses, f: result };
   }
 
-  it("localises headers and labels, keeps amounts numeric, marks void rows", async () => {
+  it("Excel rows: requested columns, numeric amounts, Cancelled with reason, else N/A", async () => {
     const { chanda, households, members, f } = await demo();
-    const rows = chandaCsv(chanda, households, members, f.current);
-    expect(rows[0]![0]).toBe("রসিদ নং");
+    const rows = chandaRows(chanda, households, members, f.current);
     expect(rows).toHaveLength(chanda.length + 1);
-    expect(rows.slice(1).every((r) => typeof r[5] === "number")).toBe(true);
+    expect(rows.slice(1).every((r) => typeof r[4] === "number")).toBe(true);
     const voided = chanda.find((c) => c.voided_at)!;
-    const vRow = rows.find((r) => r[0] === voided.receipt_no)!;
+    const vRow = rows.find((r) => r[1] === voided.receipt_no)!;
     expect(vRow[7]).toBe("বাতিল");
-    expect(vRow[9]).toBe(voided.void_reason);
+    expect(vRow[8]).toBe(voided.void_reason);
+    const live = rows.find((r) => r[1] !== voided.receipt_no && r !== rows[0])!;
+    expect(live[8]).toBe("প্রযোজ্য নয়");
 
     act(() => f.current.setLang("en"));
-    const en = chandaCsv(chanda, households, members, f.current);
-    expect(en[0]).toContain("Receipt no.");
-    expect(en.slice(1).map((r) => r[6])).toContain("Cash");
+    const en = chandaRows(chanda, households, members, f.current);
+    expect(en[0]).toEqual([
+      "Date",
+      "Receipt no.",
+      "Resident",
+      "Lane / Block",
+      "Amount (₹)",
+      "Method",
+      "Collector",
+      "Status",
+      "Remarks",
+    ]);
+    expect(en.slice(1).map((r) => r[5])).toContain("Cash");
+    expect(en.find((r) => r[1] === voided.receipt_no)![7]).toBe("Cancelled");
+    expect(en.slice(1).map((r) => r[8])).toContain("N/A");
   });
 
-  it("exports expenses by date with localised categories", async () => {
+  it("exports expenses by date with localised categories and the same Status/Remarks", async () => {
     const { expenses, members, f } = await demo();
     act(() => f.current.setLang("en"));
-    const rows = expensesCsv(expenses, members, f.current);
+    const rows = expenseRows(expenses, members, f.current);
     expect(rows[0]).toEqual([
       "Date",
       "Category",
@@ -100,17 +113,38 @@ describe("ledger exports", () => {
       "Paid to",
       "Authorised by",
       "Status",
-      "Cancellation reason",
+      "Remarks",
     ]);
     const dates = rows.slice(1).map((r) => r[0] as string);
     expect(dates).toEqual([...dates].sort());
     expect(rows.slice(1).map((r) => r[1])).toContain("Pandal");
+    expect(rows.slice(1).every((r) => r[6] === "Recorded" || r[6] === "Cancelled")).toBe(true);
   });
 
-  it("names files by kind, club and date", () => {
+  it("names files by kind, club and date, as .xlsx", () => {
     expect(exportFileName("chanda", "sample", "2026-10-17")).toBe(
-      "pujo-khata-chanda-sample-2026-10-17.csv",
+      "pujo-khata-chanda-sample-2026-10-17.xlsx",
     );
+  });
+
+  it("writes a real .xlsx file", async () => {
+    const { xlsxBlob } = await import("@/lib/xlsx");
+    const blob = await xlsxBlob(
+      [
+        ["Date", "Amount (₹)"],
+        ["=SUM(A1)", 1001],
+      ],
+      "Chanda",
+    );
+    // jsdom's Blob has no arrayBuffer(); FileReader works everywhere.
+    const buffer = await new Promise<ArrayBuffer>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.readAsArrayBuffer(blob);
+    });
+    const bytes = new Uint8Array(buffer);
+    expect([bytes[0], bytes[1]]).toEqual([0x50, 0x4b]); // a zip archive ("PK")
+    expect(blob.size).toBeGreaterThan(1000);
   });
 });
 
