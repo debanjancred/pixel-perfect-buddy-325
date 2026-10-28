@@ -13,7 +13,7 @@ We work one module at a time. Each phase ships as a minor release.
 | v0.9.0 | Release candidate | M3b–M10, QA sweep, M11 backend (cloud mode off by default) | Released |
 | v0.10.0 | Cloud hardening | M12 sync fixes, devices, writer receipt numbers, members UI, keyboard-safe sheets, toasts | Released |
 | v0.11.0 | Operations | M13 phase 1 (ADR 0002), promises, event edit/delete, install button | Released |
-| v1.0.0 | Production | M11 Supabase backend, sync, operations on production | Needs production push, Lovable env + publish, real-device checklist (real SMS provider dropped, 2026-10-28) |
+| v1.0.0 | Production | M11 Supabase backend, sync, operations on production | Runbook ready (`docs/GO-LIVE.md`); needs the login decision, then the go-live session |
 
 ## Status board
 
@@ -22,10 +22,11 @@ check; it moves to **Done** when accepted.
 
 ### To do
 - Owner: run the UAT checklist (`docs/UAT-v0.11.0.md`) on staging
-- Go-live (one planned step, on the owner's word): push all pending migrations to
-  production, add the owner to `ops.staff`, production phone auth and rate limits, Lovable
-  environment variables + publish, real-device checklist
-- At go-live: Supabase Pro plan and backups
+- Decide how members log in on production (no SMS provider for now; options in
+  `docs/GO-LIVE.md` step 0) — blocks go-live
+- Go-live = v1.0.0, one planned session on the owner's word: follow `docs/GO-LIVE.md`
+  (Pro plan, production migrations, login settings, Lovable env + publish, owner access,
+  smoke test, real-device checklist)
 
 ### In progress
 - UAT checklist for v0.11.0 written (`docs/UAT-v0.11.0.md`); waiting for the owner's run
