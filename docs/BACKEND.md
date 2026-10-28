@@ -172,3 +172,21 @@ action needs, or without a reason where one is required) and writes `ops.audit_l
 - **Reading the log:** `select * from ops.audit_log order by at desc limit 50;` It can only be
   added to; edits, deletes and truncation are refused.
 - App users have no access to the `ops` schema; it is not exposed through the API.
+
+### Support cookbook (SQL editor)
+Each call is checked and logged (`ops.audit_log`). None changes money entries or roles.
+```sql
+select ops_find_club('natagarh');                       -- a club's id from its name or slug
+select ops_find_person('98xxxxxxxx');                   -- clubs, roles, devices, last login
+select ops_club_health('<club id>');                    -- totals, activity, devices, sync failures
+```
+- **Lost phone:** find the device id with `ops_find_person`, then
+  `select ops_remove_device('98xxxxxxxx', '<device id>', 'Ticket 12: phone lost');`
+  The server cuts that device off; cash it recorded offline is still accepted, flagged.
+- **New phone can't collect** ("not your collect device"):
+  `select ops_reset_collect_device('98xxxxxxxx', 'Ticket 13: new phone');`
+  The member then picks the collect device on the phone they use now.
+- **Entries won't sync:** `ops_club_health` → `sync_failures_7d` shows which error, record kind
+  and app version; `select * from client_events where record_id = '<id>';` follows one entry.
+- **Missing receipt / who collected:** reading entries needs a reason (5+ characters):
+  `select ops_club_entries('<club id>', 'Ticket 14: missing receipt', 50);`
