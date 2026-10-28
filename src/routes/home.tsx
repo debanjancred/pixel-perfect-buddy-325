@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Plus,
-  Minus,
-  Megaphone,
+  ReceiptIndianRupee,
   ArrowDownLeft,
   ArrowUpRight,
   HandCoins,
@@ -52,7 +51,8 @@ function HomePage() {
   const pct = s?.progress_pct ?? 0;
   const canExpense = usePermission("expense.add");
   const canCollect = usePermission("chanda.add");
-  const actionCount = 1 + Number(canCollect) + Number(canExpense);
+  // Share Accounts moved to Settings → Club options (UAT 2026-10-28).
+  const actionCount = Math.max(1, Number(canCollect) + Number(canExpense));
   const canReceive = usePermission("handover.record");
   const cash = useCash();
 
@@ -134,9 +134,7 @@ function HomePage() {
         </div>
       </section>
 
-      <section
-        className={`mt-5 grid gap-3 ${["grid-cols-1", "grid-cols-2", "grid-cols-3"][actionCount - 1]}`}
-      >
+      <section className={`mt-5 grid gap-3 ${["grid-cols-1", "grid-cols-2"][actionCount - 1]}`}>
         {canCollect && (
           <QuickAction
             to="/collect"
@@ -149,17 +147,11 @@ function HomePage() {
           <QuickAction
             to="/expenses"
             search={{ add: true }}
-            icon={<Minus className="h-7 w-7" />}
+            icon={<ReceiptIndianRupee className="h-7 w-7" />}
             label={t("addExpense")}
             tone="bg-card text-primary border-2 border-primary/30"
           />
         )}
-        <QuickAction
-          to="/audit"
-          icon={<Megaphone className="h-7 w-7" />}
-          label={t("shareAccounts")}
-          tone="bg-gold-soft text-gold-ink border-2 border-gold/40"
-        />
       </section>
 
       {canReceive && cash.totalOutstanding > 0 && (

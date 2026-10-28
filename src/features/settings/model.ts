@@ -44,47 +44,61 @@ type Format = Pick<I18n, "t">;
 
 const nameOf = (members: ClubMember[], id: string) => members.find((m) => m.id === id)?.name ?? "";
 
-/** Chanda ledger rows, oldest first, voided entries included and marked. */
-export function chandaCsv(
+/** Status and Remarks columns: a cancelled entry shows its reason, anything else "N/A". */
+const statusRemarks = (
+  voided: string | undefined,
+  reason: string | undefined,
+  live: string,
+  f: Format,
+) => (voided ? [f.t("status_void"), reason ?? ""] : [live, f.t("export_na")]);
+
+/**
+ * Chanda ledger rows for the Excel export, oldest first, cancelled entries included:
+ * Date, Receipt No, Resident Name, Lane/Block, Amount, Payment Method, Collector, Status,
+ * Remarks.
+ */
+export function chandaRows(
   chanda: ChandaTransaction[],
   households: Household[],
   members: ClubMember[],
   f: Format,
 ): Cell[][] {
   const header = [
-    "csv_receipt_no",
     "csv_date",
+    "csv_receipt_no",
     "csv_resident",
-    "csv_house",
     "csv_lane",
     "csv_amount",
     "csv_method",
-    "csv_status",
     "csv_collector",
-    "csv_void_reason",
+    "csv_status",
+    "export_remarks",
   ] as const;
   const rows = [...chanda]
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .map((c) => {
       const h = households.find((x) => x.id === c.household_id);
       return [
-        c.receipt_no ?? "",
         c.created_at.slice(0, 10),
+        c.receipt_no ?? "",
         h?.resident_name,
-        h?.house_flat_no,
         h?.lane_block,
         c.amount,
         c.payment_method === "cash" ? f.t("cash") : f.t("upi"),
-        f.t(c.voided_at ? "status_void" : `status_${c.status}`),
         nameOf(members, c.collector_id),
-        c.void_reason,
+        ...statusRemarks(
+          c.voided_at,
+          c.void_reason,
+          f.t(`status_${c.status === "void" ? "void" : c.status}`),
+          f,
+        ),
       ];
     });
   return [header.map((k) => f.t(k)), ...rows];
 }
 
-/** Expense ledger rows by expense date, voided entries included and marked. */
-export function expensesCsv(expenses: ExpenseRecord[], members: ClubMember[], f: Format): Cell[][] {
+/** Expense ledger rows by expense date, cancelled entries included, same Status/Remarks rule. */
+export function expenseRows(expenses: ExpenseRecord[], members: ClubMember[], f: Format): Cell[][] {
   const header = [
     "csv_date",
     "csv_category",
@@ -93,7 +107,7 @@ export function expensesCsv(expenses: ExpenseRecord[], members: ClubMember[], f:
     "csv_paid_to",
     "csv_authorized_by",
     "csv_status",
-    "csv_void_reason",
+    "export_remarks",
   ] as const;
   const rows = [...expenses]
     .sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at))
@@ -104,12 +118,11 @@ export function expensesCsv(expenses: ExpenseRecord[], members: ClubMember[], f:
       e.amount,
       e.paid_to,
       nameOf(members, e.authorized_by_id),
-      e.voided_at ? f.t("status_void") : "",
-      e.void_reason,
+      ...statusRemarks(e.voided_at, e.void_reason, f.t("status_recorded"), f),
     ]);
   return [header.map((k) => f.t(k)), ...rows];
 }
 
-/** "pujo-khata-chanda-sample-puja-committee-2026-2026-10-17.csv" */
+/** "pujo-khata-chanda-sample-puja-committee-2026-2026-10-17.xlsx" */
 export const exportFileName = (kind: "chanda" | "expenses", slug: string, today: string) =>
-  `pujo-khata-${kind}-${slug}-${today}.csv`;
+  `pujo-khata-${kind}-${slug}-${today}.xlsx`;

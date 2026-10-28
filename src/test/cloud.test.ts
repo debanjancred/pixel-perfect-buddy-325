@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -316,11 +316,15 @@ describe("outbox", () => {
 
 describe("server permissions match src/lib/permissions.ts", () => {
   it("the SQL can() function grants exactly ROLE_PERMISSIONS", () => {
-    const sql = readFileSync("supabase/migrations/20261017000002_access.sql", "utf8");
-    const body = sql.slice(
-      sql.indexOf("create function public.can("),
-      sql.indexOf("$$;", sql.indexOf("create function public.can(")),
-    );
+    // The newest definition wins: later migrations replace can().
+    const dir = "supabase/migrations";
+    const sql = readdirSync(dir)
+      .sort()
+      .map((f) => readFileSync(`${dir}/${f}`, "utf8"))
+      .filter((s) => /function public\.can\(/.test(s))
+      .at(-1)!;
+    const start = sql.search(/function public\.can\(/);
+    const body = sql.slice(start, sql.indexOf("$$;", start));
     const rules = [...body.matchAll(/when '([\w.]+)' then (.+)/g)].map(([, perm, expr]) => ({
       perm: perm as Permission,
       roles: (["admin", "treasurer", "collector"] as UserRole[]).filter((role) =>

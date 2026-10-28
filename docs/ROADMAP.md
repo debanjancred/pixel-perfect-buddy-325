@@ -27,7 +27,8 @@ check; it moves to **Done** when accepted.
   smoke test, real-device checklist)
 
 ### In progress
-- UAT fixes (v0.12.0): Expenses and Chanda — PRs open; then Home, Settings & export
+- UAT fixes (v0.12.0): Expenses, Chanda, Home + Settings & export — 3 PRs open (merge in
+  that order); 3 migrations wait for staging
 
 ### UAT
 - Promises: record now, pay later, part payments

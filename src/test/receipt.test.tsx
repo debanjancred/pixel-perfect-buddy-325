@@ -156,9 +156,16 @@ describe("locale persistence (SPEC 1.2)", () => {
     expect(localStorage.getItem("app_locale")).toBe("en");
     act(() => result.current.setLang("bn"));
     await waitFor(() => expect(localStorage.getItem("app_locale")).toBe("bn"));
-    expect(JSON.parse(localStorage.getItem("pk_prefs_v1")!)).toEqual({
-      bnDigits: true,
-      dark: false,
-    });
+    expect(JSON.parse(localStorage.getItem("pk_prefs_v1")!)).toEqual({ dark: false });
+  });
+
+  it("numerals follow the language: Bengali digits in Bengali, ASCII in English", async () => {
+    // An old "Bengali numerals off" preference no longer matters.
+    localStorage.setItem("pk_prefs_v1", JSON.stringify({ bnDigits: false, dark: false }));
+    const { result } = renderI18n();
+    await waitFor(() => expect(result.current.money(12500)).toBe("₹১২,৫০০"));
+    act(() => result.current.setLang("en"));
+    await waitFor(() => expect(result.current.money(12500)).toBe("₹12,500"));
+    expect(result.current.n("101")).toBe("101");
   });
 });

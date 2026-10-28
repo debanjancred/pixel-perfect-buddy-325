@@ -7,6 +7,7 @@ import { HelpSection } from "@/features/help";
 import { InstallApp } from "@/features/install";
 import {
   AccountSection,
+  ClubOptionsSection,
   DemoActorSection,
   ExportSection,
   MembersSection,
@@ -45,6 +46,7 @@ function SettingsPage() {
       <div className="mt-4 space-y-4">
         <DemoActorSection />
         <MembersSection memberId={member} adding={addMember} />
+        <ClubOptionsSection />
         <ExportSection />
         <InstallApp variant="card" />
         <PreferencesSection />
