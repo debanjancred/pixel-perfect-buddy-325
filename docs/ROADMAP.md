@@ -12,16 +12,15 @@ We work one module at a time. Each phase ships as a minor release.
 | v0.5.0 | Cross-cutting | M8 Roles & permissions, M9 Offline & PWA | Folded into v0.9.0 |
 | v0.9.0 | Release candidate | M3b–M10, QA sweep, M11 backend (cloud mode off by default) | Released |
 | v0.10.0 | Cloud hardening | M12 sync fixes, devices, writer receipt numbers, members UI, keyboard-safe sheets, toasts | Released |
-| v0.11.0 | Operations | M13 phase 1 (ADR 0002), promises, event edit/delete, install button | In progress |
+| v0.11.0 | Operations | M13 phase 1 (ADR 0002), promises, event edit/delete, install button | Released |
 | v1.0.0 | Production | M11 Supabase backend, sync, operations on production | Needs production push, Lovable env + publish, real-device checklist (real SMS provider dropped, 2026-10-28) |
 
 ## Status board
 
-Updated 2026-10-28. **UAT** = merged into `main` and live on staging, waiting for the owner's
-check; it moves to **Done** when accepted and released.
+Updated 2026-10-28 (v0.11.0). **UAT** = released and live on staging, waiting for the owner's
+check; it moves to **Done** when accepted.
 
 ### To do
-- Release v0.11.0 (version bump, changelog date, tag)
 - Production: push all pending migrations, add the owner to `ops.staff`
 - Production dashboard: phone auth settings and rate limits
 - Lovable: Supabase environment variables, then publish (only on the owner's word)
@@ -29,8 +28,7 @@ check; it moves to **Done** when accepted and released.
 - At go-live: Supabase Pro plan and backups
 
 ### In progress
-- M13: Settings → Help with `support_tickets` (form, offline queue, "Your requests";
-  `ops_tickets`, `ops_close_ticket`) — PR open, staging apply pending
+- Nothing right now — next: production push
 
 ### UAT
 - Promises: record now, pay later, part payments
@@ -46,6 +44,7 @@ check; it moves to **Done** when accepted and released.
 - Support functions: `ops_find_club`, `ops_find_person`, `ops_club_health`,
   `ops_reset_collect_device`, `ops_remove_device`, `ops_club_entries`
 - Usage figures: `ops.usage_totals`, `ops.usage_daily`, `ops_usage`
+- Settings → Help with `support_tickets`; staff `ops_tickets`, `ops_close_ticket`
 
 ### Done
 - v0.10.0 and earlier: M0–M12 (see the table below)
@@ -71,4 +70,4 @@ check; it moves to **Done** when accepted and released.
 | 12 | M10 QA | axe WCAG 2.1 AA + 48px + 360px audit of every screen in bn/en × light/dark (0 issues), contrast token fixes, Bengali copy review, `app_locale` | Done |
 | 13–15 | M11 Backend (Supabase) | Schema + RLS + triggers in `supabase/migrations`, cloud sync adapter + pull/merge, phone OTP, voucher storage, public accounts link; SQL and PostgREST integration tests | Done (project set up) |
 | 16 | M12 Cloud hardening | One sync at a time, IDs on plain http, server receipt renumbering, writer receipt numbers, devices (3 per person, one collects, `off_device` flag), "see why" sync reasons, re-sent handovers, members list + sheet, keyboard-safe sheets, branded loaders and toasts | Done |
-| 17 | M13 Operations (phase 1) | Per [ADR 0002](adr/0002-operations-console.md): Sentry with PII scrubbing, server-side sync failure log, `app_config` (maintenance, minimum version, announcement), staff roles + audit log, support functions, usage views, Settings → Help tickets | In progress |
+| 17 | M13 Operations (phase 1) | Per [ADR 0002](adr/0002-operations-console.md): Sentry with PII scrubbing, server-side sync failure log, `app_config` (maintenance, minimum version, announcement), staff roles + audit log, support functions, usage views, Settings → Help tickets | Done (v0.11.0) |
