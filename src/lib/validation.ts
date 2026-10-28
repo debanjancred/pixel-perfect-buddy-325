@@ -67,13 +67,19 @@ const optionalPhone = z
   .refine((v) => !v || phoneSchema.safeParse(v).success, m("err_phone"));
 
 export const householdSchema = z.object({
-  resident_name: personName,
-  house_flat_no: z.string().trim().min(1, m("err_required")).max(20, m("err_tooLong")),
-  lane_block: z.string().trim().min(1, m("err_required")).max(60, m("err_tooLong")),
+  resident_name: z
+    .string()
+    .trim()
+    .min(1, m("err_residentName"))
+    .min(2, m("err_nameShort"))
+    .max(80, m("err_tooLong")),
+  // Optional (UAT 2026-10-28): many households have no flat or house number.
+  house_flat_no: z.string().trim().max(20, m("err_tooLong")).optional().default(""),
+  lane_block: z.string().trim().min(1, m("err_lane")).max(60, m("err_tooLong")),
   // Phone is optional for a household, but must be a valid mobile when given.
   phone_number: optionalPhone,
 });
-export type HouseholdInput = z.infer<typeof householdSchema>;
+export type HouseholdInput = z.input<typeof householdSchema>;
 
 const id = z.string().min(1, m("err_required"));
 

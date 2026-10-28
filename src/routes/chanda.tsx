@@ -15,6 +15,8 @@ import {
 import { VoidDialog } from "@/components/pk/VoidDialog";
 import type { ChandaTransaction } from "@/types/domain";
 import { AppShell, Fab } from "@/components/pk/AppShell";
+import { LoadMore } from "@/components/pk/LoadMore";
+import { usePaged } from "@/hooks/use-paged";
 import { StatusBadge, SyncBadge } from "@/components/pk/ui";
 import { reminderText, waLink } from "@/lib/share";
 import { householdLedgers, householdMatches, laneOptions, ledgerOf } from "@/lib/households";
@@ -114,8 +116,9 @@ function ChandaPage() {
     [rows],
   );
 
-  const groups = useMemo(() => {
-    const visible = rows.filter(
+  // Matching households, kept together by lane (in the order lanes first appear).
+  const visible = useMemo(() => {
+    const matching = rows.filter(
       (r) =>
         (filter === "all" ||
           (filter === "today"
@@ -125,10 +128,17 @@ function ChandaPage() {
               : r.status === filter)) &&
         householdMatches(r.h, q),
     );
-    const map = new Map<string, typeof visible>();
-    visible.forEach((r) => map.set(r.h.lane_block, [...(map.get(r.h.lane_block) ?? []), r]));
-    return [...map.entries()];
+    const order = [...new Set(matching.map((r) => r.h.lane_block))];
+    return matching.sort((a, b) => order.indexOf(a.h.lane_block) - order.indexOf(b.h.lane_block));
   }, [rows, filter, q]);
+  // 10 households at a time (UAT), still grouped by lane; headers count the whole lane.
+  const page = usePaged(visible, `${filter}|${lane ?? ""}|${q}`);
+  const laneTotal = (l: string) => visible.filter((r) => r.h.lane_block === l).length;
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof visible>();
+    page.rows.forEach((r) => map.set(r.h.lane_block, [...(map.get(r.h.lane_block) ?? []), r]));
+    return [...map.entries()];
+  }, [page.rows]);
 
   const clubName = club ? pick(club.name_bn, club.name_en) : t("app");
 
@@ -204,7 +214,7 @@ function ChandaPage() {
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-gold-ink">
             <MapPin className="h-4 w-4" /> {lane}{" "}
             <span className="font-medium text-muted-foreground">
-              · {n(String(rows.length))} {t("houses")}
+              · {n(String(laneTotal(lane)))} {t("houses")}
             </span>
           </h2>
           <ul className="space-y-2">
@@ -220,7 +230,7 @@ function ChandaPage() {
                   <li key={h.id} className="rounded-2xl border bg-card p-3 shadow-card">
                     <div className="flex items-start gap-3">
                       <div className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-muted px-1 text-sm font-extrabold">
-                        {n(h.house_flat_no)}
+                        {h.house_flat_no ? n(h.house_flat_no) : "—"}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="font-bold leading-snug">{h.resident_name}</div>
@@ -300,6 +310,7 @@ function ChandaPage() {
           </ul>
         </section>
       ))}
+      <LoadMore shown={page.shown} total={page.total} onMore={page.more} />
       <div className="h-16" />
 
       {cancelling && (

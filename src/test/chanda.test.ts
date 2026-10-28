@@ -185,12 +185,21 @@ describe("household ledger", () => {
     const base = { resident_name: "নতুন বাসিন্দা", house_flat_no: "401", lane_block: "লেন ২" };
     await api.createHousehold(base);
     await rejectsWith(api.createHousehold(base), "err_householdExists");
-    await rejectsWith(api.createHousehold({ ...base, resident_name: " " }), "err_required");
-    await rejectsWith(api.createHousehold({ ...base, house_flat_no: "" }), "err_required");
+    await rejectsWith(api.createHousehold({ ...base, resident_name: " " }), "err_residentName");
+    await rejectsWith(api.createHousehold({ ...base, lane_block: " " }), "err_lane");
     await rejectsWith(
       api.createHousehold({ ...base, house_flat_no: "402", phone_number: "12345" }),
       "err_phone",
     );
+  });
+
+  it("accepts a household without a house number; the lane tells namesakes apart", async () => {
+    await demo();
+    const base = { resident_name: "নতুন বাসিন্দা", lane_block: "লেন ৯" };
+    const h = await api.createHousehold(base);
+    expect(h.house_flat_no).toBe("");
+    await rejectsWith(api.createHousehold({ ...base, house_flat_no: " " }), "err_householdExists");
+    expect((await api.createHousehold({ ...base, lane_block: "লেন ১০" })).house_flat_no).toBe("");
   });
 
   it("search matches Bengali digits, names, lanes and phone numbers", async () => {

@@ -53,15 +53,20 @@ export const Route = createFileRoute("/collect")({
 
 const AMOUNTS = [251, 501, 1001, 2001, 5001];
 
-type Field = "household" | "resident_name" | "house_no" | "phone" | "amount" | "collector";
+type Field = "household" | "resident_name" | "house_no" | "phone" | "lane" | "amount" | "collector";
 // Service-layer field names → the form field that shows the error.
 const FIELD_OF: Record<string, Field> = {
   household_id: "household",
   house_flat_no: "house_no",
-  lane_block: "resident_name",
+  lane_block: "lane",
   phone_number: "phone",
   collector_id: "collector",
 };
+/** Household suggestions start after this many typed characters (UAT 2026-10-28). */
+const MIN_SEARCH = 2;
+/** The "+ Add New Lane" choice in the lane chips. */
+const NEW_LANE = -1;
+const blankHousehold = { name: "", house: "", lane: 0, newLane: "", phone: "" };
 
 function CollectPage() {
   const { t, money, n } = useI18n();
@@ -79,7 +84,7 @@ function CollectPage() {
   const [q, setQ] = useState("");
   const [hh, setHh] = useState<Household | null>(null);
   const [adding, setAdding] = useState(false);
-  const [nh, setNh] = useState({ name: "", house: "", lane: 0, phone: "" });
+  const [nh, setNh] = useState(blankHousehold);
   const [amount, setAmount] = useState<number | null>(null);
   const [other, setOther] = useState(false);
   const [otherVal, setOtherVal] = useState("");
@@ -119,7 +124,7 @@ function CollectPage() {
     setHh(null);
     setQ("");
     setAdding(false);
-    setNh({ name: "", house: "", lane: 0, phone: "" });
+    setNh(blankHousehold);
     setAmount(null);
     setOther(false);
     setOtherVal("");
@@ -143,28 +148,34 @@ function CollectPage() {
     if (!collector && me) setCollector(me.id);
   }, [me, collector]);
 
-  // SPEC 2.1: recent households on top.
+  // Suggestions only once something is typed (UAT), recent households first (SPEC 2.1).
+  const searching = q.trim().length >= MIN_SEARCH;
   const matches = useMemo(
     () =>
-      byRecentActivity(households, chandas)
-        .filter((h) => householdMatches(h, q))
-        .slice(0, 6),
-    [q, households, chandas],
+      searching
+        ? byRecentActivity(households, chandas)
+            .filter((h) => householdMatches(h, q))
+            .slice(0, 6)
+        : [],
+    [q, searching, households, chandas],
   );
+  // No lanes yet: the new-lane field is the only choice.
+  const lane = lanes.length ? nh.lane : NEW_LANE;
 
   const finalAmount = other ? (otherVal ? Number(otherVal) : NaN) : (amount ?? NaN);
   const hhInput = {
     resident_name: nh.name,
     house_flat_no: nh.house,
-    lane_block: lanes[nh.lane] ?? "",
+    lane_block: lane === NEW_LANE ? nh.newLane : (lanes[lane] ?? ""),
     phone_number: nh.phone,
   };
   const hhErr = adding ? fieldErrors(householdSchema, hhInput) : {};
   const errors: Record<Field, ErrKey | null> = {
     household: !adding && !hh ? "err_household" : null,
-    resident_name: hhErr.resident_name ?? hhErr.lane_block ?? null,
+    resident_name: hhErr.resident_name ?? null,
     house_no: hhErr.house_flat_no ?? null,
     phone: hhErr.phone_number ?? null,
+    lane: hhErr.lane_block ?? null,
     amount: check(amountSchema, finalAmount),
     collector: collector ? null : "err_collector",
   };
@@ -246,7 +257,9 @@ function CollectPage() {
               <div className="min-w-0 flex-1">
                 <div className="font-bold">{hh.resident_name}</div>
                 <div className="text-sm text-muted-foreground">
-                  {n(hh.house_flat_no)} · {hh.lane_block}
+                  {[hh.house_flat_no && n(hh.house_flat_no), hh.lane_block]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </div>
                 <div className="mt-0.5 text-sm font-semibold">
                   {hhLedger && hhLedger.due > 0 ? (
@@ -283,7 +296,7 @@ function CollectPage() {
               <div className="grid grid-cols-2 gap-2">
                 <TextField
                   id="collect-house_no"
-                  label={t("houseNo")}
+                  label={t("houseNoOptional")}
                   maxLength={20}
                   value={nh.house}
                   error={err("house_no")}
@@ -309,20 +322,61 @@ function CollectPage() {
               </div>
               <div>
                 <Label>{t("lane")}</Label>
-                <div className="no-scrollbar flex gap-2 overflow-x-auto" role="group">
+                <div
+                  id={lane === NEW_LANE ? undefined : "collect-lane"}
+                  tabIndex={-1}
+                  className="no-scrollbar flex gap-2 overflow-x-auto outline-none"
+                  role="group"
+                  aria-label={t("lane")}
+                >
                   {lanes.map((l, i) => (
                     <button
                       type="button"
                       key={l}
                       className="chip"
-                      data-active={nh.lane === i}
-                      aria-pressed={nh.lane === i}
-                      onClick={() => setNh({ ...nh, lane: i })}
+                      data-active={lane === i}
+                      aria-pressed={lane === i}
+                      onClick={() => {
+                        setNh({ ...nh, lane: i });
+                        touch();
+                      }}
                     >
                       {l}
                     </button>
                   ))}
+                  {lanes.length > 0 && (
+                    <button
+                      type="button"
+                      className="chip whitespace-nowrap"
+                      data-active={lane === NEW_LANE}
+                      aria-pressed={lane === NEW_LANE}
+                      onClick={() => {
+                        setNh({ ...nh, lane: NEW_LANE });
+                        touch();
+                      }}
+                    >
+                      {t("addLane")}
+                    </button>
+                  )}
                 </div>
+                {lane === NEW_LANE ? (
+                  <div className="mt-2">
+                    <TextField
+                      id="collect-lane"
+                      label={t("newLaneName")}
+                      placeholder={t("newLaneHint")}
+                      maxLength={60}
+                      value={nh.newLane}
+                      error={err("lane")}
+                      onChange={(e) => {
+                        setNh({ ...nh, newLane: e.target.value });
+                        touch();
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <FieldError id="collect-lane-error" error={err("lane")} />
+                )}
               </div>
               <button
                 type="button"
@@ -351,7 +405,11 @@ function CollectPage() {
                 />
               </div>
               <FieldError id="collect-household-error" error={err("household")} />
-              {matches.length === 0 ? (
+              {!searching ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  {t("searchMinHint")}
+                </p>
+              ) : matches.length === 0 ? (
                 <p className="py-4 text-center text-sm text-muted-foreground">{t("noResults")}</p>
               ) : (
                 <ul className="mt-2 divide-y rounded-2xl border bg-card">
@@ -363,9 +421,14 @@ function CollectPage() {
                         onClick={() => choose(h)}
                       >
                         <span className="min-w-10 rounded-lg bg-muted px-1.5 py-1 text-center text-xs font-bold">
-                          {n(h.house_flat_no)}
+                          {h.house_flat_no ? n(h.house_flat_no) : "—"}
                         </span>
-                        <span className="flex-1 font-semibold">{h.resident_name}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold">{h.resident_name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {h.lane_block}
+                          </span>
+                        </span>
                         <StatusBadge status={ledgerOf(ledgers, h.id).status} />
                       </button>
                     </li>

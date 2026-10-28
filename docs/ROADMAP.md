@@ -27,8 +27,7 @@ check; it moves to **Done** when accepted.
   smoke test, real-device checklist)
 
 ### In progress
-- UAT fixes (v0.12.0): Expenses (edit until handover, own categories, search, load more)
-  — PR open; then Chanda, Home, Settings & export
+- UAT fixes (v0.12.0): Expenses and Chanda — PRs open; then Home, Settings & export
 
 ### UAT
 - Promises: record now, pay later, part payments
