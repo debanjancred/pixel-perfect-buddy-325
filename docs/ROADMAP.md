@@ -30,8 +30,8 @@ check; it moves to **Done** when accepted and released.
 - At go-live: Supabase Pro plan and backups
 
 ### In progress
-- M13: usage figures (`ops.usage_totals`, `ops.usage_daily`, `ops_usage`) — PR open,
-  staging apply pending
+- M13: usage figures (`ops.usage_totals`, `ops.usage_daily`, `ops_usage`) — live on
+  staging, PR open (moves to UAT when merged)
 
 ### UAT
 - Promises: record now, pay later, part payments
