@@ -1,31 +1,39 @@
 import { useState } from "react";
-import { Ban, Expand } from "lucide-react";
+import { Ban, Expand, Lock, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { usePermission, useVoidExpense } from "@/hooks/use-data";
+import { useHandovers, usePermission, useVoidExpense } from "@/hooks/use-data";
 import { VoidDialog } from "@/components/pk/VoidDialog";
 import { useI18n } from "@/lib/i18n";
 import { Modal, SyncBadge } from "@/components/pk/ui";
 import { isVoid } from "@/lib/accounts";
 import type { ClubMember, ExpenseRecord } from "@/types/domain";
-import { expenseFields } from "./model";
+import { expenseFields, expenseLocked } from "./model";
 import { VoucherThumb } from "./Voucher";
 
-/** Details sheet for one expense (Story 3.2), with a way into the full-screen photo. */
+/**
+ * Details sheet for one expense (Story 3.2), with a way into the full-screen photo. A
+ * treasurer/admin can correct it until the next cash handover involving whoever recorded it.
+ */
 export function ExpenseDetail({
   expense: e,
   members,
   onClose,
   onViewPhoto,
+  onEdit,
 }: {
   expense: ExpenseRecord;
   members: ClubMember[];
   onClose: () => void;
   onViewPhoto: () => void;
+  onEdit: () => void;
 }) {
   const i18n = useI18n();
   const { t, money, words } = i18n;
   const voided = isVoid(e);
   const canVoid = usePermission("entry.void") && !voided;
+  const { data: handovers = [] } = useHandovers();
+  const canChange = usePermission("expense.add") && !voided;
+  const locked = expenseLocked(e, handovers);
   const voidExpense = useVoidExpense();
   const [voiding, setVoiding] = useState(false);
 
@@ -97,6 +105,16 @@ export function ExpenseDetail({
         )}
       </div>
 
+      {canChange &&
+        (locked ? (
+          <p className="mt-4 flex items-start gap-2 rounded-xl bg-muted p-3 text-sm">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> {t("expenseLockedNote")}
+          </p>
+        ) : (
+          <button type="button" className="btn btn-outline mt-4 w-full" onClick={onEdit}>
+            <Pencil className="h-5 w-5" aria-hidden /> {t("edit")}
+          </button>
+        ))}
       {canVoid && (
         <button
           type="button"

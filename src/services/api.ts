@@ -30,6 +30,8 @@ import {
   fetchPublicAccounts,
 } from "./cloud/pull";
 import { buildDemoData, DEMO_SLUG } from "@/mocks/mockData";
+import { expenseLocked } from "@/lib/expense-lock";
+import { categoryKeyOf, type CategoryKey } from "@/lib/categories";
 import {
   VOUCHER_MAX_BYTES,
   ValidationError,
@@ -38,6 +40,7 @@ import {
   clubSchema,
   eventEditSchema,
   eventSchema,
+  expenseEditSchema,
   expenseSchema,
   handoverSchema,
   helpSchema,
@@ -53,6 +56,7 @@ import {
   type ErrKey,
   type ClubInput,
   type EventInput,
+  type ExpenseEditInput,
   type ExpenseInput,
   type HandoverInput,
   type HelpInput,
@@ -339,7 +343,7 @@ async function createExpense(raw: ExpenseInput): Promise<ExpenseRecord> {
   const existing = db.expenses.find((e) => e.id === input.id);
   if (existing) return existing;
   const club = requireClub(db);
-  authorize(db, "expense.add");
+  const writer = authorize(db, "expense.add");
   const by = mine(db, db.members).find((m) => m.id === input.authorized_by_id);
   if (!by || by.role === "collector")
     throw new ValidationError("authorized_by_id", "err_authorizer");
@@ -347,7 +351,9 @@ async function createExpense(raw: ExpenseInput): Promise<ExpenseRecord> {
   const { voucher_image_id, ...rest } = input;
   const exp: ExpenseRecord = {
     ...rest,
+    ...ownCategory(input.category, input.category_name),
     ...(voucher_image_id ? { voucher_image_id } : {}),
+    recorded_by_id: writer.id,
     club_id: club.id,
     created_at: at,
     updated_at: at,
@@ -356,6 +362,42 @@ async function createExpense(raw: ExpenseInput): Promise<ExpenseRecord> {
   db.expenses.push(exp);
   write(db);
   return exp;
+}
+
+/** An own category name forces "misc"; a blank one means the built-in category. */
+function ownCategory(category: ExpenseRecord["category"], name: string | null | undefined) {
+  return name
+    ? { category: "misc" as const, category_name: name }
+    : { category, category_name: null };
+}
+
+/**
+ * Corrects an expense (treasurer/admin) until the next cash handover involving whoever
+ * recorded it; then it can only be voided. Marked pending so the change syncs.
+ */
+async function updateExpense(id: string, raw: ExpenseEditInput): Promise<ExpenseRecord> {
+  await delay();
+  const input = parseOrThrow(expenseEditSchema, raw);
+  const db = read();
+  const editor = authorize(db, "expense.add");
+  const rec = mine(db, db.expenses).find((e) => e.id === id);
+  if (!rec) throw new ValidationError("expense_id", "err_notFound");
+  if (expenseLocked(rec, mine(db, db.handovers)))
+    throw new ValidationError("expense_id", "err_expenseLocked");
+  const by = mine(db, db.members).find((m) => m.id === input.authorized_by_id);
+  if (!by || by.role === "collector")
+    throw new ValidationError("authorized_by_id", "err_authorizer");
+  const at = now();
+  Object.assign(rec, {
+    ...input,
+    ...ownCategory(input.category, input.category_name),
+    edited_at: at,
+    edited_by_id: editor.id,
+    updated_at: at,
+    sync_status: "pending",
+  });
+  write(db);
+  return rec;
 }
 
 async function seedDemo(): Promise<void> {
@@ -457,7 +499,15 @@ async function publicAccounts(slug: string): Promise<ClubAccounts | null> {
   const data = await fetchPublicAccounts(getCloudClient(), slug).catch(() => null);
   if (!data) return null;
   const club: Club = { id: "", created_at: "", ...data.club };
-  return { club, summary: data.summary, expenses: [], category_totals: data.expenses_by_category };
+  return {
+    club,
+    summary: data.summary,
+    expenses: [],
+    category_totals: data.expenses_by_category.map((c) => ({
+      key: categoryKeyOf({ category: c.category, category_name: c.name }),
+      total: c.total,
+    })),
+  };
 }
 
 /** Everything the public accounts page shows for one club. */
@@ -467,7 +517,7 @@ export interface ClubAccounts {
   /** All of the club's expenses, voided ones included (the page shows per-category totals). */
   expenses: ExpenseRecord[];
   /** Per-category totals when only aggregates are available (public link from the server). */
-  category_totals?: { category: ExpenseRecord["category"]; total: number }[];
+  category_totals?: { key: CategoryKey; total: number }[];
 }
 
 /** The sync run in progress (or the last one), so api.sync() calls queue behind it. */
@@ -778,6 +828,7 @@ export const api = {
   createExpense,
   /** Name used by the UI integration brief; same as createExpense. */
   addExpense: createExpense,
+  updateExpense,
   async voidExpense(id: string, reason: string): Promise<ExpenseRecord> {
     await delay();
     const db = read();

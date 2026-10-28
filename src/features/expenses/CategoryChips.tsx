@@ -1,8 +1,8 @@
 import { useI18n } from "@/lib/i18n";
-import { CATEGORIES } from "@/lib/categories";
+import { categoryInfo } from "@/lib/categories";
 import type { CategoryFilter, ExpenseTotals } from "./model";
 
-/** Story 3.2 filter: All + one chip per category (chips are ≥ 48px via `.chip`). */
+/** Story 3.2 filter: All + one chip per category, the club's own included (≥ 48px via `.chip`). */
 export function CategoryChips({
   value,
   totals,
@@ -14,10 +14,13 @@ export function CategoryChips({
 }) {
   const { t, n } = useI18n();
   const count = (k: CategoryFilter) =>
-    k === "all" ? totals.count : totals.byCategory.find((c) => c.category === k)!.count;
+    k === "all" ? totals.count : (totals.byCategory.find((c) => c.key === k)?.count ?? 0);
   const chips: { key: CategoryFilter; label: string }[] = [
     { key: "all", label: t("all") },
-    ...CATEGORIES.map((c) => ({ key: c.key, label: `${c.emoji} ${t(c.t)}` })),
+    ...totals.byCategory.map((c) => {
+      const info = categoryInfo(c.key, t);
+      return { key: c.key, label: `${info.emoji} ${info.label}` };
+    }),
   ];
   return (
     <div

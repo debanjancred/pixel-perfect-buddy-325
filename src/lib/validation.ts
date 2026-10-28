@@ -91,6 +91,15 @@ export type ChandaInput = z.infer<typeof chandaSchema>;
 export const expenseSchema = z.object({
   id,
   category: z.enum(["pandal", "idol", "lighting", "bhog", "cultural", "misc"]),
+  /** The club's own category (stored with category "misc"); empty for a built-in one. */
+  category_name: z
+    .string()
+    .trim()
+    .transform((s) => s.replace(/\s+/g, " "))
+    .refine((s) => s === "" || s.length >= 2, m("err_categoryName"))
+    .refine((s) => s.length <= 40, m("err_tooLong"))
+    .optional()
+    .nullable(),
   title: z.string().trim().min(1, m("err_required")).max(120, m("err_tooLong")),
   amount: amountSchema,
   paid_to: z.string().trim().min(1, m("err_required")).max(80, m("err_tooLong")),
@@ -103,7 +112,11 @@ export const expenseSchema = z.object({
     // ISO dates compare correctly as strings; "today" is the device's local date.
     .refine((v) => v <= isoDate(), m("err_dateFuture")),
 });
-export type ExpenseInput = z.infer<typeof expenseSchema>;
+export type ExpenseInput = z.input<typeof expenseSchema>;
+
+/** Correcting an expense: the same fields, without the id or the photo. */
+export const expenseEditSchema = expenseSchema.omit({ id: true, voucher_image_id: true });
+export type ExpenseEditInput = z.input<typeof expenseEditSchema>;
 
 /** User-entered event: one title as typed (stored in both language slots, like club names). */
 const eventTitle = z

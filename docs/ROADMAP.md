@@ -27,7 +27,8 @@ check; it moves to **Done** when accepted.
   smoke test, real-device checklist)
 
 ### In progress
-- UAT checklist for v0.11.0 written (`docs/UAT-v0.11.0.md`); waiting for the owner's run
+- UAT fixes (v0.12.0): Expenses (edit until handover, own categories, search, load more)
+  — PR open; then Chanda, Home, Settings & export
 
 ### UAT
 - Promises: record now, pay later, part payments

@@ -78,6 +78,11 @@ export async function fetchPublicAccounts(client: SupabaseClient, slug: string) 
       target_amount: number;
     };
     summary: import("@/types/domain").AccountsSummary;
-    expenses_by_category: { category: import("@/types/domain").ExpenseCategory; total: number }[];
+    /** `name` is set for the club's own categories (stored as misc + category_name). */
+    expenses_by_category: {
+      category: import("@/types/domain").ExpenseCategory;
+      name?: string;
+      total: number;
+    }[];
   };
 }

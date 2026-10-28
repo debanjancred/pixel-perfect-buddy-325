@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/services/api";
 import { session } from "@/services/session";
 import { can, type Permission } from "@/lib/permissions";
-import type { ExpenseInput } from "@/lib/validation";
+import type { ExpenseEditInput, ExpenseInput } from "@/lib/validation";
 import type { ClubEvent } from "@/types/domain";
 
 // Data lives in the browser (offline-first), so queries run client-side only.
@@ -183,6 +183,19 @@ export function useAddExpense() {
         throw e;
       }
     },
+    onSuccess: async () => {
+      await syncIfOnline();
+      await invalidate(queryKeys.expenses, queryKeys.summary);
+    },
+  });
+}
+
+/** Corrects an expense before the next handover involving its recorder (api.updateExpense). */
+export function useUpdateExpense() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, ...input }: ExpenseEditInput & { id: string }) =>
+      api.updateExpense(id, input),
     onSuccess: async () => {
       await syncIfOnline();
       await invalidate(queryKeys.expenses, queryKeys.summary);

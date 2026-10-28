@@ -146,6 +146,9 @@ same data — a shareable public ledger link, cross-device sync, real OTP — is
 * Only `admin` and `treasurer` can void. Voiding sets `status: 'void'`, `voided_at`, `void_reason` (required).
 * Voided entries remain visible (struck through) and are excluded from all totals.
 * There is no hard delete for chanda or expense records.
+* *Amended after UAT (2026-10-28):* an expense may be **edited** by an admin/treasurer until
+  the next cash handover involving the member who recorded it; after that only voiding
+  applies. Chanda entries are still never edited.
 
 ---
 

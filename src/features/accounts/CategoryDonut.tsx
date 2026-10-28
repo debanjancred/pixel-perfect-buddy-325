@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { categoryMeta } from "@/features/expenses";
+import { categoryInfo } from "@/lib/categories";
 import type { CategoryShare } from "./model";
 import { donutArcs } from "./donut";
 
@@ -13,7 +13,7 @@ const THICKNESS = 40;
  */
 export function CategoryDonut({ shares, total }: { shares: CategoryShare[]; total: number }) {
   const { t, n, money } = useI18n();
-  const data = shares.map((s) => ({ ...s, name: t(categoryMeta(s.category).t) }));
+  const data = shares.map((s) => ({ ...s, name: categoryInfo(s.key, t).label }));
   const arcs = donutArcs(
     data.map((d) => d.total),
     SIZE,
@@ -40,7 +40,7 @@ export function CategoryDonut({ shares, total }: { shares: CategoryShare[]; tota
               {arcs.map((a, i) =>
                 a.d ? (
                   <path
-                    key={data[i]!.category}
+                    key={data[i]!.key}
                     d={a.d}
                     fill={data[i]!.color}
                     fillRule="evenodd"
@@ -68,7 +68,7 @@ export function CategoryDonut({ shares, total }: { shares: CategoryShare[]; tota
             <caption className="sr-only">{t("byCategory")}</caption>
             <tbody>
               {data.map((d) => (
-                <tr key={d.category} className="border-b border-dashed last:border-0">
+                <tr key={d.key} className="border-b border-dashed last:border-0">
                   <th scope="row" className="py-2 text-left font-normal">
                     <span className="inline-flex items-center gap-2">
                       <span
