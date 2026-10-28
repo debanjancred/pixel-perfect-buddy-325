@@ -24,31 +24,18 @@ collecting.
 | ✓ | Step | Who |
 |---|---|---|
 | ☐ | **UAT passed** ([UAT-v0.11.0.md](UAT-v0.11.0.md)); fixes released and merged into `main`. | You, Claude |
-| ☐ | **Decide how members log in on production** (see below). This blocks go-live. | You |
+| ☐ | List the pilot members' phone numbers and choose a private code for each ([LOGIN-OPTIONS.md](LOGIN-OPTIONS.md)). | You |
 | ☐ | Supabase **Pro plan** on the production project (daily backups; no pausing after a week idle). | You |
 | ☐ | Sentry project `pujo-khata` ready; note its DSN. | You |
 | ☐ | Lovable access to the project's environment settings. | You |
 | ☐ | Two test phones: one Android (Chrome), one iPhone (Safari). | You |
 | ☐ | A date and a time window agreed with the first committee(s). | You |
 
-### Decision: how members log in
+### Login: Supabase test numbers (decided)
 
-Production login is by phone number + OTP. Supabase sends the OTP by SMS through a
-provider, and in India that needs DLT registration ([SMS-SETUP.md](SMS-SETUP.md)). The
-owner decided on 2026-10-28 not to set up SMS for now, so **without a provider only
-Supabase test numbers (fixed codes) can log in**. Choose one before going live:
-
-1. **Closed pilot with test numbers:** each pilot member's number is added as a test number
-   with its own code, given to them privately. No SMS cost or paperwork, but anyone who
-   learns a number's code can log in as that number, and every new member needs a manual
-   dashboard step. Suitable only for a few trusted committees.
-2. **Set up SMS later, launch then:** keep running on staging until the provider is ready.
-3. **Another way to log in** (for example email OTP or WhatsApp OTP): a new piece of work
-   with its own plan; ask Claude to scope it.
-
-Options compared, with a recommendation: [LOGIN-OPTIONS.md](LOGIN-OPTIONS.md).
-
-Record the choice here: ______________________
+The owner decided on 2026-10-28: no messaging integrations (no SMS, WhatsApp or email).
+Members log in with their phone number and a fixed code added for them in the production
+dashboard. How to run it: [LOGIN-OPTIONS.md](LOGIN-OPTIONS.md).
 
 ---
 
@@ -78,8 +65,8 @@ npx supabase@2.119.0 db push --dry-run --db-url "$PROD_DB"
 | ✓ | Step | Who |
 |---|---|---|
 | ☐ | Authentication → Providers → **Phone**: enabled, OTP length **6**, expiry 10 minutes. | You |
-| ☐ | Set up login as decided in step 0 (test numbers, or the SMS provider). | You |
-| ☐ | Authentication → **Rate limits**: OTP sends per hour kept low (protects SMS cost and stops abuse); sign-ins per IP at the default. | You |
+| ☐ | Add each pilot member's number and code as a **test phone number**. | You |
+| ☐ | Authentication → **Rate limits**: sign-in attempts at the defaults (they slow down guessing codes). | You |
 | ☐ | Project Settings → API: copy the **Project URL** and **anon key** (never the service-role key). | You |
 
 ## 3. Point the published site at production (about 20 minutes)
