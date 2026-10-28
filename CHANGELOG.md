@@ -7,6 +7,12 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- Support functions (ADR 0002 §4), each checked and logged through the staff gate:
+  `ops_find_club`, `ops_find_person` (clubs, roles, devices, last login), `ops_club_health`
+  (totals, 14-day activity, devices, off-device entries, 7-day sync failures),
+  `ops_reset_collect_device` and `ops_remove_device` (reason required), and
+  `ops_club_entries` (read-only, reason required). None changes money entries or roles;
+  phone lookups are logged with a masked number. Apply `20261028000004_ops_support.sql`.
 - Staff access (ADR 0002 §4): a private `ops` schema with `ops.staff` (owner or support) and
   `ops.audit_log`, which can only be added to — no edits, deletes or truncation, even by the
   owner. Every staff function goes through `ops.require_staff`, which checks the caller's
