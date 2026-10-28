@@ -15,7 +15,9 @@ alter table public.expense_records
   add column edited_by_id uuid,
   add constraint expense_custom_is_misc check (category_name is null or category = 'misc');
 
--- Older expenses: the authoriser is the best guess for who recorded them.
+-- Older expenses: the authoriser is the best guess for who recorded them. The old void-only
+-- guard would refuse this update, so it goes first (the new guard is added further down).
+drop trigger expenses_void_only on public.expense_records;
 update public.expense_records set recorded_by_id = authorized_by_id where recorded_by_id is null;
 
 /** The server records who wrote an expense (never trusted from the phone). */
@@ -92,7 +94,6 @@ begin
   return new;
 end $$;
 
-drop trigger expenses_void_only on public.expense_records;
 create trigger expenses_guard_update before update on public.expense_records
   for each row execute function public.guard_expense_update();
 

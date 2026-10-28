@@ -27,7 +27,13 @@ trap cleanup EXIT
 createdb "$DB"
 run() { psql -d "$DB" -v ON_ERROR_STOP=1 -q "$@"; }
 run < tests/00_supabase_stub.sql
-for f in migrations/*.sql; do echo "→ $f"; run < "$f"; done
+# tests/before/<migration file> holds data that exists before that migration runs (a real
+# project is never empty), so data-changing migrations are tested against existing rows.
+for f in migrations/*.sql; do
+  before="tests/before/$(basename "$f")"
+  if [ -f "$before" ]; then run < "$before"; fi
+  echo "→ $f"; run < "$f"
+done
 # Show passes and anything that went wrong; ON_ERROR_STOP makes psql exit non-zero on failure.
 # The test files share one session, in order (later files use 01's test.* helpers).
 cat tests/[0-9]*.test.sql | run 2>&1 | grep -E "NOTICE|ERROR|FAILED|DETAIL|CONTEXT" | sed 's/^psql:[^ ]* *//; s/NOTICE:  //'

@@ -84,4 +84,9 @@ select test.ok((select bool_or(x ->> 'category' = 'bhog' and (x ->> 'total')::in
   'public accounts list per-category totals');
 reset role;
 
+-- 7. Expenses that existed before the migration got their recorder filled in.
+select test.ok((select recorded_by_id = authorized_by_id from public.expense_records
+  where id = '5eed0000-0000-4000-8000-0000000000e1'),
+  'existing expenses are backfilled with their authoriser as recorder');
+
 select test.ok(true, 'all expense edit tests passed');
