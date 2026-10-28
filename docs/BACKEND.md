@@ -150,3 +150,8 @@ When the server refuses a record, the phone notes why and sends the note on its 
   group by 1, 2, 3 order by n desc;
   ```
   To follow one record, filter by `record_id` (the entry's id on the phone).
+- **Kept 90 days:** a daily pg_cron job (`purge-client-events`, 03:00 India time) deletes
+  older reports. Check it with `select * from cron.job;` and its runs with
+  `select * from cron.job_run_details order by start_time desc limit 5;`. If the migration
+  couldn't turn pg_cron on, enable it under **Database → Extensions** and run the
+  `cron.schedule(…)` line from `…_client_events_retention.sql` once.
