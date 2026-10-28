@@ -12,7 +12,46 @@ We work one module at a time. Each phase ships as a minor release.
 | v0.5.0 | Cross-cutting | M8 Roles & permissions, M9 Offline & PWA | Folded into v0.9.0 |
 | v0.9.0 | Release candidate | M3b–M10, QA sweep, M11 backend (cloud mode off by default) | Released |
 | v0.10.0 | Cloud hardening | M12 sync fixes, devices, writer receipt numbers, members UI, keyboard-safe sheets, toasts | Released |
-| v1.0.0 | Production | M11 Supabase backend, real OTP, sync | Supabase project live with test numbers; needs a real SMS provider (DLT), Lovable env + publish, real-device checklist |
+| v0.11.0 | Operations | M13 phase 1 (ADR 0002), promises, event edit/delete, install button | In progress |
+| v1.0.0 | Production | M11 Supabase backend, sync, operations on production | Needs production push, Lovable env + publish, real-device checklist (real SMS provider dropped, 2026-10-28) |
+
+## Status board
+
+Updated 2026-10-28. **UAT** = merged into `main` and live on staging, waiting for the owner's
+check; it moves to **Done** when accepted and released.
+
+### To do
+- M13: usage views (registrations, active clubs, devices, entries per day; totals only)
+- M13: Settings → Help form with `support_tickets`
+- Release v0.11.0 (version bump, changelog date, tag)
+- Production: push all pending migrations, add the owner to `ops.staff`
+- Production dashboard: phone auth settings and rate limits
+- Lovable: Supabase environment variables, then publish (only on the owner's word)
+- Real-device checklist (`docs/QA-CHECKLIST.md`)
+- At go-live: Supabase Pro plan and backups
+
+### In progress
+- M13: support functions (`ops_find_club`, `ops_find_person`, `ops_club_health`,
+  `ops_reset_collect_device`, `ops_remove_device`, `ops_club_entries`) — live on staging,
+  PR open (moves to UAT when merged)
+
+### UAT
+- Promises: record now, pay later, part payments
+- App control (`app_config`): maintenance, minimum version, announcements
+- Events: admins edit and delete; redesigned event cards
+- Install app button (login and Settings)
+- Offline saving fix; sync status strip under the header
+- Sentry error reporting with on-device scrubbing
+- Database security hardening; removed devices cut off on the server
+- Sync failure reports (`client_events`) and 90-day cleanup (pg_cron)
+- Staff access: `ops.staff`, append-only `ops.audit_log`, `ops_whoami` (no two-step
+  verification, by decision)
+
+### Done
+- v0.10.0 and earlier: M0–M12 (see the table below)
+
+### Later (ADR 0002 phase 2)
+- Owner console, ticket inbox, feature flags, club suspension, data erasure, Web Push
 
 ## Modules
 
@@ -32,4 +71,4 @@ We work one module at a time. Each phase ships as a minor release.
 | 12 | M10 QA | axe WCAG 2.1 AA + 48px + 360px audit of every screen in bn/en × light/dark (0 issues), contrast token fixes, Bengali copy review, `app_locale` | Done |
 | 13–15 | M11 Backend (Supabase) | Schema + RLS + triggers in `supabase/migrations`, cloud sync adapter + pull/merge, phone OTP, voucher storage, public accounts link; SQL and PostgREST integration tests | Done (project set up) |
 | 16 | M12 Cloud hardening | One sync at a time, IDs on plain http, server receipt renumbering, writer receipt numbers, devices (3 per person, one collects, `off_device` flag), "see why" sync reasons, re-sent handovers, members list + sheet, keyboard-safe sheets, branded loaders and toasts | Done |
-| 17 | M13 Operations (phase 1) | Per [ADR 0002](adr/0002-operations-console.md): Sentry with PII scrubbing, server-side sync failure log, `app_config` (maintenance, minimum version, announcement), staff roles + audit log, support functions, usage views, Settings → Help tickets | Planned |
+| 17 | M13 Operations (phase 1) | Per [ADR 0002](adr/0002-operations-console.md): Sentry with PII scrubbing, server-side sync failure log, `app_config` (maintenance, minimum version, announcement), staff roles + audit log, support functions, usage views, Settings → Help tickets | In progress |
