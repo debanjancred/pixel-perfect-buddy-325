@@ -6,6 +6,10 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-28
+
+UAT fixes for expenses, chanda, home and settings.
+
 ### Added
 - Expenses (UAT): **Edit** in an expense's details for treasurers and admins, using the same
   form pre-filled (the photo stays as it is). An expense can be corrected until the next cash
@@ -398,7 +402,8 @@ events, public accounts, settings, roles & permissions with void and cash handov
   receipts, expenses, events, public audit and club admin, backed by
   localStorage with Bengali/English UI.
 
-[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.2.0...v0.9.0

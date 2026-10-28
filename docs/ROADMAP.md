@@ -13,24 +13,28 @@ We work one module at a time. Each phase ships as a minor release.
 | v0.9.0 | Release candidate | M3b–M10, QA sweep, M11 backend (cloud mode off by default) | Released |
 | v0.10.0 | Cloud hardening | M12 sync fixes, devices, writer receipt numbers, members UI, keyboard-safe sheets, toasts | Released |
 | v0.11.0 | Operations | M13 phase 1 (ADR 0002), promises, event edit/delete, install button | Released |
+| v0.12.0 | UAT fixes | Expenses edit/categories/search, chanda lanes/optional house no., Excel export, club options, numerals follow language | Released |
 | v1.0.0 | Production | M11 Supabase backend, sync, operations on production | Runbook ready (`docs/GO-LIVE.md`); login = Supabase test numbers (`docs/LOGIN-OPTIONS.md`); waiting for the go-live session |
 
 ## Status board
 
-Updated 2026-10-28 (v0.11.0). **UAT** = released and live on staging, waiting for the owner's
+Updated 2026-10-28 (v0.12.0). **UAT** = released and live on staging, waiting for the owner's
 check; it moves to **Done** when accepted.
 
 ### To do
-- Owner: run the UAT checklist (`docs/UAT-v0.11.0.md`) on staging
+- Owner: re-test on staging — `docs/UAT-v0.11.0.md` plus the v0.12.0 fixes
 - Go-live = v1.0.0, one planned session on the owner's word: follow `docs/GO-LIVE.md`
   (Pro plan, production migrations, login settings, Lovable env + publish, owner access,
   smoke test, real-device checklist)
 
 ### In progress
-- UAT fixes (v0.12.0): Expenses, Chanda, Home + Settings & export — 3 PRs open (merge in
-  that order); 3 migrations wait for staging
+- Nothing right now
 
 ### UAT
+- v0.12.0 UAT fixes: expense edit (until the next handover), own categories, expense search,
+  Load more (expenses, register), optional house no., add lane while collecting, 2-letter
+  household search, clearer messages, "Cancelled" wording, Excel export (admin/treasurer),
+  Club options, numerals follow the language
 - Promises: record now, pay later, part payments
 - App control (`app_config`): maintenance, minimum version, announcements
 - Events: admins edit and delete; redesigned event cards
