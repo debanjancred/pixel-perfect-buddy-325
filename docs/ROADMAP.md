@@ -32,8 +32,8 @@ check; it moves to **Done** when accepted and released.
 
 ### In progress
 - M13: support functions (`ops_find_club`, `ops_find_person`, `ops_club_health`,
-  `ops_reset_collect_device`, `ops_remove_device`, `ops_club_entries`) — PR open, staging
-  apply pending
+  `ops_reset_collect_device`, `ops_remove_device`, `ops_club_entries`) — live on staging,
+  PR open (moves to UAT when merged)
 
 ### UAT
 - Promises: record now, pay later, part payments
