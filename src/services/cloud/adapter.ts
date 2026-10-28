@@ -6,7 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SyncAdapter, SyncRecord, SyncResult } from "../sync";
 import { ValidationError } from "@/lib/validation";
-import { errorKey } from "./errors";
+import { errorKey, isNetworkError } from "./errors";
 
 export interface CloudAdapterDeps {
   /** Reads a voucher photo saved on this device (IndexedDB), for upload. */
@@ -159,7 +159,12 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
           await send(item);
           results.push({ id: item.record.id, ok: true });
         } catch (e) {
-          results.push({ id: item.record.id, ok: false, error: errorKey(e) });
+          results.push({
+            id: item.record.id,
+            ok: false,
+            error: errorKey(e),
+            ...(isNetworkError(e) && { network: true }),
+          });
         }
       }
       return results;

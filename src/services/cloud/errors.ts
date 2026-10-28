@@ -20,6 +20,17 @@ export function cloudErrorKey(error: PostgrestLikeError | null | undefined): Err
   return "err_syncFailed";
 }
 
+/** A request that never reached the server (no signal, DNS, a dropped connection). */
+export function isNetworkError(e: unknown): boolean {
+  if (e instanceof ValidationError) return false;
+  if (e instanceof TypeError) return true;
+  const message = (e as { message?: unknown } | null)?.message;
+  return (
+    typeof message === "string" &&
+    /failed to fetch|networkerror|load failed|network request failed|fetch failed/i.test(message)
+  );
+}
+
 /** Any error thrown while sending a record, as an i18n key. */
 export function errorKey(e: unknown): ErrKey {
   if (e instanceof ValidationError) return e.key;

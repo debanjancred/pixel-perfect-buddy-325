@@ -52,6 +52,8 @@ export interface SyncResult {
   ok: boolean;
   /** Why the server refused it (an i18n key), so the app can say so. */
   error?: ErrKey;
+  /** It never reached the server (no signal): not a refusal, so not reported. */
+  network?: boolean;
 }
 
 export interface SyncAdapter {

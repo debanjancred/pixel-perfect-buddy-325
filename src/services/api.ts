@@ -5,6 +5,7 @@ import { cashByCollector, computeSummary } from "@/lib/accounts";
 import { newId } from "@/lib/id";
 import { can, type Permission } from "@/lib/permissions";
 import { cachedAppConfig, currentAppStatus, refreshAppConfig } from "./app-config";
+import { flushClientEvents, recordSyncOutcome, type SyncFailureReport } from "./client-events";
 import { session } from "./session";
 import { device } from "./device";
 import { getSyncAdapter, SYNC_ORDER, type SyncRecord, type SyncResult } from "./sync";
@@ -463,12 +464,27 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
   const rows = new Map<string, { sync_status: string }>(
     [...fresh.chanda, ...fresh.expenses, ...fresh.handovers].map((r) => [r.id, r]),
   );
-  const reasons = new Map(results.map((r) => [r.id, r.error]));
+  const byId = new Map(results.map((r) => [r.id, r]));
   const errors = { ...fresh.sync_errors };
+  // Refusals the server gave a reason for, to report to the owner (client-events.ts).
+  const refused: SyncFailureReport[] = [];
+  const sent: string[] = [];
   for (const item of queue) {
     const success = ok.get(item.record.id) === true;
+    const result = byId.get(item.record.id);
+    const club = clubOf(db, item);
     if (success) delete errors[item.record.id];
-    else errors[item.record.id] = reasons.get(item.record.id) ?? "err_syncFailed";
+    else errors[item.record.id] = result?.error ?? "err_syncFailed";
+    if (!isLocal(item) && club) {
+      if (success) sent.push(item.record.id);
+      else if (result?.error && !result.network)
+        refused.push({
+          error_key: result.error,
+          entity_type: item.kind,
+          record_id: item.record.id,
+          club_id: club,
+        });
+    }
     if (success) synced++;
     else failed++;
     if (!("sync_status" in item.record)) continue;
@@ -481,6 +497,8 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
     .map((o) => (ok.has(o.id) ? { ...o, failed: true } : o));
   fresh.sync_errors = errors;
   write(fresh);
+  recordSyncOutcome(refused, sent);
+  void flushClientEvents();
   return { synced, failed };
 }
 

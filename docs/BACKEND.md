@@ -133,3 +133,20 @@ owner console exists; the API lets nobody change it.
 
 **Releasing a version that old phones must not keep using:** publish it first, then raise
 `min_version` to it. Phones pick it up the next time they open the app.
+
+## Sync failure reports (`client_events`)
+When the server refuses a record, the phone notes why and sends the note on its next sync
+(ADR 0002 §2), so a broken release or a wrong server rule shows up before anyone calls.
+- **What is stored:** the error key (`err_forbidden`, `err_syncDependency`, …), the kind of
+  record (`chanda`, `expense`, `handover`, …) and its id, the club, the reporter's member id,
+  the device id and the app version. No phone numbers, names, amounts or record contents.
+- **What is not reported:** network failures (no signal is normal), the sample club, and the
+  same record failing the same way again. Each device stores at most 50 a day.
+- **Who can read it:** nobody through the API, not even the reporter. Until the owner console
+  exists, query it in the SQL editor, e.g. what failed most this week:
+  ```sql
+  select error_key, entity_type, app_version, count(*) as n, count(distinct club_id) as clubs
+  from client_events where created_at > now() - interval '7 days'
+  group by 1, 2, 3 order by n desc;
+  ```
+  To follow one record, filter by `record_id` (the entry's id on the phone).
