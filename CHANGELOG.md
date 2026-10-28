@@ -19,6 +19,20 @@ All notable changes to Pujo Khata. Format follows
 - Expense search by item, paid to or date (stored or as shown, Bengali digits included), and
   **Load more** after the first 10 expenses (shared `LoadMore` + `usePaged`).
 - Apply `20261028000007_expense_edit_categories.sql`.
+- Chanda (UAT): **+ Add New Lane** in the new-household form adds a lane or block on the spot;
+  the house number is optional (rows without one show "—", receipts leave it out). The
+  register shows 10 households at a time with **Load more**. Apply
+  `20261028000008_household_optional_house.sql` (the lane joins a household's identity, as in
+  the app).
+
+### Changed
+- Collecting chanda: household suggestions appear only after 2 typed letters (a hint shows
+  until then), with the lane under each name.
+- Clearer, polite validation messages, e.g. "Please enter resident name", "Please enter a valid
+  amount (₹1 to ₹10 lakh)", "Please choose a lane / block or add a new one".
+- English wording: "Void" is now **Cancelled** ("Cancel entry", "Cancellation reason",
+  "CANCELLED" on receipts); the dialog's dismiss button reads "No, keep it". Bengali already
+  used "বাতিল".
 
 ## [0.11.0] - 2026-10-28
 

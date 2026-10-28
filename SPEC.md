@@ -102,6 +102,8 @@ same data — a shareable public ledger link, cross-device sync, real OTP — is
 
 **Acceptance Criteria:**
 * Household picker with search by flat number or resident name; recent households on top.
+  *Amended after UAT (2026-10-28):* suggestions appear only after 2 typed characters; the
+  flat/house number is optional; a new lane/block can be added from the new-household form.
 * Preset chips: `₹251`, `₹501`, `₹1,001`, `₹2,001`, `₹5,001`, `Custom`. Custom opens a numeric keypad (`inputmode="numeric"`), accepts integers 1–10,00,000 only.
 * Payment method defaults to `cash`; one tap toggles to `upi`.
 * Collector defaults to the current session member (demo: `কর্মী ০১`).

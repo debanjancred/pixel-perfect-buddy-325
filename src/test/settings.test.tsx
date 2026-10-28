@@ -100,7 +100,7 @@ describe("ledger exports", () => {
       "Paid to",
       "Authorised by",
       "Status",
-      "Void reason",
+      "Cancellation reason",
     ]);
     const dates = rows.slice(1).map((r) => r[0] as string);
     expect(dates).toEqual([...dates].sort());
