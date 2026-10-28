@@ -21,14 +21,14 @@ Updated 2026-10-28 (v0.11.0). **UAT** = released and live on staging, waiting fo
 check; it moves to **Done** when accepted.
 
 ### To do
-- Production: push all pending migrations, add the owner to `ops.staff`
-- Production dashboard: phone auth settings and rate limits
-- Lovable: Supabase environment variables, then publish (only on the owner's word)
-- Real-device checklist (`docs/QA-CHECKLIST.md`)
+- Owner: run the UAT checklist (`docs/UAT-v0.11.0.md`) on staging
+- Go-live (one planned step, on the owner's word): push all pending migrations to
+  production, add the owner to `ops.staff`, production phone auth and rate limits, Lovable
+  environment variables + publish, real-device checklist
 - At go-live: Supabase Pro plan and backups
 
 ### In progress
-- Nothing right now — next: production push
+- UAT checklist for v0.11.0 written (`docs/UAT-v0.11.0.md`); waiting for the owner's run
 
 ### UAT
 - Promises: record now, pay later, part payments
