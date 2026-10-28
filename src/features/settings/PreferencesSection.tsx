@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Globe, Hash, Moon } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { LangToggle } from "@/components/pk/ui";
+import { LangToggle, Switch } from "@/components/pk/ui";
 
 /** Language, Bengali numerals and dark mode — all persisted inside i18n.tsx. */
 export function PreferencesSection() {
@@ -33,26 +33,5 @@ function Row({ icon, label, children }: { icon: ReactNode; label: string; childr
       <span className="flex-1 font-semibold">{label}</span>
       {children}
     </div>
-  );
-}
-
-function Switch({ label, on, set }: { label: string; on: boolean; set: (b: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={() => set(!on)}
-      className="tap flex items-center justify-center"
-    >
-      <span
-        className={`relative h-8 w-14 rounded-full transition ${on ? "bg-primary" : "bg-input"}`}
-      >
-        <span
-          className={`absolute top-1 h-6 w-6 rounded-full bg-card shadow transition-all ${on ? "left-7" : "left-1"}`}
-        />
-      </span>
-    </button>
   );
 }

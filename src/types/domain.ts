@@ -132,6 +132,32 @@ export interface AccountsSummary {
   pending_sync_count: number;
 }
 
+/** What a help request is about (Settings → Help). */
+export type SupportCategory = "login" | "sync" | "device" | "entry" | "other";
+
+/** Device details a member may attach to a help request; never entry contents. */
+export interface SupportDiagnostics {
+  app_version: string;
+  online: boolean;
+  pending: number; // entries waiting to sync
+  failed: number; // entries the server refused
+  device_id?: string;
+}
+
+/** A member's help request (cloud mode). Saved on the phone first, sent on the next sync. */
+export interface SupportTicket {
+  id: string;
+  club_id: string;
+  category: SupportCategory;
+  message: string;
+  diagnostics: SupportDiagnostics | null;
+  status: "open" | "closed";
+  staff_note?: string | null;
+  created_at: IsoDateTime;
+  closed_at?: IsoDateTime | null;
+  sync_status: SyncStatus;
+}
+
 /** A device a person is signed in on (cloud mode); at most 3, one of them collects chanda. */
 export interface UserDevice {
   id: string;

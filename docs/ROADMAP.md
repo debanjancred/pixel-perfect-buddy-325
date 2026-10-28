@@ -21,7 +21,6 @@ Updated 2026-10-28. **UAT** = merged into `main` and live on staging, waiting fo
 check; it moves to **Done** when accepted and released.
 
 ### To do
-- M13: Settings → Help form with `support_tickets`
 - Release v0.11.0 (version bump, changelog date, tag)
 - Production: push all pending migrations, add the owner to `ops.staff`
 - Production dashboard: phone auth settings and rate limits
@@ -30,8 +29,8 @@ check; it moves to **Done** when accepted and released.
 - At go-live: Supabase Pro plan and backups
 
 ### In progress
-- M13: usage figures (`ops.usage_totals`, `ops.usage_daily`, `ops_usage`) — live on
-  staging, PR open (moves to UAT when merged)
+- M13: Settings → Help with `support_tickets` (form, offline queue, "Your requests";
+  `ops_tickets`, `ops_close_ticket`) — PR open, staging apply pending
 
 ### UAT
 - Promises: record now, pay later, part payments
@@ -46,6 +45,7 @@ check; it moves to **Done** when accepted and released.
   verification, by decision)
 - Support functions: `ops_find_club`, `ops_find_person`, `ops_club_health`,
   `ops_reset_collect_device`, `ops_remove_device`, `ops_club_entries`
+- Usage figures: `ops.usage_totals`, `ops.usage_daily`, `ops_usage`
 
 ### Done
 - v0.10.0 and earlier: M0–M12 (see the table below)

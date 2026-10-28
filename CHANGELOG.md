@@ -7,6 +7,13 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- Settings → Help (সাহায্য): members report a problem — what it's about (login, sync, lost or
+  new phone, wrong entry, other), what happened, and device details unless switched off (app
+  version, online or not, entries waiting or failed; never entry contents). Works offline: the
+  request is saved on the phone and sent with the next sync. "Your requests" shows each one as
+  waiting to send, not sent, open or closed, with the reply. Staff list and close requests
+  with `ops_tickets` and `ops_close_ticket` (logged); device details are cleared after 90
+  days. Apply `20261028000006_support_tickets.sql`.
 - Usage figures (ADR 0002 §2): `ops.usage_totals` (people, clubs, roles, households, active
   clubs and devices, entries, amount collected) and `ops.usage_daily` (sign-ups, new clubs,
   members and devices, entries, amount, active clubs per day, India time), read by staff
@@ -51,6 +58,7 @@ All notable changes to Pujo Khata. Format follows
   themselves.
 
 ### Changed
+- The on/off switch from Preferences is now a shared UI primitive (`Switch`), also used by Help.
 - "Waiting to sync" moved out of the header's online/offline line into the status strip
   under the header: offline it is added to the offline notice; online it shows "sending…"
   during a sync, or the count with a "Sync now" button. Failed entries still take priority.

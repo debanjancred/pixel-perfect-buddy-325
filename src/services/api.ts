@@ -40,6 +40,7 @@ import {
   eventSchema,
   expenseSchema,
   handoverSchema,
+  helpSchema,
   householdSchema,
   memberSchema,
   otpSchema,
@@ -54,6 +55,7 @@ import {
   type EventInput,
   type ExpenseInput,
   type HandoverInput,
+  type HelpInput,
   type HouseholdInput,
   type MemberInput,
 } from "@/lib/validation";
@@ -66,9 +68,13 @@ import type {
   ClubMember,
   ExpenseRecord,
   Household,
+  SupportDiagnostics,
+  SupportTicket,
   UserDevice,
   UserRole,
 } from "@/types/domain";
+import { APP_VERSION } from "@/lib/version";
+import { fetchMyTickets } from "./cloud/help";
 
 /** A record that didn't sync, for the "why" list under the sync banner. */
 export interface SyncFailure {
@@ -95,6 +101,8 @@ export interface Store {
   pull_cursors?: Record<string, string>;
   /** Why each failed record was refused, by record id (shown from the sync banner). */
   sync_errors?: Record<string, ErrKey>;
+  /** Settings → Help requests (cloud mode), sent like ledger rows. */
+  help_requests?: SupportTicket[];
 }
 
 const KEY = "pk_db_v2";
@@ -160,6 +168,19 @@ function currentMember(db: Store): ClubMember | null {
 function deviceRuleApplies(db: Store) {
   return isCloud() && session.get()?.mode === "user" && activeClub(db)?.slug !== DEMO_SLUG;
 }
+/** Help requests need a phone login in cloud mode, outside the sample club. */
+const helpApplies = deviceRuleApplies;
+
+/** What "include device details" attaches to a help request: counts, never entry contents. */
+function helpDiagnostics(db: Store): SupportDiagnostics {
+  return {
+    app_version: APP_VERSION,
+    online: isOnline(),
+    ...syncCounts(db),
+    device_id: device.id(),
+  };
+}
+
 const thisDeviceLabel = () =>
   deviceLabel(typeof navigator === "undefined" ? "" : navigator.userAgent);
 
@@ -388,6 +409,23 @@ function outboxRecord(db: Store, op: OutboxOp): SyncRecord | null {
   }
 }
 
+/** Records waiting to sync, and records whose last push failed, in the active club. */
+function syncCounts(db: Store): { pending: number; failed: number } {
+  const rows = [
+    ...mine(db, db.chanda),
+    ...mine(db, db.expenses),
+    ...mine(db, db.handovers),
+    ...mine(db, db.help_requests ?? []),
+  ];
+  const ops = (db.outbox ?? []).filter((o) => outboxClub(db, o) === db.active_club_id);
+  return {
+    pending:
+      rows.filter((r) => r.sync_status === "pending").length + ops.filter((o) => !o.failed).length,
+    failed:
+      rows.filter((r) => r.sync_status === "failed").length + ops.filter((o) => o.failed).length,
+  };
+}
+
 /** Outbox items plus unsent ledger rows, in dependency order (clubs before members …). */
 function syncQueue(db: Store): SyncRecord[] {
   const unsent = <T extends { sync_status: string }>(list: T[]) =>
@@ -397,6 +435,7 @@ function syncQueue(db: Store): SyncRecord[] {
     ...unsent(db.chanda).map((record) => ({ kind: "chanda" as const, record })),
     ...unsent(db.expenses).map((record) => ({ kind: "expense" as const, record })),
     ...unsent(db.handovers).map((record) => ({ kind: "handover" as const, record })),
+    ...unsent(db.help_requests ?? []).map((record) => ({ kind: "ticket" as const, record })),
   ];
   return items.sort((a, b) => SYNC_ORDER.indexOf(a.kind) - SYNC_ORDER.indexOf(b.kind));
 }
@@ -462,7 +501,9 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
   // alone any row whose status moved on meanwhile (e.g. voided again, so pending once more).
   const fresh = read();
   const rows = new Map<string, { sync_status: string }>(
-    [...fresh.chanda, ...fresh.expenses, ...fresh.handovers].map((r) => [r.id, r]),
+    [...fresh.chanda, ...fresh.expenses, ...fresh.handovers, ...(fresh.help_requests ?? [])].map(
+      (r) => [r.id, r],
+    ),
   );
   const byId = new Map(results.map((r) => [r.id, r]));
   const errors = { ...fresh.sync_errors };
@@ -936,16 +977,7 @@ export const api = {
   /** Counts for the sync banner: records waiting, and records whose last push failed. */
   async getSyncStatus(): Promise<{ pending: number; failed: number }> {
     await delay();
-    const db = read();
-    const rows = [...mine(db, db.chanda), ...mine(db, db.expenses), ...mine(db, db.handovers)];
-    const ops = (db.outbox ?? []).filter((o) => outboxClub(db, o) === db.active_club_id);
-    return {
-      pending:
-        rows.filter((r) => r.sync_status === "pending").length +
-        ops.filter((o) => !o.failed).length,
-      failed:
-        rows.filter((r) => r.sync_status === "failed").length + ops.filter((o) => o.failed).length,
-    };
+    return syncCounts(read());
   },
   /** The active club's records that failed to sync: what each is, and the server's reason. */
   async listSyncFailures(): Promise<SyncFailure[]> {
@@ -986,6 +1018,8 @@ export const api = {
               ...base,
               title: db.events.find((e) => e.id === i.record.event_id)?.title_bn ?? "—",
             };
+          case "ticket":
+            return { ...base, title: i.record.message.slice(0, 40) };
         }
       });
   },
@@ -1063,6 +1097,47 @@ export const api = {
       is_collect: s?.is_collect ?? true,
       collect_label: s?.collect_label ?? null,
     };
+  },
+  // --- Settings → Help (ADR 0002 §7): saved on the phone, sent with the next sync ---
+  /** Whether this session can send help requests. */
+  helpAvailable: () => helpApplies(read()),
+  async submitHelpRequest(raw: HelpInput): Promise<SupportTicket> {
+    const input = parseOrThrow(helpSchema, raw);
+    const db = read();
+    if (!helpApplies(db) || !currentMember(db)) throw new ValidationError("help", "err_forbidden");
+    // The client id is the idempotency key: a double tap returns the first request.
+    const existing = db.help_requests?.find((t) => t.id === input.id);
+    if (existing) return existing;
+    const ticket: SupportTicket = {
+      id: input.id,
+      club_id: requireClub(db).id,
+      category: input.category,
+      message: input.message,
+      diagnostics: input.include_diagnostics ? helpDiagnostics(db) : null,
+      status: "open",
+      created_at: now(),
+      sync_status: "pending",
+    };
+    db.help_requests = [...(db.help_requests ?? []), ticket];
+    write(db);
+    return ticket;
+  },
+  /** This person's requests in the active club, with the server's status when online. */
+  async listHelpRequests(): Promise<SupportTicket[]> {
+    let db = read();
+    const clubId = db.active_club_id;
+    if (!helpApplies(db) || !clubId) return [];
+    const server = isOnline()
+      ? await fetchMyTickets(getCloudClient(), clubId).catch(() => null)
+      : null;
+    if (server) {
+      db = read();
+      const local = new Map((db.help_requests ?? []).map((t) => [t.id, t]));
+      for (const s of server) local.set(s.id, { ...local.get(s.id), ...s, sync_status: "synced" });
+      db.help_requests = [...local.values()];
+      write(db);
+    }
+    return newestFirst(mine(db, db.help_requests ?? []));
   },
   async listDevices(): Promise<(UserDevice & { this_device: boolean })[]> {
     const mineId = device.id();

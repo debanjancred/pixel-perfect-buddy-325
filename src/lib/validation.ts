@@ -145,6 +145,17 @@ export const memberSchema = z.object({
 });
 export type MemberInput = z.infer<typeof memberSchema>;
 
+/** Settings → Help: what it's about and what happened, in the member's words. */
+export const helpSchema = z.object({
+  id,
+  category: z.enum(["login", "sync", "device", "entry", "other"], {
+    errorMap: () => m("err_ticketCategory"),
+  }),
+  message: z.string().trim().min(10, m("err_ticketMessage")).max(1000, m("err_tooLong")),
+  include_diagnostics: z.boolean(),
+});
+export type HelpInput = z.infer<typeof helpSchema>;
+
 export const voidReasonSchema = z
   .string()
   .trim()

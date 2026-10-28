@@ -148,6 +148,18 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
         if (error) throw error;
         return;
       }
+      case "ticket": {
+        const t = item.record;
+        const { error } = await client.rpc("submit_support_ticket", {
+          p_id: t.id,
+          p_club: t.club_id,
+          p_category: t.category,
+          p_message: t.message,
+          p_diagnostics: t.diagnostics,
+        });
+        if (error) throw error;
+        return;
+      }
     }
   };
 

@@ -15,6 +15,8 @@ export const queryKeys = {
   // Under "summary" so every mutation that refreshes the summary refreshes this too.
   accounts: (slug: string) => ["summary", "accounts", slug],
   syncStatus: ["summary", "sync"],
+  // Under "summary" so a sync that sends a request refreshes its status.
+  helpRequests: ["summary", "help"],
   members: ["members"],
   me: ["members", "me"],
   households: ["households"],
@@ -362,6 +364,29 @@ export function useInvalidateAll() {
 
 // Session storage lives in the service layer; re-exported for existing imports.
 export { session } from "@/services/session";
+
+// --- Settings → Help (cloud mode): saved on the phone, sent with the next sync ---
+
+/** Whether this session can send help requests (a phone login in cloud mode). */
+export const useHelpAvailable = () =>
+  useQuery({ queryKey: ["help", "available"], queryFn: async () => api.helpAvailable() });
+
+/** This person's help requests in the active club (server status when online). */
+export const useHelpRequests = (enabled: boolean) =>
+  useQuery({ queryKey: queryKeys.helpRequests, queryFn: api.listHelpRequests, enabled });
+
+/** Saves a help request, then sends it straight away when online; returns it as it now is. */
+export function useSubmitHelpRequest() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (input: Parameters<typeof api.submitHelpRequest>[0]) => {
+      const ticket = await api.submitHelpRequest(input);
+      await syncIfOnline().catch(() => undefined);
+      return (await api.listHelpRequests()).find((t) => t.id === ticket.id) ?? ticket;
+    },
+    onSuccess: () => invalidate(queryKeys.summary),
+  });
+}
 
 // --- Devices (cloud mode): up to 3 per person, chanda collected on one of them ---
 
