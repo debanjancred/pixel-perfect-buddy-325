@@ -190,3 +190,17 @@ select ops_club_health('<club id>');                    -- totals, activity, dev
   and app version; `select * from client_events where record_id = '<id>';` follows one entry.
 - **Missing receipt / who collected:** reading entries needs a reason (5+ characters):
   `select ops_club_entries('<club id>', 'Ticket 14: missing receipt', 50);`
+
+## Usage figures
+Totals and counts only — no names, phone numbers or per-club rows (ADR 0002 §2). Days are
+India time. *Active club* = recorded a chanda, expense or handover in the period; *active
+device* = opened online in the last 7 days and not removed.
+```sql
+select ops_usage(30);                                        -- totals + last 30 days (logged)
+select * from ops.usage_totals;                              -- headline numbers
+select * from ops.usage_daily order by day desc limit 14;    -- per day
+```
+`usage_totals`: people, clubs, admins / treasurers / collectors, households, active clubs (7
+and 30 days), active devices (7 days), chanda / voided / expense / handover entries, amount
+collected (voided left out). `usage_daily`: sign-ups, new clubs / members / devices, chanda
+and expense entries, amount collected, active clubs.
