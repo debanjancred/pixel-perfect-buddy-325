@@ -1,47 +1,81 @@
 import { useI18n } from "@/lib/i18n";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, categoryInfo, type CategoryKey } from "@/lib/categories";
 import { isoDate } from "@/lib/format";
 import { FieldError, Label, Modal, Spinner, TextField } from "@/components/pk/ui";
-import type { ExpenseCategory, ExpenseRecord } from "@/types/domain";
+import type { ExpenseRecord } from "@/types/domain";
 import { useExpenseForm } from "./use-expense-form";
 import { VoucherPicker } from "./VoucherPicker";
 
-/** Add-expense sheet (Story 3.1). All state and rules live in `useExpenseForm`. */
+/**
+ * Add-expense sheet (Story 3.1), also used to correct an expense before the lock
+ * (`editing`: fields pre-filled; the photo stays as it is). All state and rules live in
+ * `useExpenseForm`.
+ */
 export function ExpenseForm({
   category,
+  editing,
   onClose,
   onSaved,
 }: {
-  category: ExpenseCategory;
+  category: CategoryKey;
+  editing?: ExpenseRecord | undefined;
   onClose: () => void;
   onSaved: (e: ExpenseRecord) => void;
 }) {
   const { t } = useI18n();
-  const form = useExpenseForm({ category, onSaved });
+  const form = useExpenseForm({ category, editing, onSaved });
   const { values, set, error } = form;
+  const chips: CategoryKey[] = [...CATEGORIES.map((c) => c.key), ...form.customKeys];
 
   return (
-    <Modal open onClose={onClose} title={t("addExpense")}>
+    <Modal open onClose={onClose} title={t(editing ? "editExpense" : "addExpense")}>
       <form className="space-y-4" onSubmit={form.submit} noValidate>
         <fieldset>
           <legend className="mb-2 block text-sm font-semibold text-muted-foreground">
             {t("category")}
           </legend>
           <div className="grid grid-cols-3 gap-2">
-            {CATEGORIES.map((c) => (
-              <button
-                type="button"
-                key={c.key}
-                className="chip px-2 text-sm"
-                data-active={values.category === c.key}
-                aria-pressed={values.category === c.key}
-                onClick={() => set("category", c.key)}
-              >
-                {c.emoji} {t(c.t)}
-              </button>
-            ))}
+            {chips.map((k) => {
+              const info = categoryInfo(k, t);
+              const active = !values.other && values.category === k;
+              return (
+                <button
+                  type="button"
+                  key={k}
+                  className="chip min-w-0 px-2 text-sm"
+                  data-active={active}
+                  aria-pressed={active}
+                  onClick={() => form.pick(k)}
+                >
+                  <span className="truncate">
+                    {info.emoji} {info.label}
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              className="chip px-2 text-sm"
+              data-active={values.other}
+              aria-pressed={values.other}
+              onClick={() => form.pick("other")}
+            >
+              {t("catOther")}
+            </button>
           </div>
         </fieldset>
+        {values.other && (
+          <TextField
+            id="expense-category_name"
+            label={t("categoryNameLabel")}
+            placeholder={t("categoryNameHint")}
+            maxLength={40}
+            autoFocus
+            value={values.otherName}
+            error={error("category_name")}
+            onChange={(e) => set("otherName", e.target.value)}
+          />
+        )}
         <TextField
           id="expense-title"
           label={t("itemName")}
@@ -97,7 +131,14 @@ export function ExpenseForm({
           </select>
           <FieldError id="expense-authorized_by_id-error" error={error("authorized_by_id")} />
         </div>
-        <VoucherPicker value={form.voucher} onChange={form.setVoucher} error={form.voucherError} />
+        {!editing && (
+          <VoucherPicker
+            value={form.voucher}
+            onChange={form.setVoucher}
+            error={form.voucherError}
+          />
+        )}
+        <FieldError id="expense-form-error" error={form.formError} />
         <button
           type="submit"
           className="btn btn-primary w-full text-lg"

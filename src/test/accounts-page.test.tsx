@@ -28,10 +28,10 @@ describe("categoryShares", () => {
       exp("bhog", 1),
       exp("misc", 50, true),
     ]);
-    expect(shares.map((s) => s.category).sort()).toEqual(["bhog", "idol", "pandal"]);
+    expect(shares.map((s) => s.key).sort()).toEqual(["bhog", "idol", "pandal"]);
     expect(shares.reduce((s, x) => s + x.pct, 0)).toBe(100); // 33.3 × 3 → 34/33/33
     const big = categoryShares([exp("pandal", 700), exp("idol", 300)]);
-    expect(big.map((s) => [s.category, s.pct])).toEqual([
+    expect(big.map((s) => [s.key, s.pct])).toEqual([
       ["pandal", 70],
       ["idol", 30],
     ]);

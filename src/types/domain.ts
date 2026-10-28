@@ -75,6 +75,8 @@ export interface ExpenseRecord {
   id: string;
   club_id: string;
   category: ExpenseCategory;
+  /** The club's own category name, as typed (category is then "misc"). */
+  category_name?: string | null;
   title: string; // as entered
   amount: number; // integer rupees, >= 1
   paid_to: string; // as entered
@@ -87,6 +89,11 @@ export interface ExpenseRecord {
   void_reason?: string;
   // Cloud mode only: the server's flag that it came from a removed device (accepted, for review).
   off_device?: boolean;
+  /** Who wrote it (ClubMember.id); a handover involving them locks it from editing. */
+  recorded_by_id?: string | null;
+  /** Set when a treasurer/admin corrected it (before the lock). */
+  edited_at?: IsoDateTime | null;
+  edited_by_id?: string | null;
   sync_status: SyncStatus;
 }
 

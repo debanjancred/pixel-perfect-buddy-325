@@ -1,11 +1,12 @@
 // Accounts overview logic (SPEC Story 4.1, Section 6). Pure: category shares and the
 // share-summary text, on top of the Section 6 summary computed in lib/accounts.
 import type { I18n } from "@/lib/i18n";
-import type { AccountsSummary, Club, ExpenseCategory, ExpenseRecord } from "@/types/domain";
-import { categoryMeta, expenseTotals } from "@/features/expenses";
+import type { AccountsSummary, Club, ExpenseRecord } from "@/types/domain";
+import { categoryColor, type CategoryKey } from "@/lib/categories";
+import { expenseTotals } from "@/features/expenses";
 
 export interface CategoryShare {
-  category: ExpenseCategory;
+  key: CategoryKey;
   total: number;
   /** Whole percent; all shares add up to exactly 100. */
   pct: number;
@@ -21,9 +22,7 @@ export function categoryShares(expenses: ExpenseRecord[]): CategoryShare[] {
 }
 
 /** Same as categoryShares, from per-category totals (e.g. the server's public summary). */
-export function sharesFromTotals(
-  totals: { category: ExpenseCategory; total: number }[],
-): CategoryShare[] {
+export function sharesFromTotals(totals: { key: CategoryKey; total: number }[]): CategoryShare[] {
   const used = totals.filter((c) => c.total > 0);
   const total = used.reduce((s, c) => s + c.total, 0);
   if (!total) return [];
@@ -38,10 +37,10 @@ export function sharesFromTotals(
     });
   return used
     .map((c, i) => ({
-      category: c.category,
+      key: c.key,
       total: c.total,
       pct: pct[i]!,
-      color: categoryMeta(c.category).color,
+      color: categoryColor(c.key),
     }))
     .sort((a, b) => b.total - a.total);
 }

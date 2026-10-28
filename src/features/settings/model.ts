@@ -1,7 +1,7 @@
 // Settings logic (SPEC Story 6.2 + Sprint 3 CSV export). Pure and unit-tested.
 import type { I18n } from "@/lib/i18n";
 import type { Cell } from "@/lib/csv";
-import { categoryMeta } from "@/features/expenses";
+import { categoryInfo, categoryKeyOf } from "@/lib/categories";
 import type {
   ChandaTransaction,
   ClubMember,
@@ -99,7 +99,7 @@ export function expensesCsv(expenses: ExpenseRecord[], members: ClubMember[], f:
     .sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at))
     .map((e) => [
       e.date,
-      f.t(categoryMeta(e.category).t),
+      categoryInfo(categoryKeyOf(e), f.t).label,
       e.title,
       e.amount,
       e.paid_to,

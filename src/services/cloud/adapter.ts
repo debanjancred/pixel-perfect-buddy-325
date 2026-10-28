@@ -137,6 +137,19 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
           }
         }
         await insertOnce(TABLE.expense, { ...row(e), voucher_image_id: voucher ?? null });
+        // A correction made before the lock: a separate update (the server refuses edits
+        // and voids together, and refuses edits after a handover: err_expenseLocked).
+        if (e.edited_at)
+          await updateOne(TABLE.expense, e.id, {
+            category: e.category,
+            category_name: e.category_name ?? null,
+            title: e.title,
+            amount: e.amount,
+            paid_to: e.paid_to,
+            date: e.date,
+            authorized_by_id: e.authorized_by_id,
+            edited_at: e.edited_at,
+          });
         await voidIfNeeded(TABLE.expense, e);
         return;
       }

@@ -57,7 +57,7 @@ describe("expense ledger model", () => {
     const t = expenseTotals(rows);
     expect(t.total).toBe(7500);
     expect(t.count).toBe(2);
-    expect(t.byCategory.map((c) => c.category)).toEqual([
+    expect(t.byCategory.map((c) => c.key)).toEqual([
       "pandal",
       "idol",
       "lighting",
@@ -65,8 +65,8 @@ describe("expense ledger model", () => {
       "cultural",
       "misc",
     ]);
-    expect(t.byCategory[0]).toEqual({ category: "pandal", total: 5000, count: 1 });
-    expect(t.byCategory[3]).toEqual({ category: "bhog", total: 2500, count: 1 });
+    expect(t.byCategory[0]).toEqual({ key: "pandal", total: 5000, count: 1 });
+    expect(t.byCategory[3]).toEqual({ key: "bhog", total: 2500, count: 1 });
   });
 
   it("filters by category but keeps voided rows visible", () => {

@@ -2,7 +2,7 @@ import { useI18n } from "@/lib/i18n";
 import { SyncBadge } from "@/components/pk/ui";
 import type { ExpenseRecord } from "@/types/domain";
 import { isVoid } from "@/lib/accounts";
-import { categoryMeta } from "./model";
+import { categoryInfo, categoryKeyOf } from "@/lib/categories";
 import { VoucherThumb } from "./Voucher";
 
 export function ExpenseList({
@@ -26,7 +26,7 @@ export function ExpenseList({
 /** One ledger row, kept to the essentials; the whole row opens the details (Story 3.2). */
 function ExpenseRow({ expense: e, onOpen }: { expense: ExpenseRecord; onOpen: () => void }) {
   const { t, money, date } = useI18n();
-  const meta = categoryMeta(e.category);
+  const info = categoryInfo(categoryKeyOf(e), t);
   const voided = isVoid(e);
   return (
     <button
@@ -40,7 +40,7 @@ function ExpenseRow({ expense: e, onOpen }: { expense: ExpenseRecord; onOpen: ()
           {e.title}
         </span>
         <span className="mt-0.5 block text-xs text-muted-foreground">
-          {meta.emoji} {t(meta.t)} · {e.paid_to}
+          {info.emoji} {info.label} · {e.paid_to}
         </span>
         <span className="mt-1 flex flex-wrap items-center gap-1.5">
           <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">

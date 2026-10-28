@@ -6,6 +6,20 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Added
+- Expenses (UAT): **Edit** in an expense's details for treasurers and admins, using the same
+  form pre-filled (the photo stays as it is). An expense can be corrected until the next cash
+  handover involving the member who recorded it; after that it shows a lock note and can only
+  be cancelled. Edits show as "Edited · date · name". The server enforces the same rule
+  (`err_expenseLocked`) and records who recorded and who edited.
+- Own expense categories: **+ Other** in the category picker opens a name field. Each name
+  becomes a category of its own — chip, subtotal, chart slice, export — stored as Misc plus the
+  name so the six built-in categories and their colours stay fixed. A name typed again in
+  different case reuses the existing one.
+- Expense search by item, paid to or date (stored or as shown, Bengali digits included), and
+  **Load more** after the first 10 expenses (shared `LoadMore` + `usePaged`).
+- Apply `20261028000007_expense_edit_categories.sql`.
+
 ## [0.11.0] - 2026-10-28
 
 ### Added
