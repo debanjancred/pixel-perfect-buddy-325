@@ -29,5 +29,6 @@ run() { psql -d "$DB" -v ON_ERROR_STOP=1 -q "$@"; }
 run < tests/00_supabase_stub.sql
 for f in migrations/*.sql; do echo "→ $f"; run < "$f"; done
 # Show passes and anything that went wrong; ON_ERROR_STOP makes psql exit non-zero on failure.
-run < tests/01_access.test.sql 2>&1 | grep -E "NOTICE|ERROR|FAILED|DETAIL|CONTEXT" | sed 's/^psql:[^ ]* *//; s/NOTICE:  //'
-exit "${PIPESTATUS[0]}"
+# The test files share one session, in order (later files use 01's test.* helpers).
+cat tests/[0-9]*.test.sql | run 2>&1 | grep -E "NOTICE|ERROR|FAILED|DETAIL|CONTEXT" | sed 's/^psql:[^ ]* *//; s/NOTICE:  //'
+exit "${PIPESTATUS[1]}"

@@ -7,6 +7,12 @@ All notable changes to Pujo Khata. Format follows
 ## [Unreleased]
 
 ### Added
+- Sync failure reports (`client_events`, ADR 0002 §2): when the server refuses a record, the
+  phone reports why on its next sync — the error key, the kind of record and its id, club,
+  member, device and app version, never names, phones or amounts. Network failures, the
+  sample club and repeats of the same failure are not reported; each device stores at most 50
+  a day, and nobody can read the reports through the API. Apply
+  `20261028000001_client_events.sql`.
 - App control (`app_config`, ADR 0002 §3): one owner-edited row the app reads in the
   background on every open (never waiting; the last copy is kept on the phone). Maintenance
   pauses syncing with the owner's message while recording on the phone carries on; an app
