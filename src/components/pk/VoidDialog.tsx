@@ -1,20 +1,32 @@
 import { useState, type FormEvent } from "react";
-import { useI18n } from "@/lib/i18n";
+import { toast } from "sonner";
+import type { ZodType } from "zod";
+import { useI18n, type TKey } from "@/lib/i18n";
+import { usePermission } from "@/hooks/use-data";
 import { ValidationError, check, voidReasonSchema, type ErrKey } from "@/lib/validation";
 import { FieldError, Label, Modal, Spinner } from "./ui";
 
 /**
- * SPEC Story 2.3: voiding needs a reason and never deletes — the entry stays in the
- * ledger struck through and stops counting. Used for chanda, expenses and handovers.
+ * A short form that asks for a reason before an action: voiding, rejecting an entry,
+ * declining a void request. Server refusals (ValidationError) show under the field.
  */
-export function VoidDialog({
+export function ReasonDialog({
   summary,
-  onVoid,
+  title,
+  hint,
+  label,
+  submit: submitLabel,
+  schema,
+  onSubmit,
   onClose,
 }: {
-  /** What is being voided, e.g. "PK-2026-C01-0003 · ₹১,০০১". */
   summary: string;
-  onVoid: (reason: string) => Promise<unknown>;
+  title: TKey;
+  hint: TKey;
+  label: TKey;
+  submit: TKey;
+  schema: ZodType<string>;
+  onSubmit: (reason: string) => Promise<unknown>;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -22,15 +34,15 @@ export function VoidDialog({
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [serverErr, setServerErr] = useState<ErrKey | null>(null);
-  const error = (submitted ? check(voidReasonSchema, reason) : null) ?? serverErr;
+  const error = (submitted ? check(schema, reason) : null) ?? serverErr;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
-    if (check(voidReasonSchema, reason)) return document.getElementById("void-reason")?.focus();
+    if (check(schema, reason)) return document.getElementById("void-reason")?.focus();
     setBusy(true);
     try {
-      await onVoid(reason.trim());
+      await onSubmit(reason.trim());
       onClose();
     } catch (ex) {
       if (!(ex instanceof ValidationError)) throw ex;
@@ -41,12 +53,12 @@ export function VoidDialog({
   };
 
   return (
-    <Modal open onClose={onClose} title={t("voidTitle")}>
+    <Modal open onClose={onClose} title={t(title)}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <p className="rounded-xl bg-muted p-3 font-mono text-sm font-bold">{summary}</p>
-        <p className="text-sm text-muted-foreground">{t("voidHint")}</p>
+        <p className="text-sm text-muted-foreground">{t(hint)}</p>
         <div>
-          <Label htmlFor="void-reason">{t("voidReasonLabel")}</Label>
+          <Label htmlFor="void-reason">{t(label)}</Label>
           <textarea
             id="void-reason"
             className="field min-h-24 py-3"
@@ -67,10 +79,45 @@ export function VoidDialog({
           </button>
           <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
             {busy && <Spinner />}
-            {t("void")}
+            {t(submitLabel)}
           </button>
         </div>
       </form>
     </Modal>
+  );
+}
+
+/**
+ * SPEC Story 2.3: voiding needs a reason and never deletes — the entry stays in the
+ * ledger struck through and stops counting. Used for chanda, expenses and handovers.
+ * Only an admin voids; for anyone else this sends a request the admin decides (ADR 0003).
+ */
+export function VoidDialog({
+  summary,
+  onVoid,
+  onClose,
+}: {
+  /** What is being voided, e.g. "PK-2026-C01-0003 · ₹১,০০১". */
+  summary: string;
+  /** Returns the entry as saved: voided at once, or with a void request on it. */
+  onVoid: (reason: string) => Promise<{ voided_at?: string | null }>;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const admin = usePermission("entry.approve");
+  return (
+    <ReasonDialog
+      summary={summary}
+      title={admin ? "voidTitle" : "voidRequestTitle"}
+      hint={admin ? "voidHint" : "voidRequestHint"}
+      label="voidReasonLabel"
+      submit={admin ? "void" : "sendRequest"}
+      schema={voidReasonSchema}
+      onClose={onClose}
+      onSubmit={async (reason) => {
+        const rec = await onVoid(reason);
+        toast.success(t(rec.voided_at ? "voided" : "voidRequestSent"));
+      }}
+    />
   );
 }

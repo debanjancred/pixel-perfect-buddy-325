@@ -1,7 +1,7 @@
 // Service repository — the only module that touches localStorage or IndexedDB.
 // Every method is async with a short delay so it can be swapped for the Laravel REST
 // client later without touching UI code. Inputs are validated here as well as in forms.
-import { cashByCollector, computeSummary } from "@/lib/accounts";
+import { approvalOf, cashByCollector, computeSummary, isVoid } from "@/lib/accounts";
 import { newId } from "@/lib/id";
 import { can, type Permission } from "@/lib/permissions";
 import { cachedAppConfig, currentAppStatus, refreshAppConfig } from "./app-config";
@@ -48,6 +48,7 @@ import {
   memberSchema,
   otpSchema,
   otpSchemaFor,
+  rejectReasonSchema,
   parseOrThrow,
   phoneSchema,
   sameName,
@@ -70,8 +71,10 @@ import type {
   Club,
   ClubEvent,
   ClubMember,
+  EntryReview,
   ExpenseRecord,
   Household,
+  PendingOp,
   SupportDiagnostics,
   SupportTicket,
   UserDevice,
@@ -295,6 +298,68 @@ function voidRecord<T extends { id: string; voided_at?: string; status?: string 
   return rec;
 }
 
+// --- Admin approval (ADR 0003). The server applies the same rules and stamps its own values. ---
+
+/** What a new entry starts with: an admin's is approved at once, anyone else's waits. */
+function approvalStamp(writer: ClubMember, at: string): EntryReview {
+  return can(writer, "entry.approve")
+    ? { approval_status: "approved", reviewed_by_id: writer.id, reviewed_at: at }
+    : { approval_status: "pending" };
+}
+
+/** Marks a change this device must send for an entry the server may already have. */
+function touch(rec: EntryReview & { updated_at?: string }, op: PendingOp, at: string) {
+  rec.pending_ops = [...new Set([...(rec.pending_ops ?? []), op])];
+  Object.assign(rec, { updated_at: at, sync_status: "pending" });
+}
+
+/** An admin's void takes effect; a treasurer's becomes a request the entry waits on. */
+function voidOrRequest<
+  T extends EntryReview & { id: string; voided_at?: string; status?: string; updated_at?: string },
+>(db: Store, list: T[], id: string, reason: string, field: string): T {
+  const me = authorize(db, "entry.void");
+  const found = list.find((x) => x.id === id);
+  if (found && approvalOf(found) === "rejected")
+    throw new ValidationError(field, "err_entryRejected");
+  if (can(me, "entry.approve")) return voidRecord(list, id, reason, field);
+  const void_request_reason = parseOrThrow(voidReasonSchema, reason);
+  if (!found) throw new ValidationError(field, "err_notFound");
+  if (found.voided_at) throw new ValidationError(field, "err_alreadyVoid");
+  if (found.void_requested_at) throw new ValidationError(field, "err_voidRequested");
+  const at = now();
+  Object.assign(found, {
+    void_requested_at: at,
+    void_requested_by_id: me.id,
+    void_request_reason,
+    void_declined_at: null,
+    void_declined_reason: null,
+  });
+  touch(found, "void_request", at);
+  return found;
+}
+
+export type ApprovalKind = "chanda" | "expense" | "handover";
+export type EntryRef = { kind: ApprovalKind; id: string };
+
+/** One thing waiting for the admin: an entry to review, or a request to void one. */
+export type ApprovalItem = { action: "entry" | "void" } & (
+  | { kind: "chanda"; record: ChandaTransaction }
+  | { kind: "expense"; record: ExpenseRecord }
+  | { kind: "handover"; record: CashHandover }
+);
+
+function approvalEntry(db: Store, { kind, id }: EntryRef) {
+  const list: (EntryReview & { id: string; voided_at?: string; status?: string })[] =
+    kind === "chanda"
+      ? mine(db, db.chanda)
+      : kind === "expense"
+        ? mine(db, db.expenses)
+        : mine(db, db.handovers);
+  const rec = list.find((x) => x.id === id);
+  if (!rec) throw new ValidationError(`${kind}_id`, "err_notFound");
+  return rec;
+}
+
 // Plain functions (no `this`) so methods can be passed around unbound.
 async function getClub(): Promise<Club | null> {
   await delay();
@@ -322,6 +387,7 @@ async function createChanda(raw: ChandaInput): Promise<ChandaTransaction> {
   const at = now();
   const tx: ChandaTransaction = {
     ...input,
+    ...approvalStamp(writer, at),
     // A promise is not money received: no receipt, no number.
     receipt_no: input.status === "promised" ? null : nextReceiptNo(db, club, writer.collector_code),
     ...(devices && { device_id: device.id() }),
@@ -353,6 +419,7 @@ async function createExpense(raw: ExpenseInput): Promise<ExpenseRecord> {
     ...rest,
     ...ownCategory(input.category, input.category_name),
     ...(voucher_image_id ? { voucher_image_id } : {}),
+    ...approvalStamp(writer, at),
     recorded_by_id: writer.id,
     club_id: club.id,
     created_at: at,
@@ -382,6 +449,7 @@ async function updateExpense(id: string, raw: ExpenseEditInput): Promise<Expense
   const editor = authorize(db, "expense.add");
   const rec = mine(db, db.expenses).find((e) => e.id === id);
   if (!rec) throw new ValidationError("expense_id", "err_notFound");
+  if (approvalOf(rec) === "rejected") throw new ValidationError("expense_id", "err_entryRejected");
   if (expenseLocked(rec, mine(db, db.handovers)))
     throw new ValidationError("expense_id", "err_expenseLocked");
   const by = mine(db, db.members).find((m) => m.id === input.authorized_by_id);
@@ -393,9 +461,12 @@ async function updateExpense(id: string, raw: ExpenseEditInput): Promise<Expense
     ...ownCategory(input.category, input.category_name),
     edited_at: at,
     edited_by_id: editor.id,
-    updated_at: at,
-    sync_status: "pending",
+    // A treasurer's correction waits for the admin again; an admin's counts as approved.
+    reviewed_by_id: null,
+    reviewed_at: null,
+    ...approvalStamp(editor, at),
   });
+  touch(rec, "edit", at);
   write(db);
   return rec;
 }
@@ -550,7 +621,7 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
   // The store may have changed during the push: record outcomes on a fresh copy, and leave
   // alone any row whose status moved on meanwhile (e.g. voided again, so pending once more).
   const fresh = read();
-  const rows = new Map<string, { sync_status: string }>(
+  const rows = new Map<string, { sync_status: string; pending_ops?: PendingOp[] }>(
     [...fresh.chanda, ...fresh.expenses, ...fresh.handovers, ...(fresh.help_requests ?? [])].map(
       (r) => [r.id, r],
     ),
@@ -580,8 +651,16 @@ async function pushQueue(): Promise<{ synced: number; failed: number }> {
     else failed++;
     if (!("sync_status" in item.record)) continue;
     const row = rows.get(item.record.id);
-    if (row && row.sync_status === item.record.sync_status)
+    // A change made while this push ran has its own op: leave the row for the next push.
+    const sentOps = (item.record as EntryReview).pending_ops ?? [];
+    if (
+      row &&
+      row.sync_status === item.record.sync_status &&
+      (row.pending_ops ?? []).every((op) => sentOps.includes(op))
+    ) {
       row.sync_status = success ? "synced" : "failed";
+      if (success) delete row.pending_ops;
+    }
   }
   fresh.outbox = (fresh.outbox ?? [])
     .filter((o) => ok.get(o.id) !== true)
@@ -810,9 +889,8 @@ export const api = {
   async voidChanda(id: string, reason: string): Promise<ChandaTransaction> {
     await delay();
     const db = read();
-    authorize(db, "entry.void");
-    const rec = voidRecord(mine(db, db.chanda), id, reason, "chanda_id");
-    rec.status = "void";
+    const rec = voidOrRequest(db, mine(db, db.chanda), id, reason, "chanda_id");
+    if (rec.voided_at) rec.status = "void";
     write(db);
     return rec;
   },
@@ -832,8 +910,7 @@ export const api = {
   async voidExpense(id: string, reason: string): Promise<ExpenseRecord> {
     await delay();
     const db = read();
-    authorize(db, "entry.void");
-    const rec = voidRecord(mine(db, db.expenses), id, reason, "expense_id");
+    const rec = voidOrRequest(db, mine(db, db.expenses), id, reason, "expense_id");
     write(db);
     return rec;
   },
@@ -963,11 +1040,13 @@ export const api = {
     );
     if (input.amount > (position?.outstanding ?? 0))
       throw new ValidationError("amount", "err_handoverTooMuch");
+    const at = now();
     const h: CashHandover = {
       ...input,
+      ...approvalStamp(receiver, at),
       club_id: club.id,
       received_by_id: receiver.id,
-      created_at: now(),
+      created_at: at,
       sync_status: "pending",
     };
     db.handovers.push(h);
@@ -977,10 +1056,103 @@ export const api = {
   async voidHandover(id: string, reason: string): Promise<CashHandover> {
     await delay();
     const db = read();
-    authorize(db, "entry.void");
-    const rec = voidRecord(mine(db, db.handovers), id, reason, "handover_id");
+    const rec = voidOrRequest(db, mine(db, db.handovers), id, reason, "handover_id");
     write(db);
     return rec;
+  },
+
+  // --- Admin approval (ADR 0003) ---
+  /** What waits for the admin, oldest first. A void request comes before reviewing its entry. */
+  async listApprovals(): Promise<ApprovalItem[]> {
+    await delay();
+    const db = read();
+    const action = (r: EntryReview & { status?: string; voided_at?: string }) =>
+      isVoid(r) || approvalOf(r) === "rejected"
+        ? null
+        : r.void_requested_at
+          ? ("void" as const)
+          : approvalOf(r) === "pending"
+            ? ("entry" as const)
+            : null;
+    const items: ApprovalItem[] = [];
+    for (const record of mine(db, db.chanda)) {
+      const a = action(record);
+      if (a) items.push({ action: a, kind: "chanda", record });
+    }
+    for (const record of mine(db, db.expenses)) {
+      const a = action(record);
+      if (a) items.push({ action: a, kind: "expense", record });
+    }
+    for (const record of mine(db, db.handovers)) {
+      const a = action(record);
+      if (a) items.push({ action: a, kind: "handover", record });
+    }
+    return items.sort((a, b) => a.record.created_at.localeCompare(b.record.created_at));
+  },
+  /**
+   * Approves or rejects entries together (bulk approve). All or nothing: one that can't be
+   * decided refuses the whole call. Repeating the same decision is harmless.
+   */
+  async reviewEntries(
+    refs: EntryRef[],
+    decision: "approved" | "rejected",
+    reason?: string,
+  ): Promise<void> {
+    await delay();
+    const db = read();
+    const admin = authorize(db, "entry.approve");
+    const rejection_reason =
+      decision === "rejected" ? parseOrThrow(rejectReasonSchema, reason ?? "") : null;
+    const at = now();
+    const todo = refs
+      .map((ref) => ({ ref, rec: approvalEntry(db, ref) }))
+      .filter(({ rec }) => approvalOf(rec) !== decision);
+    for (const { ref, rec } of todo) {
+      if (approvalOf(rec) !== "pending")
+        throw new ValidationError(`${ref.kind}_id`, "err_alreadyReviewed");
+      if (isVoid(rec)) throw new ValidationError(`${ref.kind}_id`, "err_alreadyVoid");
+    }
+    for (const { rec } of todo) {
+      Object.assign(rec, {
+        approval_status: decision,
+        rejection_reason,
+        reviewed_by_id: admin.id,
+        reviewed_at: at,
+      });
+      touch(rec, "review", at);
+    }
+    write(db);
+  },
+  /** Grants a void request: the entry is voided with the reason that was given. */
+  async approveVoid(ref: EntryRef): Promise<void> {
+    await delay();
+    const db = read();
+    authorize(db, "entry.approve");
+    const rec = approvalEntry(db, ref);
+    if (!rec.void_requested_at || !rec.void_request_reason)
+      throw new ValidationError(`${ref.kind}_id`, "err_notFound");
+    voidRecord([rec], rec.id, rec.void_request_reason, `${ref.kind}_id`);
+    if (ref.kind === "chanda") rec.status = "void";
+    write(db);
+  },
+  /** Refuses a void request, with a reason; the entry stays as it was. */
+  async declineVoid(ref: EntryRef, reason: string): Promise<void> {
+    await delay();
+    const db = read();
+    authorize(db, "entry.approve");
+    const void_declined_reason = parseOrThrow(rejectReasonSchema, reason);
+    const rec = approvalEntry(db, ref);
+    if (!rec.void_requested_at) throw new ValidationError(`${ref.kind}_id`, "err_notFound");
+    const at = now();
+    Object.assign(rec, {
+      void_requested_at: null,
+      void_requested_by_id: null,
+      void_request_reason: null,
+      void_declined_at: at,
+      void_declined_reason,
+    });
+    touch(rec, "void_decline", at);
+    write(db);
   },
 
   // --- Accounts ---

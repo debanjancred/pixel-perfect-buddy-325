@@ -3,7 +3,7 @@
 // read from here, so they can never disagree about what a receipt says.
 import type { I18n } from "@/lib/i18n";
 import type { ChandaTransaction, Club, ClubMember, Household, PaymentMethod } from "@/types/domain";
-import { isVoid } from "@/lib/accounts";
+import { isLive, isRejected, isWaiting } from "@/lib/accounts";
 
 export interface Receipt {
   id: string;
@@ -11,8 +11,13 @@ export interface Receipt {
   amount: number;
   payment_method: PaymentMethod;
   created_at: string;
+  /** Voided, or rejected by the admin: either way the receipt is cancelled (ADR 0003). */
   voided: boolean;
   void_reason?: string | undefined;
+  rejected: boolean;
+  /** Still waiting for the admin; shown on screen only, never on the receipt itself. */
+  waiting: boolean;
+  void_requested: boolean;
   club: Pick<Club, "name_bn" | "name_en" | "area_label" | "puja_year">;
   donor: {
     name: string;
@@ -49,8 +54,12 @@ export function toReceipt(
     amount: tx.amount,
     payment_method: tx.payment_method,
     created_at: tx.created_at,
-    voided: isVoid(tx),
-    void_reason: tx.void_reason,
+    // A rejected entry's receipt is cancelled, like a voided one (ADR 0003).
+    voided: !isLive(tx),
+    void_reason: tx.void_reason ?? tx.rejection_reason ?? undefined,
+    rejected: !tx.voided_at && isRejected(tx),
+    waiting: isLive(tx) && isWaiting(tx),
+    void_requested: isLive(tx) && !!tx.void_requested_at,
     club: {
       name_bn: club.name_bn,
       name_en: club.name_en,

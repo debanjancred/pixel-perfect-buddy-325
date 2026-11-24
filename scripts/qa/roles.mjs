@@ -91,7 +91,7 @@ ok(
   "collector: can open Collect",
 );
 
-// --- Treasurer: void a chanda entry ---
+// --- Treasurer: a void is a request to the admin (ADR 0003) ---
 await actAs("কোষাধ্যক্ষ ০১ — কোষাধ্যক্ষ");
 await go("/home");
 const firstRow = page.locator('a[href^="/receipt/"]').first();
@@ -99,25 +99,30 @@ const name = (await firstRow.locator(".truncate").first().innerText()).trim();
 await firstRow.click();
 await page.waitForURL(/receipt/);
 await page.getByRole("article").waitFor();
-await page.getByRole("button", { name: "বাতিল করুন" }).click();
+await page.getByRole("button", { name: "বাতিলের অনুরোধ" }).click();
 const dlg = page.getByRole("dialog");
-await dlg.getByRole("button", { name: "বাতিল করুন" }).click();
-ok(await seen(dlg.getByText("বাতিলের কারণ লিখুন (অন্তত ৩ অক্ষর)")), "void needs a reason");
+await dlg.getByRole("button", { name: "অনুরোধ পাঠান" }).click();
+ok(await seen(dlg.getByText("বাতিলের কারণ লিখুন (অন্তত ৩ অক্ষর)")), "void request needs a reason");
 await page.fill("#void-reason", "ভুল টাকার পরিমাণ");
-await dlg.getByRole("button", { name: "বাতিল করুন" }).click();
+await dlg.getByRole("button", { name: "অনুরোধ পাঠান" }).click();
 ok(
-  await seen(page.getByRole("article").getByText("এই রসিদটি বাতিল করা হয়েছে").first()),
-  "receipt shows voided",
+  await seen(page.getByText("বাতিলের অনুরোধ অ্যাডমিনের কাছে আছে")),
+  "receipt says the request is with the admin",
 );
 ok(
-  !(await page.getByRole("button", { name: "বাতিল করুন" }).count()),
-  "void button gone once voided",
+  !(await page.getByRole("button", { name: "বাতিলের অনুরোধ" }).count()),
+  "request button gone once asked",
 );
 await go("/home");
-const struck = page.locator("li").filter({ hasText: name }).filter({ hasText: "বাতিল" }).first();
-ok(await seen(struck), `home shows the voided entry struck through (${name})`);
+const requested = page
+  .locator("li")
+  .filter({ hasText: name })
+  .filter({ hasText: "বাতিলের অনুরোধ" })
+  .first();
+ok(await seen(requested), `home marks the entry as cancel requested (${name})`);
 
-// --- Treasurer: void an expense ---
+// --- Admin: void an expense ---
+await actAs("অ্যাডমিন ০১ — অ্যাডমিন");
 await go("/expenses");
 await page.locator("ul.space-y-2 > li > button").first().click();
 await page.getByRole("dialog").getByRole("button", { name: "বাতিল করুন" }).click();
@@ -149,6 +154,7 @@ ok(
 await page.keyboard.press("Escape");
 
 // --- Treasurer: receive cash ---
+await actAs("কোষাধ্যক্ষ ০১ — কোষাধ্যক্ষ");
 await go("/cash");
 const card = page.locator("li").filter({ hasText: "কর্মী ০১" }).first();
 await card.getByRole("button", { name: /নগদ জমা নিন/ }).click();

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Ban } from "lucide-react";
-import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
-import { isVoid } from "@/lib/accounts";
-import { usePermission, useVoidHandover } from "@/hooks/use-data";
+import { isLive, isVoid } from "@/lib/accounts";
+import { usePermission, useVoidHandover, useVoidLabel } from "@/hooks/use-data";
 import { SyncBadge } from "@/components/pk/ui";
 import { VoidDialog } from "@/components/pk/VoidDialog";
+import { ApprovalBadge } from "@/components/pk/Approval";
 import type { CashHandover, ClubMember } from "@/types/domain";
 
 /** Handovers newest first; voided ones stay listed struck through (SPEC 2.3 / 6.3). */
@@ -18,6 +18,7 @@ export function HandoverHistory({
 }) {
   const { t, money, date } = useI18n();
   const canVoid = usePermission("entry.void");
+  const voidLabel = useVoidLabel();
   const voidHandover = useVoidHandover();
   const [voiding, setVoiding] = useState<CashHandover | null>(null);
   const name = (id: string) => members.find((m) => m.id === id)?.name ?? "—";
@@ -41,18 +42,19 @@ export function HandoverHistory({
                       {t("receiptVoid")}
                     </span>
                   )}
+                  <ApprovalBadge entry={h} />
                   <SyncBadge status={h.sync_status} />
                 </div>
               </div>
               <span className={`num font-bold ${voided ? "line-through opacity-60" : ""}`}>
                 {money(h.amount)}
               </span>
-              {canVoid && !voided && (
+              {canVoid && isLive(h) && !h.void_requested_at && (
                 <button
                   type="button"
                   onClick={() => setVoiding(h)}
                   className="tap flex items-center justify-center rounded-full text-destructive"
-                  aria-label={`${t("void")}: ${name(h.collector_id)} ${money(h.amount)}`}
+                  aria-label={`${t(voidLabel)}: ${name(h.collector_id)} ${money(h.amount)}`}
                 >
                   <Ban className="h-5 w-5" />
                 </button>
@@ -65,10 +67,7 @@ export function HandoverHistory({
         <VoidDialog
           summary={`${name(voiding.collector_id)} → ${name(voiding.received_by_id)} · ${money(voiding.amount)}`}
           onClose={() => setVoiding(null)}
-          onVoid={async (reason) => {
-            await voidHandover.mutateAsync({ id: voiding.id, reason });
-            toast.success(t("voided"));
-          }}
+          onVoid={(reason) => voidHandover.mutateAsync({ id: voiding.id, reason })}
         />
       )}
     </>

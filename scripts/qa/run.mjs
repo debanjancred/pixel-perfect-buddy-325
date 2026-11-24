@@ -13,6 +13,7 @@ const SUITES = [
   "club-creation",
   "qa-sweep",
   "lane-filter",
+  "approvals",
   "audit",
 ];
 const only = process.argv.slice(2);

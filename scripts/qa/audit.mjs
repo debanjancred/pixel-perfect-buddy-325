@@ -20,6 +20,18 @@ await page.getByRole("button", { name: "নমুনা ক্লাব দে�
 await page.waitForURL(/home/);
 await page.waitForLoadState("networkidle");
 await demoAsAdmin(page);
+// Something waiting for the admin, so the approvals screen and the badges are audited too.
+await page.evaluate(() => {
+  const db = JSON.parse(localStorage.getItem("pk_db_v2"));
+  const live = db.chanda.filter((c) => c.status === "collected" && !c.voided_at);
+  live.at(-1).approval_status = "pending";
+  Object.assign(live.at(-2), {
+    void_requested_at: new Date().toISOString(),
+    void_requested_by_id: live.at(-2).collector_id,
+    void_request_reason: "দুবার লেখা",
+  });
+  localStorage.setItem("pk_db_v2", JSON.stringify(db));
+});
 const db = await page.evaluate(() => JSON.parse(localStorage.getItem("pk_db_v2")));
 const tx = db.chanda.find((c) => c.status === "collected" && !c.voided_at);
 const exp = db.expenses.find((e) => !e.voided_at);
@@ -38,6 +50,7 @@ const SCREENS = [
   ["accounts", `/club/${slug}/accounts`],
   ["settings", "/settings"],
   ["cash", "/cash"],
+  ["approvals", "/approvals"],
   ["not-found", "/nope"],
 ];
 const report = [];

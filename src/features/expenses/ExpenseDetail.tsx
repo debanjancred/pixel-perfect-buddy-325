@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Ban, Expand, Lock, Pencil } from "lucide-react";
-import { toast } from "sonner";
-import { useHandovers, usePermission, useVoidExpense } from "@/hooks/use-data";
+import { useHandovers, usePermission, useVoidExpense, useVoidLabel } from "@/hooks/use-data";
 import { VoidDialog } from "@/components/pk/VoidDialog";
+import { ApprovalNote } from "@/components/pk/Approval";
 import { useI18n } from "@/lib/i18n";
 import { Modal, SyncBadge } from "@/components/pk/ui";
-import { isVoid } from "@/lib/accounts";
+import { isLive, isVoid } from "@/lib/accounts";
 import type { ClubMember, ExpenseRecord } from "@/types/domain";
 import { expenseFields, expenseLocked } from "./model";
 import { VoucherThumb } from "./Voucher";
@@ -30,9 +30,11 @@ export function ExpenseDetail({
   const i18n = useI18n();
   const { t, money, words } = i18n;
   const voided = isVoid(e);
-  const canVoid = usePermission("entry.void") && !voided;
+  // Rejected entries are final: no edit, no void (ADR 0003). A requested void waits.
+  const canVoid = usePermission("entry.void") && isLive(e) && !e.void_requested_at;
+  const voidLabel = useVoidLabel();
   const { data: handovers = [] } = useHandovers();
-  const canChange = usePermission("expense.add") && !voided;
+  const canChange = usePermission("expense.add") && isLive(e);
   const locked = expenseLocked(e, handovers);
   const voidExpense = useVoidExpense();
   const [voiding, setVoiding] = useState(false);
@@ -53,9 +55,15 @@ export function ExpenseDetail({
         </p>
       )}
 
+      <div className="mb-4 empty:hidden">
+        <ApprovalNote entry={e} />
+      </div>
+
       <div className="text-center">
-        <div className={`text-lg font-bold ${voided ? "line-through" : ""}`}>{e.title}</div>
-        <div className={`num text-4xl font-extrabold text-primary ${voided ? "line-through" : ""}`}>
+        <div className={`text-lg font-bold ${isLive(e) ? "" : "line-through"}`}>{e.title}</div>
+        <div
+          className={`num text-4xl font-extrabold text-primary ${isLive(e) ? "" : "line-through"}`}
+        >
           {money(e.amount)}
         </div>
         <div className="mt-1 text-sm font-semibold text-gold-ink">
@@ -121,7 +129,7 @@ export function ExpenseDetail({
           className="btn btn-outline mt-4 w-full text-destructive"
           onClick={() => setVoiding(true)}
         >
-          <Ban className="h-5 w-5" aria-hidden /> {t("void")}
+          <Ban className="h-5 w-5" aria-hidden /> {t(voidLabel)}
         </button>
       )}
       <button type="button" className="btn btn-primary mt-3 w-full" onClick={onClose}>
@@ -131,10 +139,7 @@ export function ExpenseDetail({
         <VoidDialog
           summary={`${e.title} · ${money(e.amount)}`}
           onClose={() => setVoiding(false)}
-          onVoid={async (reason) => {
-            await voidExpense.mutateAsync({ id: e.id, reason });
-            toast.success(t("voided"));
-          }}
+          onVoid={(reason) => voidExpense.mutateAsync({ id: e.id, reason })}
         />
       )}
     </Modal>

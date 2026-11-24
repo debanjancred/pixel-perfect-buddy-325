@@ -180,6 +180,12 @@ export const helpSchema = z.object({
 });
 export type HelpInput = z.infer<typeof helpSchema>;
 
+export const rejectReasonSchema = z
+  .string()
+  .trim()
+  .min(3, m("err_rejectReason"))
+  .max(200, m("err_tooLong"));
+
 export const voidReasonSchema = z
   .string()
   .trim()

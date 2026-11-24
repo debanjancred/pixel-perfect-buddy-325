@@ -166,7 +166,7 @@ describe.skipIf(!PGRST)("cloud sync against PostgreSQL + PostgREST", () => {
     expect(expense!.ok).toBe(false);
   });
 
-  it("only a treasurer's void goes through, and only once", async () => {
+  it("only an admin's void goes through", async () => {
     const c = chanda({ receipt_no: "PK-2026-C01-0002", amount: 501 });
     await push(as(PHONE.coll), [{ kind: "chanda", record: c }]);
     const voided = {
@@ -176,7 +176,11 @@ describe.skipIf(!PGRST)("cloud sync against PostgreSQL + PostgREST", () => {
       void_reason: "ভুল এন্ট্রি",
     };
     expect((await push(as(PHONE.coll), [{ kind: "chanda", record: voided }]))[0]!.ok).toBe(false);
-    expect((await push(as(PHONE.treas), [{ kind: "chanda", record: voided }]))[0]!.ok).toBe(true);
+    expect((await push(as(PHONE.treas), [{ kind: "chanda", record: voided }]))[0]).toMatchObject({
+      ok: false,
+      error: "err_voidNeedsApproval",
+    });
+    expect((await push(as(PHONE.admin), [{ kind: "chanda", record: voided }]))[0]!.ok).toBe(true);
     const { data } = await as(PHONE.treas)
       .from("chanda_transactions")
       .select("status")
@@ -279,6 +283,14 @@ describe.skipIf(!PGRST)("cloud sync against PostgreSQL + PostgREST", () => {
   });
 
   it("anyone can open the public accounts by slug — totals only", async () => {
+    const waiting = await fetchPublicAccounts(as(null), "integration-club-2026");
+    expect(waiting?.summary).toMatchObject({ total_collected: 0 });
+    const { error } = await as(PHONE.admin)
+      .from("chanda_transactions")
+      .update({ approval_status: "approved" })
+      .eq("approval_status", "pending")
+      .is("voided_at", null);
+    expect(error).toBeNull();
     const pub = await fetchPublicAccounts(as(null), "integration-club-2026");
     expect(pub?.summary).toMatchObject({
       total_collected: 1001,

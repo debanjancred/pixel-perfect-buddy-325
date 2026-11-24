@@ -18,7 +18,7 @@ We work one module at a time. Each phase ships as a minor release.
 
 ## Status board
 
-Updated 2026-10-28 (v0.12.0). **UAT** = released and live on staging, waiting for the owner's
+Updated 2026-11-24 (v0.12.0). **UAT** = released and live on staging, waiting for the owner's
 check; it moves to **Done** when accepted.
 
 ### To do
@@ -28,7 +28,11 @@ check; it moves to **Done** when accepted.
   smoke test, real-device checklist)
 
 ### In progress
-- Nothing right now
+- M14 Admin approval ([ADR 0003](adr/0003-admin-approval.md)), branch `feat/admin-approval`:
+  database, app data, screens (Approvals, badges, void requests, waiting amounts), tests and
+  docs done locally; unit, SQL, browser and a11y checks green. Next: owner review → PR → merge
+  → migration on staging + raise minimum version → release. Not applied to any remote
+  database yet
 
 ### UAT
 - v0.12.0 UAT fixes: expense edit (until the next handover), own categories, expense search,
@@ -75,3 +79,4 @@ check; it moves to **Done** when accepted.
 | 13–15 | M11 Backend (Supabase) | Schema + RLS + triggers in `supabase/migrations`, cloud sync adapter + pull/merge, phone OTP, voucher storage, public accounts link; SQL and PostgREST integration tests | Done (project set up) |
 | 16 | M12 Cloud hardening | One sync at a time, IDs on plain http, server receipt renumbering, writer receipt numbers, devices (3 per person, one collects, `off_device` flag), "see why" sync reasons, re-sent handovers, members list + sheet, keyboard-safe sheets, branded loaders and toasts | Done |
 | 17 | M13 Operations (phase 1) | Per [ADR 0002](adr/0002-operations-console.md): Sentry with PII scrubbing, server-side sync failure log, `app_config` (maintenance, minimum version, announcement), staff roles + audit log, support functions, usage views, Settings → Help tickets | Done (v0.11.0) |
+| 18 | M14 Admin approval | Per [ADR 0003](adr/0003-admin-approval.md): non-admin chanda, expenses, handovers and voids wait for an admin; approvals screen with bulk approve; public totals count approved entries only | In progress |

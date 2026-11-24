@@ -78,6 +78,13 @@ disappears) and Settings → sync works across devices.
   events, create clubs or change devices; chanda, expenses and handovers it still sends are
   accepted (the cash was really taken) and flagged `off_device`. A session is covered from
   the device's first check-in after `…_removed_device_sessions.sql`.
+- **Admin approval** ([ADR 0003](adr/0003-admin-approval.md), `…_admin_approval.sql`): the
+  server stamps each new chanda, expense and handover `approved` (admin) or `pending`
+  (anyone else), whatever the phone sends. Only an admin approves, rejects or voids; a
+  treasurer's void is a request (`void_requested_at`). Decisions already taken are kept, so
+  an offline phone re-sending one is harmless. `public_accounts` counts approved entries
+  only. Older apps' treasurer voids are refused (`err_voidNeedsApproval`), so the release
+  that ships this raises `app_config.min_version`.
 - **Grants:** every table and function is granted explicitly in its migration; Supabase's
   automatic grants on new objects are switched off (`…_security_hardening.sql`), so a new
   migration must `grant` what the app needs.

@@ -101,6 +101,8 @@ describe("handover api", () => {
       collector_id: collector.id,
       amount: 500,
     });
+    const admin = (await api.listMembers()).find((m) => m.role === "admin")!;
+    session.set({ mode: "demo", member_id: admin.id });
     const v = await api.voidHandover(hv.id, "counted twice");
     expect(v).toMatchObject({ void_reason: "counted twice" });
     expect(await keyOf(api.voidHandover(hv.id, "again"))).toBe("err_alreadyVoid");

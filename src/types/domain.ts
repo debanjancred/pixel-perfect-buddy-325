@@ -49,7 +49,27 @@ export interface Household {
   created_at: IsoDateTime;
 }
 
-export interface ChandaTransaction {
+/** Where an entry stands with the admin (ADR 0003). Older entries without one count as approved. */
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+/** Changes this device still has to send for an entry already on the server. Never sent itself. */
+export type PendingOp = "edit" | "review" | "void_request" | "void_decline";
+
+/** Approval and void-request fields shared by chanda, expenses and handovers (ADR 0003). */
+export interface EntryReview {
+  approval_status?: ApprovalStatus;
+  reviewed_by_id?: string | null;
+  reviewed_at?: IsoDateTime | null;
+  rejection_reason?: string | null;
+  void_requested_at?: IsoDateTime | null;
+  void_requested_by_id?: string | null;
+  void_request_reason?: string | null;
+  void_declined_at?: IsoDateTime | null;
+  void_declined_reason?: string | null;
+  pending_ops?: PendingOp[];
+}
+
+export interface ChandaTransaction extends EntryReview {
   id: string; // doubles as idempotency key
   // "PK-{puja_year}-{writer's collector_code}-{seq:4}", e.g. "PK-2026-C01-0001". Money
   // received only: a promise (status 'promised') has none, so receipt sequences have no gaps.
@@ -71,7 +91,7 @@ export interface ChandaTransaction {
   off_device?: boolean;
 }
 
-export interface ExpenseRecord {
+export interface ExpenseRecord extends EntryReview {
   id: string;
   club_id: string;
   category: ExpenseCategory;
@@ -97,7 +117,7 @@ export interface ExpenseRecord {
   sync_status: SyncStatus;
 }
 
-export interface CashHandover {
+export interface CashHandover extends EntryReview {
   id: string;
   club_id: string;
   collector_id: string; // ClubMember.id handing over
@@ -137,6 +157,9 @@ export interface AccountsSummary {
   collection_target: number;
   progress_pct: number; // 0–100 integer
   pending_sync_count: number;
+  /** Waiting for the admin, not in the totals above (members' view only). */
+  waiting_collected?: number;
+  waiting_expenses?: number;
 }
 
 /** What a help request is about (Settings → Help). */
