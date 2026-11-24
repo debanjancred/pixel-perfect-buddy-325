@@ -30,7 +30,7 @@ export function ReceiptCard({ receipt: r }: { receipt: Receipt }) {
             role="status"
             className="mt-3 rounded-xl bg-primary-soft p-2 text-center text-sm font-bold text-primary"
           >
-            {f.t("receiptVoidNote")}
+            {f.t(r.rejected ? "receiptRejectedNote" : "receiptVoidNote")}
             {r.void_reason && <span className="block font-medium">{r.void_reason}</span>}
           </p>
         )}

@@ -5,7 +5,8 @@ import type { ClubMember, UserRole } from "@/types/domain";
 export type Permission =
   | "chanda.add" // collect chanda, add households
   | "expense.add"
-  | "entry.void" // void chanda, expenses and handovers
+  | "entry.void" // void chanda, expenses and handovers (a non-admin's void is a request)
+  | "entry.approve" // approve or reject what others recorded, and decide void requests
   | "handover.record" // receive cash from a collector
   | "member.manage"
   | "event.manage"
@@ -15,6 +16,7 @@ const ALL: readonly Permission[] = [
   "chanda.add",
   "expense.add",
   "entry.void",
+  "entry.approve",
   "handover.record",
   "member.manage",
   "event.manage",

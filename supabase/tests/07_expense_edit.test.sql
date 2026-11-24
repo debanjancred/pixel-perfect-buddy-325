@@ -36,8 +36,10 @@ select test.ok((select amount = 850 and category_name = 'সাউন্ড' and
 select test.expect_error($$update public.expense_records set club_id =
   '44444444-4444-4444-8444-444444444444' where id = 'de000000-0000-4000-8000-000000000001'$$,
   'err_immutable');
+select test.act_as('9000000001');
 select test.expect_error($$update public.expense_records set amount = 1, voided_at = now(),
   void_reason = 'দুটো একসাথে' where id = 'de000000-0000-4000-8000-000000000001'$$, 'err_immutable');
+select test.act_as('9000000002');
 select test.expect_error($$update public.expense_records set date = current_date + 2
   where id = 'de000000-0000-4000-8000-000000000001'$$, 'err_dateFuture');
 select test.ok(true, 'fixed fields, editing and voiding together, and future dates are refused');
@@ -58,6 +60,7 @@ insert into public.cash_handovers (id, club_id, collector_id, received_by_id, am
 select test.expect_error($$update public.expense_records set amount = 900
   where id = 'de000000-0000-4000-8000-000000000001'$$, 'err_expenseLocked');
 select test.ok(true, 'after a handover involving the recorder, the expense is locked');
+select test.act_as('9000000001');
 update public.expense_records set voided_at = now(), void_reason = 'ভুল খরচ' where id = :e1;
 select test.ok((select voided_at is not null from public.expense_records where id = :e1),
   'a locked expense can still be voided');
@@ -77,7 +80,9 @@ update public.expense_records set amount = 450, edited_at = now() where id = :e2
 select test.ok((select amount from public.expense_records where id = :e2) = 450,
   'a handover between other members leaves the expense editable');
 
--- 6. Public accounts total own categories under their names.
+-- 6. Public accounts total own categories under their names (once approved).
+select test.act_as('9000000001');
+update public.expense_records set approval_status = 'approved' where id = :e2;
 select test.act_as(null);
 select test.ok((select bool_or(x ->> 'category' = 'bhog' and (x ->> 'total')::int >= 450)
   from jsonb_array_elements(public.public_accounts('test-club-2026') -> 'expenses_by_category') x),

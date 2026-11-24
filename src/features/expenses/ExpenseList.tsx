@@ -1,7 +1,8 @@
 import { useI18n } from "@/lib/i18n";
 import { SyncBadge } from "@/components/pk/ui";
+import { ApprovalBadge } from "@/components/pk/Approval";
 import type { ExpenseRecord } from "@/types/domain";
-import { isVoid } from "@/lib/accounts";
+import { isLive, isVoid } from "@/lib/accounts";
 import { categoryInfo, categoryKeyOf } from "@/lib/categories";
 import { VoucherThumb } from "./Voucher";
 
@@ -27,7 +28,7 @@ export function ExpenseList({
 function ExpenseRow({ expense: e, onOpen }: { expense: ExpenseRecord; onOpen: () => void }) {
   const { t, money, date } = useI18n();
   const info = categoryInfo(categoryKeyOf(e), t);
-  const voided = isVoid(e);
+  const voided = !isLive(e);
   return (
     <button
       type="button"
@@ -46,11 +47,12 @@ function ExpenseRow({ expense: e, onOpen }: { expense: ExpenseRecord; onOpen: ()
           <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
             {date(`${e.date}T00:00:00`)}
           </span>
-          {voided && (
+          {isVoid(e) && (
             <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-bold text-primary">
               {t("receiptVoid")}
             </span>
           )}
+          <ApprovalBadge entry={e} />
           <SyncBadge status={e.sync_status} />
         </span>
       </span>

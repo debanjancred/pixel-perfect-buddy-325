@@ -8,7 +8,7 @@ import {
   customCategoryKeys,
   type CategoryKey,
 } from "@/lib/categories";
-import { isVoid } from "@/lib/accounts";
+import { isCounted } from "@/lib/accounts";
 import { asciiDigits } from "@/lib/format";
 import type { ClubMember, ExpenseCategory, ExpenseRecord, UserRole } from "@/types/domain";
 
@@ -59,9 +59,9 @@ export interface ExpenseTotals {
   byCategory: CategoryTotal[];
 }
 
-/** Totals exclude voided expenses (SPEC Section 6); voided rows stay listed for audit. */
+/** Totals count approved, live expenses (ADR 0003); the others stay listed for audit. */
 export function expenseTotals(list: ExpenseRecord[]): ExpenseTotals {
-  const live = list.filter((e) => !isVoid(e));
+  const live = list.filter(isCounted);
   const keys: CategoryKey[] = [...EXPENSE_CATEGORIES, ...customCategoryKeys(list)];
   const byCategory = keys.map((key) => {
     const rows = live.filter((e) => categoryKeyOf(e).toLowerCase() === key.toLowerCase());

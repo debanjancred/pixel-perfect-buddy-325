@@ -6,7 +6,28 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-24
+
+Admin approval (M14, ADR 0003).
+
+### Added
+- **Admin approval** ([ADR 0003](docs/adr/0003-admin-approval.md)): chanda, expenses and
+  handovers recorded by a non-admin wait for an admin. The server stamps the approval status;
+  official totals and the public accounts page count approved entries only.
+  - New **Approvals** screen (`/approvals`, linked from Home while something waits): approve
+    one or many at once, reject with a reason, grant or decline void requests, filter by kind.
+  - Home shows the amount still waiting under the totals; entries carry "Waiting for admin",
+    "Rejected" and "Cancel requested" badges; the expense sheet and receipt explain the state.
+  - A treasurer's void is now a request ("Ask to cancel"); only an admin cancels.
+  - A rejected chanda's receipt shows as cancelled ("rejected by the admin"); the Excel
+    export marks waiting and rejected entries with the reason.
+  - Browser suite `scripts/qa/approvals.mjs`; the a11y audit covers the new screen.
+
 ### Changed
+- Expenses: "Approved by" is now **Authorised by** (who agreed the spending), distinct from
+  the admin's approval of the entry.
+- Upgrading needs the database migration `20261030000001_admin_approval.sql` and a higher
+  minimum app version in `app_config`, applied together with this release.
 - Export buttons say **Chanda Excel** / **Expenses Excel** and the card "Export data (Excel)";
   they had kept the old "CSV" wording although the files are `.xlsx`.
 
@@ -406,7 +427,8 @@ events, public accounts, settings, roles & permissions with void and cash handov
   receipts, expenses, events, public audit and club admin, backed by
   localStorage with Bengali/English UI.
 
-[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.9.0...v0.10.0

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { api } from "@/services/api";
+import { api, type EntryRef } from "@/services/api";
 import { session } from "@/services/session";
 import { can, type Permission } from "@/lib/permissions";
 import type { ExpenseEditInput, ExpenseInput } from "@/lib/validation";
@@ -24,6 +24,8 @@ export const queryKeys = {
   expenses: ["expenses"],
   events: ["events"],
   handovers: ["handovers"],
+  // Under "summary" so every mutation that refreshes the summary refreshes this too.
+  approvals: ["summary", "approvals"],
   voucher: (id: string) => ["voucher", id],
   devices: ["devices"],
   collectStanding: ["devices", "standing"],
@@ -66,6 +68,9 @@ export const useTransactions = () =>
 export const useExpenses = () =>
   useQuery({ queryKey: queryKeys.expenses, queryFn: api.listExpenses });
 export const useEvents = () => useQuery({ queryKey: queryKeys.events, queryFn: api.listEvents });
+export const useApprovals = () =>
+  useQuery({ queryKey: queryKeys.approvals, queryFn: api.listApprovals });
+
 export const useHandovers = () =>
   useQuery({ queryKey: queryKeys.handovers, queryFn: api.listHandovers });
 
@@ -98,6 +103,10 @@ export function useCurrentMember() {
 
 /** Whether the current member may do `p` — for hiding actions; api.ts enforces it too. */
 export const usePermission = (p: Permission) => can(useCurrentMember(), p);
+
+/** The void button's label: an admin cancels, anyone else asks the admin to (ADR 0003). */
+export const useVoidLabel = () =>
+  usePermission("entry.approve") ? ("void" as const) : ("requestVoid" as const);
 
 /** For gating a whole screen: `isPending` avoids flashing "no access" while loading. */
 export function useAccess(p: Permission) {
@@ -224,6 +233,41 @@ export function useCreateHandover() {
     },
   });
 }
+
+/** After an admin's decision: send it, then refresh everything it can change. */
+function useApprovalMutation<V>(fn: (v: V) => Promise<void>) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: async () => {
+      await syncIfOnline();
+      await invalidate(
+        queryKeys.transactions,
+        queryKeys.expenses,
+        queryKeys.handovers,
+        queryKeys.summary,
+      );
+    },
+  });
+}
+
+export const useReviewEntries = () =>
+  useApprovalMutation(
+    ({
+      refs,
+      decision,
+      reason,
+    }: {
+      refs: EntryRef[];
+      decision: "approved" | "rejected";
+      reason?: string;
+    }) => api.reviewEntries(refs, decision, reason),
+  );
+export const useApproveVoid = () => useApprovalMutation((ref: EntryRef) => api.approveVoid(ref));
+export const useDeclineVoid = () =>
+  useApprovalMutation(({ ref, reason }: { ref: EntryRef; reason: string }) =>
+    api.declineVoid(ref, reason),
+  );
 
 export function useVoidHandover() {
   const invalidate = useInvalidate();

@@ -20,5 +20,7 @@ BASE=http://localhost:5300 node scripts/qa/offline.mjs
 - Uses the installed Google Chrome (`PW_CHANNEL=chromium` to use Playwright's bundled
   browser after `npx playwright install chromium`).
 - Screenshots and downloads go to `.qa-out/` (`QA_OUT` to change; git-ignored).
+- `approvals` covers ADR 0003: a collector's chanda waits, a treasurer's void is a request,
+  the admin bulk-approves from Home → Approvals.
 - The demo acts as the collector কর্মী ০১; suites that need admin rights switch with
   `demoAsAdmin()` from `helpers.mjs`.

@@ -1,5 +1,5 @@
 import { asciiDigits } from "./format";
-import { isVoid } from "./accounts";
+import { isLive } from "./accounts";
 import type { ChandaTransaction, Household } from "@/types/domain";
 
 /**
@@ -40,7 +40,7 @@ export function householdMatches(h: Household, query: string) {
 export function householdLedgers(chanda: ChandaTransaction[]) {
   const map = new Map<string, HouseholdLedger>();
   const newest = [...chanda]
-    .filter((c) => !isVoid(c))
+    .filter(isLive)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   for (const c of newest) {
     const l = map.get(c.household_id) ?? { collected: 0, promised: 0, due: 0, status: "pending" };

@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useCash } from "@/features/cash";
+import { ApprovalsLink } from "@/features/approvals";
 import { useI18n } from "@/lib/i18n";
 import {
   usePermission,
@@ -17,9 +18,10 @@ import {
   useSummary,
   useTransactions,
 } from "@/hooks/use-data";
-import { isVoid } from "@/lib/accounts";
+import { isLive, isVoid } from "@/lib/accounts";
 import { AppShell } from "@/components/pk/AppShell";
 import { SyncBadge } from "@/components/pk/ui";
+import { ApprovalBadge } from "@/components/pk/Approval";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -57,11 +59,12 @@ function HomePage() {
   const cash = useCash();
 
   const stream = [
-    // Money received, plus voided entries (shown struck through, SPEC 2.3); not pledges.
+    // Money received, plus voided or rejected entries (struck through, SPEC 2.3); not pledges.
     ...chandas
       .filter((c) => c.status === "collected" || isVoid(c))
       .map((c) => ({
-        voided: isVoid(c),
+        entry: c,
+        voided: !isLive(c),
         id: c.id,
         kind: "in" as const,
         name: households.find((h) => h.id === c.household_id)?.resident_name ?? "—",
@@ -74,7 +77,8 @@ function HomePage() {
     ...expenses.map((e) => {
       const m = members.find((x) => x.id === e.authorized_by_id);
       return {
-        voided: isVoid(e),
+        entry: e,
+        voided: !isLive(e),
         id: e.id,
         kind: "out" as const,
         name: e.title,
@@ -132,7 +136,24 @@ function HomePage() {
           </div>
           <div className="mt-1 text-xs opacity-80">{t("target")}</div>
         </div>
+        {/* ADR 0003: what waits for the admin is not in the totals above, but members see it. */}
+        {s && ((s.waiting_collected ?? 0) > 0 || (s.waiting_expenses ?? 0) > 0) && (
+          <div className="mt-3 rounded-xl bg-primary-foreground/12 px-3 py-2 text-xs font-semibold">
+            {(s.waiting_collected ?? 0) > 0 && (
+              <div>
+                {t("collected")}: {t("waitingAmount", { amount: money(s.waiting_collected ?? 0) })}
+              </div>
+            )}
+            {(s.waiting_expenses ?? 0) > 0 && (
+              <div>
+                {t("spent")}: {t("waitingAmount", { amount: money(s.waiting_expenses ?? 0) })}
+              </div>
+            )}
+          </div>
+        )}
       </section>
+
+      <ApprovalsLink />
 
       <section className={`mt-5 grid gap-3 ${["grid-cols-1", "grid-cols-2"][actionCount - 1]}`}>
         {canCollect && (
@@ -215,11 +236,12 @@ function HomePage() {
                       <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
                         {ago(x.at)}
                       </span>
-                      {x.voided && (
+                      {isVoid(x.entry) && (
                         <span className="rounded-full bg-primary-soft px-2 py-0.5 font-bold text-primary">
                           {t("receiptVoid")}
                         </span>
                       )}
+                      <ApprovalBadge entry={x.entry} />
                       <SyncBadge status={x.sync} />
                       {x.offDevice && (
                         <span

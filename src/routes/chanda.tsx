@@ -13,6 +13,7 @@ import {
   useVoidTransaction,
 } from "@/hooks/use-data";
 import { VoidDialog } from "@/components/pk/VoidDialog";
+import { ApprovalBadge } from "@/components/pk/Approval";
 import type { ChandaTransaction } from "@/types/domain";
 import { AppShell, Fab } from "@/components/pk/AppShell";
 import { LoadMore } from "@/components/pk/LoadMore";
@@ -20,7 +21,7 @@ import { usePaged } from "@/hooks/use-paged";
 import { StatusBadge, SyncBadge } from "@/components/pk/ui";
 import { reminderText, waLink } from "@/lib/share";
 import { householdLedgers, householdMatches, laneOptions, ledgerOf } from "@/lib/households";
-import { isVoid } from "@/lib/accounts";
+import { isLive } from "@/lib/accounts";
 
 // Status and lane filters live in the URL: refresh and the back button keep them.
 const searchSchema = z.object({
@@ -98,7 +99,7 @@ function ChandaPage() {
             (c) =>
               c.household_id === h.id &&
               c.status === "collected" &&
-              !isVoid(c) &&
+              isLive(c) &&
               new Date(c.created_at).toDateString() === today,
           ),
         };
@@ -241,6 +242,7 @@ function ChandaPage() {
                               {t("collector")}: {collector.name}
                             </span>
                           )}
+                          {last && <ApprovalBadge entry={last} />}
                           {last && <SyncBadge status={last.sync_status} />}
                         </div>
                         {due > 0 && collected > 0 && (
@@ -294,7 +296,7 @@ function ChandaPage() {
                         )}
                       </div>
                     )}
-                    {canVoid && openPromise && (
+                    {canVoid && openPromise && !openPromise.void_requested_at && (
                       <button
                         type="button"
                         className="tap mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-destructive"
@@ -317,10 +319,7 @@ function ChandaPage() {
         <VoidDialog
           summary={`${cancelling.name} · ${t("promised")} ${money(cancelling.tx.amount)}`}
           onClose={() => setCancelling(null)}
-          onVoid={async (reason) => {
-            await voidTx.mutateAsync({ id: cancelling.tx.id, reason });
-            toast.success(t("voided"));
-          }}
+          onVoid={(reason) => voidTx.mutateAsync({ id: cancelling.tx.id, reason })}
         />
       )}
     </AppShell>

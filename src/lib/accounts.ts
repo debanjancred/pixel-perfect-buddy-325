@@ -6,12 +6,23 @@ import type {
   ChandaTransaction,
   Club,
   ClubMember,
+  EntryReview,
   ExpenseRecord,
 } from "@/types/domain";
 
 /** Voided records stay in the ledger for audit but never count towards totals. */
 export const isVoid = (r: { status?: string; voided_at?: string | undefined }) =>
   r.status === "void" || !!r.voided_at;
+
+export const approvalOf = (r: EntryReview) => r.approval_status ?? "approved";
+export const isRejected = (r: EntryReview) => approvalOf(r) === "rejected";
+export const isWaiting = (r: EntryReview) => approvalOf(r) === "pending";
+/** Neither voided nor rejected: the money really moved, approved or not (ADR 0003). */
+export const isLive = (r: EntryReview & { status?: string; voided_at?: string | undefined }) =>
+  !isVoid(r) && !isRejected(r);
+/** Counts in official totals: live and approved by an admin. */
+export const isCounted = (r: EntryReview & { status?: string; voided_at?: string | undefined }) =>
+  isLive(r) && approvalOf(r) === "approved";
 
 const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
 
@@ -31,10 +42,10 @@ export function computeSummary(
   expenses: ExpenseRecord[],
   handovers: CashHandover[] = [],
 ): AccountsSummary {
-  const live = chanda.filter((c) => !isVoid(c));
+  const live = chanda.filter(isCounted);
   const collected = live.filter((c) => c.status === "collected");
   const total_collected = sum(collected);
-  const total_expenses = sum(expenses.filter((e) => !isVoid(e)));
+  const total_expenses = sum(expenses.filter(isCounted));
   const collection_target = club?.target_amount ?? 0;
   return {
     total_collected,
@@ -52,14 +63,18 @@ export function computeSummary(
     pending_sync_count: [...chanda, ...expenses, ...handovers].filter(
       (r) => r.sync_status !== "synced",
     ).length,
+    waiting_collected: sum(
+      chanda.filter((c) => isLive(c) && isWaiting(c) && c.status === "collected"),
+    ),
+    waiting_expenses: sum(expenses.filter((e) => isLive(e) && isWaiting(e))),
   };
 }
 
 export interface CollectorCash {
   member_id: string;
-  /** Non-void chanda collected in cash by this member. */
+  /** Live chanda collected in cash by this member, approved or waiting. */
   collected: number;
-  /** Non-void handovers from this member. */
+  /** Live handovers from this member, approved or waiting. */
   handed_over: number;
   /** Cash still with the member: collected − handed over (SPEC 6.3). */
   outstanding: number;
@@ -79,10 +94,10 @@ export function cashByCollector(
             c.collector_id === m.id &&
             c.status === "collected" &&
             c.payment_method === "cash" &&
-            !isVoid(c),
+            isLive(c),
         ),
       );
-      const handed_over = sum(handovers.filter((h) => h.collector_id === m.id && !isVoid(h)));
+      const handed_over = sum(handovers.filter((h) => h.collector_id === m.id && isLive(h)));
       return { member_id: m.id, collected, handed_over, outstanding: collected - handed_over };
     })
     .filter((r) => r.collected > 0 || r.handed_over > 0)

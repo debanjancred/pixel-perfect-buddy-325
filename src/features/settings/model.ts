@@ -2,9 +2,11 @@
 import type { I18n } from "@/lib/i18n";
 import type { Cell } from "@/lib/csv";
 import { categoryInfo, categoryKeyOf } from "@/lib/categories";
+import { approvalOf } from "@/lib/accounts";
 import type {
   ChandaTransaction,
   ClubMember,
+  EntryReview,
   ExpenseRecord,
   Household,
   UserRole,
@@ -44,13 +46,22 @@ type Format = Pick<I18n, "t">;
 
 const nameOf = (members: ClubMember[], id: string) => members.find((m) => m.id === id)?.name ?? "";
 
-/** Status and Remarks columns: a cancelled entry shows its reason, anything else "N/A". */
+/**
+ * Status and Remarks columns: a cancelled or rejected entry shows its reason, one waiting for
+ * the admin says so (ADR 0003), anything else "N/A".
+ */
 const statusRemarks = (
-  voided: string | undefined,
-  reason: string | undefined,
+  r: EntryReview & { voided_at?: string; void_reason?: string },
   live: string,
   f: Format,
-) => (voided ? [f.t("status_void"), reason ?? ""] : [live, f.t("export_na")]);
+) =>
+  r.voided_at
+    ? [f.t("status_void"), r.void_reason ?? ""]
+    : approvalOf(r) === "rejected"
+      ? [f.t("approvalRejected"), r.rejection_reason ?? ""]
+      : approvalOf(r) === "pending"
+        ? [`${live} (${f.t("approvalWaiting")})`, f.t("export_na")]
+        : [live, f.t("export_na")];
 
 /**
  * Chanda ledger rows for the Excel export, oldest first, cancelled entries included:
@@ -86,12 +97,7 @@ export function chandaRows(
         c.amount,
         c.payment_method === "cash" ? f.t("cash") : f.t("upi"),
         nameOf(members, c.collector_id),
-        ...statusRemarks(
-          c.voided_at,
-          c.void_reason,
-          f.t(`status_${c.status === "void" ? "void" : c.status}`),
-          f,
-        ),
+        ...statusRemarks(c, f.t(`status_${c.status === "void" ? "void" : c.status}`), f),
       ];
     });
   return [header.map((k) => f.t(k)), ...rows];
@@ -118,7 +124,7 @@ export function expenseRows(expenses: ExpenseRecord[], members: ClubMember[], f:
       e.amount,
       e.paid_to,
       nameOf(members, e.authorized_by_id),
-      ...statusRemarks(e.voided_at, e.void_reason, f.t("status_recorded"), f),
+      ...statusRemarks(e, f.t("status_recorded"), f),
     ]);
   return [header.map((k) => f.t(k)), ...rows];
 }

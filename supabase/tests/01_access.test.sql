@@ -119,17 +119,20 @@ select test.expect_error($$insert into public.chanda_transactions (id, receipt_n
   (select id from public.club_members where club_id = '22222222-2222-4222-8222-222222222222'))$$,
   'foreign key');
 
--- 7. A treasurer voids (once, reason required) and adds expenses with valid authorisers.
-select test.act_as('9000000002');
+-- 7. An admin voids (once, reason required); a treasurer adds expenses with valid authorisers.
+select test.act_as('9000000001');
 update public.chanda_transactions set status = 'void', voided_at = now(), void_reason = 'ভুল এন্ট্রি'
   where id = :tx2;
-select test.ok((select status from public.chanda_transactions where id = :tx2) = 'void', 'treasurer voids');
+select test.ok((select status from public.chanda_transactions where id = :tx2) = 'void', 'admin voids');
+select test.act_as('9000000002');
 select test.expect_error($$update public.chanda_transactions set void_reason = 'আবার'
   where id = 'cccccccc-0000-4000-8000-000000000002'$$, 'err_alreadyVoid');
 select test.expect_error($$update public.chanda_transactions set amount = 9999
   where id = 'cccccccc-0000-4000-8000-000000000001'$$, 'err_immutable');
+select test.act_as('9000000001');
 select test.expect_error($$update public.chanda_transactions set status = 'void',
   voided_at = now() where id = 'cccccccc-0000-4000-8000-000000000001'$$, 'check constraint');
+select test.act_as('9000000002');
 -- Re-pushing an unchanged row (offline retry) is a harmless no-op.
 update public.chanda_transactions set amount = 1001 where id = :tx1;
 select test.ok(true, 're-pushing an unchanged row is allowed');
@@ -154,11 +157,17 @@ insert into public.cash_handovers (id, club_id, collector_id, received_by_id, am
   values (:ho1, :club, :coll, :treas, 600) on conflict (id) do nothing;
 select test.ok((select count(*) from public.cash_handovers where id = :ho1) = 1,
   'a re-sent handover is accepted as a no-op');
--- A voided handover takes no cash, so a refused one can be voided and still sync.
+-- A handover with a void requested skips the cash check, so a refused one still syncs; once
+-- the admin voids it, it takes no cash.
 insert into public.cash_handovers (id, club_id, collector_id, received_by_id, amount,
-  voided_at, void_reason) values (gen_random_uuid(), :club, :coll, :treas, 5000, now(), 'দুবার লেখা');
+  void_requested_at, void_request_reason)
+  values ('cccccccc-0000-4000-8000-0000000000f1', :club, :coll, :treas, 5000, now(), 'দুবার লেখা');
+select test.act_as('9000000001');
+update public.cash_handovers set voided_at = now(), void_reason = 'দুবার লেখা'
+  where id = 'cccccccc-0000-4000-8000-0000000000f1';
+select test.act_as('9000000002');
 select test.ok((select count(*) from public.cash_handovers where voided_at is not null) = 1,
-  'a voided handover syncs without the cash check');
+  'a handover with a void requested syncs without the cash check');
 select test.expect_error($$insert into public.cash_handovers (id, club_id, collector_id,
   received_by_id, amount) values (gen_random_uuid(), '11111111-1111-4111-8111-111111111111',
   'aaaaaaaa-0000-4000-8000-000000000003', 'aaaaaaaa-0000-4000-8000-000000000002', 402)$$,
@@ -223,7 +232,13 @@ select test.ok(public.register_event(:ev2, 1) = 0,
 select test.ok((select registrations_count = 1 from public.club_events where id = :ev2),
   'a deleted event takes no registrations');
 
--- 10. Public accounts: anyone may read totals by slug; no personal data.
+-- 10. Public accounts: anyone may read totals by slug; no personal data. Approved entries
+-- only (09_admin_approval covers the difference), so the admin approves what waits first.
+select test.act_as('9000000001');
+update public.chanda_transactions set approval_status = 'approved'
+  where approval_status = 'pending' and voided_at is null;
+update public.expense_records set approval_status = 'approved'
+  where approval_status = 'pending' and voided_at is null;
 select test.act_as(null);
 select test.ok((public.public_accounts('test-club-2026') -> 'summary' ->> 'total_collected')::int = 1001,
   'public totals exclude voided entries');
@@ -346,12 +361,11 @@ update public.chanda_transactions set status = 'void', voided_at = now(), void_r
   where id = :pr1;
 select test.ok((select status = 'promised' from public.chanda_transactions where id = :pr1),
   'a collector cannot cancel a promise');
-select test.act_as('9000000002');
+select test.act_as('9000000001');
 update public.chanda_transactions set status = 'void', voided_at = now(),
   void_reason = 'পরিবার মত বদলেছে' where id = :pr1;
 select test.ok((select status = 'void' and receipt_no is null from public.chanda_transactions
-  where id = :pr1), 'a treasurer cancels a promise; it stays without a receipt number');
-select test.act_as('9000000001');
+  where id = :pr1), 'an admin cancels a promise; it stays without a receipt number');
 select test.ok((public.public_accounts('test-club-2026') -> 'summary' ->> 'total_promised')::int = 0,
   'a cancelled promise no longer counts in the public accounts');
 

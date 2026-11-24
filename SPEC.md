@@ -151,6 +151,27 @@ same data — a shareable public ledger link, cross-device sync, real OTP — is
 * *Amended after UAT (2026-10-28):* an expense may be **edited** by an admin/treasurer until
   the next cash handover involving the member who recorded it; after that only voiding
   applies. Chanda entries are still never edited.
+* *Amended by [ADR 0003](docs/adr/0003-admin-approval.md) (2026-10-30, admin approval):* only an
+  `admin` sets `voided_at`. A treasurer's void is a **request** with a reason: the entry keeps
+  counting until an admin voids it or declines (with a reason); a declined void can be asked
+  for again. Collectors still can't void or ask to.
+
+#### Story 2.4: Admin Approval of Entries (ADR 0003)
+* **As an** admin,
+* **I want** whatever a non-admin records to the money to wait for my approval,
+* **So that** I am the single point of control over the books.
+
+**Acceptance Criteria:**
+* Chanda, expenses and handovers carry `approval_status` (`pending` / `approved` / `rejected`),
+  stamped by the server: an admin's own entry is approved at once, anyone else's starts pending.
+* A collector's receipt is still issued at once, offline too. A rejected entry's receipt is
+  cancelled and its number never reused.
+* Official totals and the public accounts page count approved entries only; members see the
+  amount waiting separately. Cash in hand counts pending chanda and handovers.
+* Admins review at `/approvals` (Home shows how many wait): approve one or many at once,
+  reject with a reason, and grant or decline void requests. A decision is final.
+* A treasurer's expense edit sends it back to pending; the review must be of the version the
+  admin saw (`err_changedSinceReview`).
 
 ---
 
@@ -234,7 +255,7 @@ same data — a shareable public ledger link, cross-device sync, real OTP — is
 **Acceptance Criteria:**
 * Roles: `admin` (অ্যাডমিন), `treasurer` (কোষাধ্যক্ষ), `collector` (সংগ্রাহক). Labels via `t('role.*')`.
 * Lives at `/settings`.
-* Permissions (MVP, enforced in UI and in `api.ts`): collectors add chanda; treasurers add expenses and void; admins do everything and manage members.
+* Permissions (MVP, enforced in UI and in `api.ts`): collectors add chanda; treasurers add expenses and ask for voids; admins do everything, approve entries and manage members (ADR 0003).
 
 #### Story 6.3: Collector Cash Handover
 * **As a** senior treasurer,

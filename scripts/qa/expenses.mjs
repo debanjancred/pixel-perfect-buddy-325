@@ -57,7 +57,7 @@ const rows = page.locator("ul.space-y-2 > li > button");
 await rows.first().click();
 await page.waitForURL(/expense=/);
 const dlg = page.getByRole("dialog");
-ok((await dlg.innerText()).includes("অনুমোদন"), "row opens details with approver");
+ok((await dlg.innerText()).includes("খরচের অনুমতি দিয়েছেন"), "row opens details with authoriser");
 await page.goBack();
 await page.waitForURL((u) => !u.searchParams.has("expense"));
 ok(!(await dlg.count()), "phone back closes the details sheet");

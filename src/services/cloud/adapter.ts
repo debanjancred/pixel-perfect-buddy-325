@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SyncAdapter, SyncRecord, SyncResult } from "../sync";
 import { ValidationError } from "@/lib/validation";
+import type { EntryReview } from "@/types/domain";
 import { errorKey, isNetworkError } from "./errors";
 
 export interface CloudAdapterDeps {
@@ -28,7 +29,11 @@ const TABLE = {
 
 /** Drop device-only fields before a row goes to the server. */
 function row(record: object) {
-  const { sync_status: _local, ...rest } = record as { sync_status?: unknown };
+  const {
+    sync_status: _local,
+    pending_ops: _ops,
+    ...rest
+  } = record as { sync_status?: unknown; pending_ops?: unknown };
   return rest;
 }
 
@@ -72,6 +77,30 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
     };
     if (r.status) patch.status = r.status;
     await updateOne(table, r.id, patch);
+  };
+
+  /**
+   * Review decisions and void requests from this device, each a separate update. The server
+   * stamps who and when, and keeps a decision already taken, so re-sending is harmless.
+   */
+  const sendReview = async (table: string, r: EntryReview & { id: string }, patch: object = {}) => {
+    const ops = r.pending_ops ?? [];
+    if (ops.includes("review"))
+      await updateOne(table, r.id, {
+        ...patch,
+        approval_status: r.approval_status,
+        rejection_reason: r.rejection_reason ?? null,
+      });
+    if (ops.includes("void_request"))
+      await updateOne(table, r.id, {
+        void_requested_at: r.void_requested_at,
+        void_request_reason: r.void_request_reason,
+      });
+    if (ops.includes("void_decline"))
+      await updateOne(table, r.id, {
+        void_requested_at: null,
+        void_declined_reason: r.void_declined_reason,
+      });
   };
 
   const send = async (item: SyncRecord) => {
@@ -118,6 +147,7 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
       case "chanda":
       case "handover":
         await insertOnce(TABLE[item.kind], row(item.record));
+        await sendReview(TABLE[item.kind], item.record);
         await voidIfNeeded(TABLE[item.kind], item.record);
         return;
       case "expense": {
@@ -139,7 +169,8 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
         await insertOnce(TABLE.expense, { ...row(e), voucher_image_id: voucher ?? null });
         // A correction made before the lock: a separate update (the server refuses edits
         // and voids together, and refuses edits after a handover: err_expenseLocked).
-        if (e.edited_at)
+        // Rows queued before pending_ops existed have none: their edited_at is the only sign.
+        if (e.pending_ops ? e.pending_ops.includes("edit") : e.edited_at)
           await updateOne(TABLE.expense, e.id, {
             category: e.category,
             category_name: e.category_name ?? null,
@@ -150,6 +181,8 @@ export function createCloudAdapter(client: SupabaseClient, deps: CloudAdapterDep
             authorized_by_id: e.authorized_by_id,
             edited_at: e.edited_at,
           });
+        // The edited_at the admin reviewed: the server refuses if the expense changed since.
+        await sendReview(TABLE.expense, e, { edited_at: e.edited_at ?? null });
         await voidIfNeeded(TABLE.expense, e);
         return;
       }
