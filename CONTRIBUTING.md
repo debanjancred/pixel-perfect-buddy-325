@@ -21,6 +21,10 @@ How code moves from an idea to a release. The architecture rules live in
 - Merge into `main` with a merge commit (`git merge --no-ff`) once CI is
   green. Pushing `main` updates the Lovable editor; it does not publish the
   live site (publish from Lovable).
+- `main` is protected by a GitHub ruleset: no deletion or force push, and changes arrive
+  through a pull request with one approval and green CI (`Lint, typecheck, test, build` and
+  `Database (RLS, triggers, functions)`). Repository admins and the Lovable sync bypass it.
+  Contributors: fork, branch, open a pull request.
 
 ## Commits
 
