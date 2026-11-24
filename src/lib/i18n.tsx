@@ -97,6 +97,8 @@ const dict = {
   lane: ["লেন / ব্লক", "Lane / Block"],
   allLanes: ["সব লেন / ব্লক", "All lanes / blocks"],
   phone: ["মোবাইল নম্বর", "Mobile number"],
+  phoneOptional: ["মোবাইল নম্বর (ঐচ্ছিক)", "Mobile number (optional)"],
+  noMobile: ["মোবাইল নেই", "No mobile"],
   amount: ["টাকার পরিমাণ", "Amount"],
   other: ["অন্য", "Other"],
   mode: ["পেমেন্ট পদ্ধতি", "Payment mode"],
