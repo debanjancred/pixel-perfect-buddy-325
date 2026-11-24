@@ -6,6 +6,10 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-24
+
+Household mobile number optional.
+
 ### Changed
 - Households: the mobile number field says **(optional)** — many residents have no mobile or
   WhatsApp. A household without one shows "No mobile" in the register and no WhatsApp
@@ -432,7 +436,8 @@ events, public accounts, settings, roles & permissions with void and cash handov
   receipts, expenses, events, public audit and club admin, backed by
   localStorage with Bengali/English UI.
 
-[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.10.0...v0.11.0

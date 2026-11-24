@@ -15,11 +15,12 @@ We work one module at a time. Each phase ships as a minor release.
 | v0.11.0 | Operations | M13 phase 1 (ADR 0002), promises, event edit/delete, install button | Released |
 | v0.12.0 | UAT fixes | Expenses edit/categories/search, chanda lanes/optional house no., Excel export, club options, numerals follow language | Released |
 | v0.13.0 | Admin approval | M14 (ADR 0003): non-admin entries and voids wait for an admin; Approvals screen with bulk approve | Released |
+| v0.13.1 | Phone optional | Household mobile number optional; no WhatsApp reminder without one | Released |
 | v1.0.0 | Production | M11 Supabase backend, sync, operations on production | Runbook ready (`docs/GO-LIVE.md`); login = Supabase test numbers (`docs/LOGIN-OPTIONS.md`); waiting for the go-live session |
 
 ## Status board
 
-Updated 2026-11-24 (v0.13.0). **UAT** = released and live on staging, waiting for the owner's
+Updated 2026-11-24 (v0.13.1). **UAT** = released and live on staging, waiting for the owner's
 check; it moves to **Done** when accepted.
 
 ### To do
@@ -32,11 +33,11 @@ check; it moves to **Done** when accepted.
 - Nothing right now
 
 ### UAT
-- Household mobile number optional (merged to main, unreleased): Collect says "optional",
+- v0.13.1 Household mobile number optional: Collect says "optional",
   register shows "No mobile" and hides the WhatsApp reminder
 - v0.13.0 Admin approval ([ADR 0003](adr/0003-admin-approval.md)): Approvals screen (bulk
   approve, reject with reason, cancel requests), waiting amounts on Home, badges, treasurer's
-  cancel = request. Staging needs `min_version` raised to 0.13.0 once the app is published
+  cancel = request. Staging needs `min_version` raised to 0.13.1 once the app is published
 - v0.12.0 UAT fixes: expense edit (until the next handover), own categories, expense search,
   Load more (expenses, register), optional house no., add lane while collecting, 2-letter
   household search, clearer messages, "Cancelled" wording, Excel export (admin/treasurer),
