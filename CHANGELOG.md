@@ -6,6 +6,10 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-24
+
+Admin approval (M14, ADR 0003).
+
 ### Added
 - **Admin approval** ([ADR 0003](docs/adr/0003-admin-approval.md)): chanda, expenses and
   handovers recorded by a non-admin wait for an admin. The server stamps the approval status;
@@ -423,7 +427,8 @@ events, public accounts, settings, roles & permissions with void and cash handov
   receipts, expenses, events, public audit and club admin, backed by
   localStorage with Bengali/English UI.
 
-[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/debanjancred/pixel-perfect-buddy-325/compare/v0.9.0...v0.10.0

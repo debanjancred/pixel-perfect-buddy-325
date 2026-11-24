@@ -14,11 +14,12 @@ We work one module at a time. Each phase ships as a minor release.
 | v0.10.0 | Cloud hardening | M12 sync fixes, devices, writer receipt numbers, members UI, keyboard-safe sheets, toasts | Released |
 | v0.11.0 | Operations | M13 phase 1 (ADR 0002), promises, event edit/delete, install button | Released |
 | v0.12.0 | UAT fixes | Expenses edit/categories/search, chanda lanes/optional house no., Excel export, club options, numerals follow language | Released |
+| v0.13.0 | Admin approval | M14 (ADR 0003): non-admin entries and voids wait for an admin; Approvals screen with bulk approve | Released |
 | v1.0.0 | Production | M11 Supabase backend, sync, operations on production | Runbook ready (`docs/GO-LIVE.md`); login = Supabase test numbers (`docs/LOGIN-OPTIONS.md`); waiting for the go-live session |
 
 ## Status board
 
-Updated 2026-11-24 (v0.12.0). **UAT** = released and live on staging, waiting for the owner's
+Updated 2026-11-24 (v0.13.0). **UAT** = released and live on staging, waiting for the owner's
 check; it moves to **Done** when accepted.
 
 ### To do
@@ -28,13 +29,12 @@ check; it moves to **Done** when accepted.
   smoke test, real-device checklist)
 
 ### In progress
-- M14 Admin approval ([ADR 0003](adr/0003-admin-approval.md)), branch `feat/admin-approval`:
-  database, app data, screens (Approvals, badges, void requests, waiting amounts), tests and
-  docs done locally; unit, SQL, browser and a11y checks green. Next: owner review → PR → merge
-  → migration on staging + raise minimum version → release. Not applied to any remote
-  database yet
+- Nothing right now
 
 ### UAT
+- v0.13.0 Admin approval ([ADR 0003](adr/0003-admin-approval.md)): Approvals screen (bulk
+  approve, reject with reason, cancel requests), waiting amounts on Home, badges, treasurer's
+  cancel = request. Staging needs `min_version` raised to 0.13.0 once the app is published
 - v0.12.0 UAT fixes: expense edit (until the next handover), own categories, expense search,
   Load more (expenses, register), optional house no., add lane while collecting, 2-letter
   household search, clearer messages, "Cancelled" wording, Excel export (admin/treasurer),
