@@ -237,6 +237,7 @@ function ChandaPage() {
                         <div className="font-bold leading-snug">{h.resident_name}</div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                           <StatusBadge status={status} />
+                          {!h.phone_number && <span>{t("noMobile")}</span>}
                           {collector && (
                             <span>
                               {t("collector")}: {collector.name}
@@ -265,8 +266,9 @@ function ChandaPage() {
                       </div>
                     </div>
                     {(status !== "paid" || lastCollected) && (
-                      <div className="mt-3 flex gap-2 [&>*]:flex-1">
-                        {status !== "paid" && (
+                      <div className="mt-3 flex gap-2 empty:hidden [&>*]:flex-1">
+                        {/* Many residents have no mobile: no number, no WhatsApp reminder. */}
+                        {status !== "paid" && h.phone_number && (
                           <a
                             href={waLink(h.phone_number, msg)}
                             target="_blank"

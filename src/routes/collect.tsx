@@ -307,7 +307,7 @@ function CollectPage() {
                 />
                 <TextField
                   id="collect-phone"
-                  label={t("phone")}
+                  label={t("phoneOptional")}
                   type="tel"
                   inputMode="numeric"
                   autoComplete="off"

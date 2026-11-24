@@ -202,6 +202,17 @@ describe("household ledger", () => {
     expect((await api.createHousehold({ ...base, lane_block: "লেন ১০" })).house_flat_no).toBe("");
   });
 
+  it("accepts a household without a mobile number (many residents have none)", async () => {
+    await demo();
+    const h = await api.createHousehold({
+      resident_name: "মোবাইল ছাড়া",
+      lane_block: "লেন ৯",
+      phone_number: "",
+    });
+    expect(h.phone_number ?? "").toBe("");
+    expect((await api.listHouseholds()).some((x) => x.id === h.id)).toBe(true);
+  });
+
   it("search matches Bengali digits, names, lanes and phone numbers", async () => {
     const { households } = await demo();
     const h = households.find((x) => x.house_flat_no === "102")!;

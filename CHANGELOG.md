@@ -6,6 +6,11 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Changed
+- Households: the mobile number field says **(optional)** — many residents have no mobile or
+  WhatsApp. A household without one shows "No mobile" in the register and no WhatsApp
+  reminder button; its receipt can still be printed or saved as an image.
+
 ## [0.13.0] - 2026-11-24
 
 Admin approval (M14, ADR 0003).
