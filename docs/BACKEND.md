@@ -116,9 +116,10 @@ nothing is sent. Development builds never send. Decision and limits: ADR 0002.
 - **Quota:** at most 25 events per page load; offline fetch errors, browser quirks and
   extension errors are ignored. Errors recorded offline are sent when the phone reconnects.
 - **Environment:** `local` for localhost and LAN addresses, `production` everywhere else.
-- **Readable stack traces:** with an organization token as `SENTRY_AUTH_TOKEN` in the build
-  environment (Sentry → Settings → Organization Tokens; never `VITE_`-prefixed), `vite build`
-  uploads source maps to the `pujo-khata` project and deletes them from `.output/public`; the
+- **Readable stack traces:** with the organization slug as `SENTRY_ORG` and an organization
+  token as `SENTRY_AUTH_TOKEN` in the build environment (Sentry → Settings → Organization
+  Tokens; never `VITE_`-prefixed), `vite build` uploads source maps to the project in
+  `SENTRY_PROJECT` (default `pujo-khata`) and deletes them from `.output/public`; the
   build fails if any map would be published. Maps must come from the build that is deployed,
   so set the token where the published site is built. Without it, builds are unchanged and
   traces show minified code.

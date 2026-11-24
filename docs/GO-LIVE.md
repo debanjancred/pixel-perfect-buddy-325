@@ -10,7 +10,7 @@ checks and code. Claude touches production only after your explicit yes for that
 either you run the command with `!` in Claude Code, or you allow production access in
 Claude Code's permissions first.
 
-**Projects:** *staging* `kohagveijxlxyeswtzts` (Seoul, linked CLI, `.env` `VITE_*`) and
+**Projects:** *staging* (Seoul, linked CLI, `.env` `VITE_*`) and
 *production* `PROD_SUPABASE_*` in `.env` (Mumbai, never linked; pushed with `--db-url`).
 Details: [BACKEND.md](BACKEND.md).
 
@@ -74,7 +74,7 @@ npx supabase@2.119.0 db push --dry-run --db-url "$PROD_DB"
 | ✓ | Step | Who |
 |---|---|---|
 | ☐ | In Lovable's environment settings set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the **production** values, and `VITE_SENTRY_DSN`. | You |
-| ☐ | If Lovable's build can hold a secret, also set `SENTRY_AUTH_TOKEN` (readable stack traces); otherwise skip it. | You |
+| ☐ | If Lovable's build can hold a secret, also set `SENTRY_ORG` and `SENTRY_AUTH_TOKEN` (readable stack traces); otherwise skip it. | You |
 | ☐ | **Release v1.0.0:** release branch → version 1.0.0, changelog dated, PR → merge → tag `v1.0.0`. | Claude (merge and tag with your yes) |
 | ☐ | **Publish** the site from Lovable. | You |
 
