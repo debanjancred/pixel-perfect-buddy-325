@@ -14,9 +14,11 @@ const { version } = JSON.parse(readFileSync(new URL("./package.json", import.met
 // Error monitoring (ADR 0002): with a Sentry organization token in the build environment,
 // production builds upload source maps so stack traces show the real files and lines, then
 // delete the maps so they are never published. Without the token nothing changes.
-const sentryToken =
-  process.env["SENTRY_AUTH_TOKEN"] ??
-  loadEnv("production", process.cwd(), "SENTRY_")["SENTRY_AUTH_TOKEN"];
+// Organization and token come from the environment (SENTRY_ORG, SENTRY_AUTH_TOKEN), never
+// the source; uploading needs both.
+const sentryEnv = { ...loadEnv("production", process.cwd(), "SENTRY_"), ...process.env };
+const sentryOrg = sentryEnv["SENTRY_ORG"];
+const sentryToken = sentryOrg ? sentryEnv["SENTRY_AUTH_TOKEN"] : undefined;
 
 /** Fails the build if a source map would be published (they reveal the full source). */
 const noPublicSourceMaps: Plugin = {
@@ -43,22 +45,23 @@ export default defineConfig({
     define: { __APP_VERSION__: JSON.stringify(version) },
     ...(sentryToken && { build: { sourcemap: "hidden" } }),
   },
-  plugins: sentryToken
-    ? [
-        sentryVitePlugin({
-          org: "debanjan-developer",
-          project: "pujo-khata",
-          authToken: sentryToken,
-          // Same name the app reports (src/services/monitoring.ts).
-          release: { name: `pujo-khata@${version}` },
-          // Explicit path: a bare "**/*.map" skips dot-folders like .output and would match
-          // node_modules instead.
-          sourcemaps: { filesToDeleteAfterUpload: [".output/public/**/*.map"] },
-          telemetry: false,
-        }),
-        noPublicSourceMaps,
-      ]
-    : [],
+  plugins:
+    sentryOrg && sentryToken
+      ? [
+          sentryVitePlugin({
+            org: sentryOrg,
+            project: sentryEnv["SENTRY_PROJECT"] ?? "pujo-khata",
+            authToken: sentryToken,
+            // Same name the app reports (src/services/monitoring.ts).
+            release: { name: `pujo-khata@${version}` },
+            // Explicit path: a bare "**/*.map" skips dot-folders like .output and would match
+            // node_modules instead.
+            sourcemaps: { filesToDeleteAfterUpload: [".output/public/**/*.map"] },
+            telemetry: false,
+          }),
+          noPublicSourceMaps,
+        ]
+      : [],
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

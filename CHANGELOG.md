@@ -6,6 +6,16 @@ All notable changes to Pujo Khata. Format follows
 
 ## [Unreleased]
 
+### Added
+- MIT licence (`LICENSE`) and a security policy (`SECURITY.md`) for private vulnerability
+  reports, ahead of opening the source.
+
+### Changed
+- The Sentry organization for source-map uploads comes from `SENTRY_ORG` in the build
+  environment instead of the code; uploads need both `SENTRY_ORG` and `SENTRY_AUTH_TOKEN`.
+- `.lovable/` (Lovable editor metadata) is no longer tracked in git.
+- Go-live runbook no longer names the staging project.
+
 ## [0.13.1] - 2026-11-24
 
 Household mobile number optional.

@@ -37,6 +37,9 @@ package-lock.json
 # Browser QA output
 .qa-out
 
+# Lovable editor metadata
+.lovable/
+
 # Local environment
 .env
 .env.local
